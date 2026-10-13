@@ -1,4 +1,4 @@
--- ADHONEP-SC claude v3.1 — perfil "Sócio" + exclusão pelo administrador
+-- ADHONEP-SC claude v3.2 — perfil "Sócio" + exclusão pelo administrador
 -- Pressupõe: migrações até v1.5 aplicadas. Idempotente. Rode UMA vez no SQL Editor do Supabase.
 begin;
 

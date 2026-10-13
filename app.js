@@ -326,5 +326,5 @@ document.addEventListener('DOMContentLoaded',()=>{try{const els=document.querySe
 /* ---- v2.4: botão Excluir (somente administrador) ---- */
 (function(){const _ra=renderAll;renderAll=function(){_ra.apply(this,arguments);try{adhInjectDeletes()}catch(e){}}})();
 
-/* v3.1 · links de comunicados: só http(s) */
+/* v3.2 · links de comunicados: só http(s) */
 function adhSafeUrl(u){try{const x=new URL(String(u||''),location.href);return(x.protocol==='https:'||x.protocol==='http:')?x.href:'#'}catch(e){return'#'}}

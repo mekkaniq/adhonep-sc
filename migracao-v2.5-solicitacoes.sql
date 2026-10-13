@@ -1,4 +1,4 @@
--- ADHONEP-SC claude v3.1 — garante que o formulário público GRAVA e o administrador LÊ/DECIDE as solicitações de cadastro
+-- ADHONEP-SC claude v3.2 — garante que o formulário público GRAVA e o administrador LÊ/DECIDE as solicitações de cadastro
 -- Idempotente. Rode uma vez no SQL Editor.
 begin;
 grant usage on schema public to anon, authenticated;
