@@ -1,4 +1,4 @@
-# Criar usuários pelo painel (claude v3.2)
+# Criar usuários pelo painel (claude v3.3)
 
 O navegador nunca pode guardar a chave `service_role`. Por isso a criação de contas roda numa **Edge Function** do Supabase.
 

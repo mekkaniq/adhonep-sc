@@ -296,7 +296,7 @@ button,.btn,.nav,.switch{touch-action:manipulation;-webkit-tap-highlight-color:t
 .amap-admin .muni.st-none{fill-opacity:.82}
 .amap-relief,.amap-bgimg{transition:opacity .5s ease}
 
-/* ===== claude v3.2: terreno procedural alinhado aos limites reais ===== */
+/* ===== claude v3.3: terreno procedural alinhado aos limites reais ===== */
 .amap-relief,.amap-bgimg{display:none}
 .amap-terrain{transition:opacity .5s ease}
 .amap-stage:not([data-level="0"]) .amap-terrain{opacity:.75}
