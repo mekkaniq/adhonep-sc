@@ -296,7 +296,7 @@ button,.btn,.nav,.switch{touch-action:manipulation;-webkit-tap-highlight-color:t
 .amap-admin .muni.st-none{fill-opacity:.82}
 .amap-relief,.amap-bgimg{transition:opacity .5s ease}
 
-/* ===== claude v2.6: terreno procedural alinhado aos limites reais ===== */
+/* ===== claude v2.8: terreno procedural alinhado aos limites reais ===== */
 .amap-relief,.amap-bgimg{display:none}
 .amap-terrain{transition:opacity .5s ease}
 .amap-stage:not([data-level="0"]) .amap-terrain{opacity:.75}
@@ -309,3 +309,20 @@ button,.btn,.nav,.switch{touch-action:manipulation;-webkit-tap-highlight-color:t
 /* v2.4 ativos em dourado ouro */
 .amap-admin .muni.st-active{fill:url(#sg-active);stroke:#fff3c4;stroke-width:.7;filter:drop-shadow(0 0 4px rgba(255,200,80,.85))}
 .amap-admin .muni.st-active:hover{filter:brightness(1.1) drop-shadow(0 0 7px rgba(255,214,110,1))}
+
+/* v2.7 · card da rede visível no celular + desfoque atrás para leitura */
+.hero-box{background:rgba(7,18,38,.46)!important;-webkit-backdrop-filter:blur(10px) saturate(1.1);backdrop-filter:blur(10px) saturate(1.1);border:1px solid rgba(255,255,255,.2)!important;box-shadow:0 10px 30px rgba(0,0,0,.28)}
+.hero-box p{color:#e8eef6!important}
+.hero h1,.hero p{text-shadow:0 2px 14px rgba(0,0,0,.45)}
+@media(max-width:680px){.hero-box{display:block!important;margin-top:18px;padding:16px 18px}.hero-box strong{font-size:30px}}
+/* v2.7 · seção Conheça a ADHONEP */
+.about{background:#fff}
+.about-lead{max-width:860px;font-size:1.05rem;line-height:1.75;color:#3a4a5d;margin:4px 0 26px}
+.about-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.about-card{background:#f6f9fc;border:1px solid var(--line);border-radius:16px;padding:22px 24px}
+.about-card:nth-child(1),.about-card:nth-child(2),.about-card:nth-child(5){grid-column:span 2}
+.about-card h3{margin:0 0 10px;font-size:1.15rem;color:var(--navy);position:relative;padding-left:14px}
+.about-card h3:before{content:"";position:absolute;left:0;top:.2em;bottom:.2em;width:4px;border-radius:4px;background:var(--gold)}
+.about-card p{margin:0 0 10px;line-height:1.7;color:#4a5a6c}
+.about-card strong{color:var(--navy)}
+@media(max-width:860px){.about-grid{grid-template-columns:1fr}.about-card:nth-child(n){grid-column:auto}}

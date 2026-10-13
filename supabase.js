@@ -48,7 +48,7 @@ function signOutAdmin(){adhStoreSession(null);adhProfile=null;currentRole='Admin
 
 // Cache local versionado: reutiliza os últimos dados reais carregados com sucesso.
 // O cache é apenas de leitura; gravações administrativas continuam exigindo confirmação do Supabase.
-const ADH_CACHE_VERSION = 'claude-v2.6';
+const ADH_CACHE_VERSION = 'claude-v2.8';
 function adhCacheRead(key, maxAgeMs=30*24*60*60*1000){
   try{
     const store=adhGetStorage('localStorage');if(!store)return null;

@@ -199,7 +199,7 @@ function rolePermissions(role){
   const __rp=adhRealPermissions();if(__rp)return __rp;
  const full=['Administrador','Diretor estadual'];
  const map={
-  'Administrador':{pages:['dashboard','chapters','regions','events','announcements','reports','speakers','members','users','audit'],edit:['chapter','region','event','announcement','report','speaker','user','audit']},
+  'Administrador':{pages:['dashboard','chapters','regions','events','announcements','reports','speakers','members','access-requests','users','audit'],edit:['chapter','region','event','announcement','report','speaker','user','audit']},
   'Diretor estadual':{pages:['dashboard','chapters','regions','events','announcements','reports','speakers','users','audit'],edit:['chapter','region','event','announcement','report','speaker','user']},
   'Diretor regional':{pages:['dashboard','chapters','events','reports','speakers','audit'],edit:['chapter','event','report','speaker']},
   'Representante de campo':{pages:['dashboard','chapters','events','reports','speakers'],edit:['chapter','event','report','speaker']},

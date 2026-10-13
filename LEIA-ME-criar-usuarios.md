@@ -1,4 +1,4 @@
-# Criar usuários pelo painel (claude v2.6)
+# Criar usuários pelo painel (claude v2.8)
 
 O navegador nunca pode guardar a chave `service_role`. Por isso a criação de contas roda numa **Edge Function** do Supabase.
 
@@ -31,3 +31,11 @@ No painel: Solicitações de cadastro → **Exportar planilha (CSV)** para aprov
 ## v2.5 — solicitações de cadastro
 Rode `supabase/migracao-v2.5-solicitacoes.sql`. Ela garante os GRANTs e as regras (RLS) para o formulário público gravar e só o administrador ler/decidir.
 No painel, a tela "Solicitações de cadastro" agora carrega ao abrir e se atualiza a cada 45 s.
+
+## v2.7
+Sem SQL novo. Suba: index.html, styles.css, js/app.js e sw.js (e mantenha js/supabase.js da v2.6).
+Corrige: "Solicitações de cadastro" estava oculta no menu do administrador.
+
+## v2.8
+Sem SQL novo. Suba: index.html, sw.js, sitemap.xml, privacidade.html, termos.html e assets/apple-touch-icon-2.png (pasta assets).
+Termos de Uso e Política de Privacidade copiados do site anterior (texto idêntico, atualização 22/08/2026).
