@@ -1,4 +1,6 @@
-window.ADH_VER_SB='3.5';
+window.ADH_VER_SB='3.6';
+/* Endereço (slug) da Edge Function que cria contas, como o Supabase a publicou: .../functions/v1/rapid-responder */
+const ADH_USER_FN='rapid-responder';
 
 // Camada de integração Supabase para autenticação e solicitações de acesso.
 // Reutiliza a única configuração pública definida em app.js. Nunca coloque service_role no navegador.
@@ -171,7 +173,7 @@ async function loadPublicAnnouncements(){const box=document.getElementById('anno
 function renderRegionalAnnouncements(){const id=document.getElementById('annRegionPick').value;document.querySelector('#announcementsSection [data-rlist]').innerHTML=id?adhPublicRegional.filter(r=>String(r.region_id)===id).map(annCardHtml).join(''):''}
 
 /* ---- v2.4: usuários, sócios, exclusão (Edge Function admin-create-user) ---- */
-async function adhUserFn(body){const res=await fetch(ADH_SUPABASE_URL+'/functions/v1/admin-create-user',{method:'POST',headers:adhHeaders(),body:JSON.stringify(body)});const out=await res.json().catch(()=>({}));if(!res.ok||!out.ok)throw new Error(out.error||('Erro '+res.status+(res.status===404?' — a função admin-create-user ainda não foi publicada no Supabase.':'')));return out}
+async function adhUserFn(body){const res=await fetch(ADH_SUPABASE_URL+'/functions/v1/'+ADH_USER_FN,{method:'POST',headers:adhHeaders(),body:JSON.stringify(body)});const out=await res.json().catch(()=>({}));if(!res.ok||!out.ok)throw new Error(out.error||('Erro '+res.status+(res.status===404?' — a função de criar contas ('+ADH_USER_FN+') não foi encontrada no Supabase.':'')));return out}
 function nuScope(){const r=document.getElementById('nuRole').value;document.getElementById('nuRegionWrap').style.display=r==='regional_director'||r==='field_representative'?'':'none';document.getElementById('nuChapterWrap').style.display=r==='chapter_president'||r==='member'?'':'none'}
 function openNewUser(mode){if(!adhSession)return openRealLogin();const pres=adhProfile&&adhProfile.role==='chapter_president';if(!adhProfile||(adhProfile.role!=='state_admin'&&!pres)){toast('Sem permissão para cadastrar usuários.');return}
  const f=document.querySelector('#newUserModal form');f.reset();const roleSel=document.getElementById('nuRole');
