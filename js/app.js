@@ -1,3 +1,4 @@
+window.ADH_VER_APP='3.4';
 
 const initialChapters=[];
 const initialEvents=[];
@@ -199,7 +200,7 @@ function rolePermissions(role){
   const __rp=adhRealPermissions();if(__rp)return __rp;
  const full=['Administrador','Diretor estadual'];
  const map={
-  'Administrador':{pages:['dashboard','chapters','regions','events','announcements','reports','speakers','members','users','audit'],edit:['chapter','region','event','announcement','report','speaker','user','audit']},
+  'Administrador':{pages:['dashboard','chapters','regions','events','announcements','reports','speakers','members','access-requests','users','audit'],edit:['chapter','region','event','announcement','report','speaker','user','audit']},
   'Diretor estadual':{pages:['dashboard','chapters','regions','events','announcements','reports','speakers','users','audit'],edit:['chapter','region','event','announcement','report','speaker','user']},
   'Diretor regional':{pages:['dashboard','chapters','events','reports','speakers','audit'],edit:['chapter','event','report','speaker']},
   'Representante de campo':{pages:['dashboard','chapters','events','reports','speakers'],edit:['chapter','event','report','speaker']},
@@ -289,7 +290,7 @@ function announcementPublic(a){const now=Date.now();return a.status==='published
 
 
 
-function openAnnouncementPublic(id){const a=statewideAnnouncements.find(x=>x.id===id&&announcementPublic(x));if(!a)return;const content=`<div class="modal open" id="announcementReadModal" onclick="if(event.target===this)this.remove()"><div class="modalbox"><div class="modalhead"><div><div class="eyebrow">Comunicado estadual</div><h2>${esc(a.title)}</h2></div><button class="btn" onclick="document.getElementById('announcementReadModal').remove()">Fechar</button></div><p>${esc(a.summary)}</p><div style="white-space:pre-wrap;line-height:1.7">${esc(a.body)}</div><div class="actions" style="margin-top:16px">${a.actionUrl&&a.actionLabel?`<a class="btn primary" href="${esc(a.actionUrl)}" target="_blank" rel="noopener">${esc(a.actionLabel)}</a>`:''}<button class="btn" onclick="document.getElementById('announcementReadModal').remove()">Fechar</button></div></div></div>`;document.body.insertAdjacentHTML('beforeend',content)}
+function openAnnouncementPublic(id){const a=statewideAnnouncements.find(x=>x.id===id&&announcementPublic(x));if(!a)return;const content=`<div class="modal open" id="announcementReadModal" onclick="if(event.target===this)this.remove()"><div class="modalbox"><div class="modalhead"><div><div class="eyebrow">Comunicado estadual</div><h2>${esc(a.title)}</h2></div><button class="btn" onclick="document.getElementById('announcementReadModal').remove()">Fechar</button></div><p>${esc(a.summary)}</p><div style="white-space:pre-wrap;line-height:1.7">${esc(a.body)}</div><div class="actions" style="margin-top:16px">${a.actionUrl&&a.actionLabel?`<a class="btn primary" href="${esc(adhSafeUrl(a.actionUrl))}" target="_blank" rel="noopener">${esc(a.actionLabel)}</a>`:''}<button class="btn" onclick="document.getElementById('announcementReadModal').remove()">Fechar</button></div></div></div>`;document.body.insertAdjacentHTML('beforeend',content)}
 function init(){safeLoad();chapters=[];events=[];speakers=[];reports=[];audit=[];regions=[];municipalities=[];users=[];statewideAnnouncements=[];try{Object.keys(localStorage).filter(k=>k.startsWith('adhonep_3v4_demo_')||k.startsWith('adhonep_v5_')).forEach(k=>localStorage.removeItem(k))}catch(e){}document.querySelectorAll('.muni,.pin').forEach(el=>el.addEventListener('click',()=>{const city=el.dataset.city;document.getElementById('publicCity').value=[...document.getElementById('publicCity').options].some(o=>o.value===city)?city:'';document.getElementById('findChapter').value=city;renderPublic();document.getElementById('publicList').scrollIntoView({behavior:'smooth',block:'nearest'})}));renderAll();if(adhSession)loadPersistentModules().catch(e=>{console.warn('Módulos persistentes indisponíveis:',e.message);toast('Não foi possível carregar os módulos do Supabase: '+e.message)});loadEventsFromSupabase(true).then(()=>{window.adhPublicEventsUnavailable=false;renderAll()}).catch(e=>{events=[];window.adhPublicEventsUnavailable=true;const target=document.getElementById('publicEvents');if(target)target.innerHTML='<div class="panel" style="grid-column:1/-1"><p class="sub">Agenda temporariamente indisponível. Tente novamente mais tarde.</p></div>';console.warn('Agenda pública indisponível; nenhum evento demonstrativo será exibido.',e.message)});const startInput=document.querySelector('#announcementFormIntegrated [name=startsAt]');if(startInput)startInput.value=new Date(Date.now()-new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);/* O carregamento territorial administrativo exige sessão autenticada. A consulta pública é iniciada após a camada Supabase estar definida no segundo script. */}
 document.addEventListener('DOMContentLoaded', init, { once: true });
 
@@ -325,3 +326,6 @@ document.addEventListener('DOMContentLoaded',()=>{try{const els=document.querySe
 
 /* ---- v2.4: botão Excluir (somente administrador) ---- */
 (function(){const _ra=renderAll;renderAll=function(){_ra.apply(this,arguments);try{adhInjectDeletes()}catch(e){}}})();
+
+/* v3.2 · links de comunicados: só http(s) */
+function adhSafeUrl(u){try{const x=new URL(String(u||''),location.href);return(x.protocol==='https:'||x.protocol==='http:')?x.href:'#'}catch(e){return'#'}}
