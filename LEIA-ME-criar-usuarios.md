@@ -1,4 +1,4 @@
-# Criar usuários pelo painel (claude v3.0)
+# Criar usuários pelo painel (claude v3.1)
 
 O navegador nunca pode guardar a chave `service_role`. Por isso a criação de contas roda numa **Edge Function** do Supabase.
 
@@ -44,7 +44,7 @@ Termos de Uso e Política de Privacidade copiados do site anterior (texto idênt
 Sem SQL novo. Suba: index.html, 404.html, sw.js e js/supabase.js (pasta js).
 No celular o menu do painel é uma faixa que rola para o lado; "Solicitações de cadastro" agora é o 2º item e há um aviso na Visão geral com a contagem de pedidos pendentes.
 
-## v3.0
+## v3.1
 Sem SQL obrigatório. Opcional: rode `supabase/checagem-pre-lancamento.sql` (somente leitura) e confira os 4 resultados.
 Novo: Histórico de ações agora vem do banco; links de comunicados só aceitam http/https.
-Novo na v3.0: botão "Solicitar cadastro" no topo do site público.
+Novo na v3.1: botão "Solicitar cadastro" no topo do site público.
