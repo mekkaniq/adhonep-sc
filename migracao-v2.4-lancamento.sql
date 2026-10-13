@@ -1,4 +1,4 @@
--- ADHONEP-SC claude v2.8 — proteção do formulário de cadastro para o LANÇAMENTO
+-- ADHONEP-SC claude v3.0 — proteção do formulário de cadastro para o LANÇAMENTO
 -- Substitui a trava da v1.3 (que limitava a 40 pedidos/hora no site inteiro e bloquearia gente real num lançamento).
 -- Idempotente. Rode uma vez no SQL Editor.
 begin;

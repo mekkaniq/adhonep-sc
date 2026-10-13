@@ -1,4 +1,4 @@
-// Edge Function: admin-create-user  (ADHONEP-SC · claude v2.8)
+// Edge Function: admin-create-user  (ADHONEP-SC · claude v3.0)
 // Ações: create (padrão) · delete · set_active
 //  - Administrador (state_admin): tudo.
 //  - Presidente de capítulo: cria/desativa/reativa SÓCIOS (role 'member') do PRÓPRIO capítulo. Nunca exclui.

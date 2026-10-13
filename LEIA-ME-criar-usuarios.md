@@ -1,4 +1,4 @@
-# Criar usuários pelo painel (claude v2.8)
+# Criar usuários pelo painel (claude v3.0)
 
 O navegador nunca pode guardar a chave `service_role`. Por isso a criação de contas roda numa **Edge Function** do Supabase.
 
@@ -39,3 +39,12 @@ Corrige: "Solicitações de cadastro" estava oculta no menu do administrador.
 ## v2.8
 Sem SQL novo. Suba: index.html, sw.js, sitemap.xml, privacidade.html, termos.html e assets/apple-touch-icon-2.png (pasta assets).
 Termos de Uso e Política de Privacidade copiados do site anterior (texto idêntico, atualização 22/08/2026).
+
+## v2.9
+Sem SQL novo. Suba: index.html, 404.html, sw.js e js/supabase.js (pasta js).
+No celular o menu do painel é uma faixa que rola para o lado; "Solicitações de cadastro" agora é o 2º item e há um aviso na Visão geral com a contagem de pedidos pendentes.
+
+## v3.0
+Sem SQL obrigatório. Opcional: rode `supabase/checagem-pre-lancamento.sql` (somente leitura) e confira os 4 resultados.
+Novo: Histórico de ações agora vem do banco; links de comunicados só aceitam http/https.
+Novo na v3.0: botão "Solicitar cadastro" no topo do site público.
