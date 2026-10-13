@@ -48,7 +48,7 @@ function signOutAdmin(){adhStoreSession(null);adhProfile=null;currentRole='Admin
 
 // Cache local versionado: reutiliza os últimos dados reais carregados com sucesso.
 // O cache é apenas de leitura; gravações administrativas continuam exigindo confirmação do Supabase.
-const ADH_CACHE_VERSION = 'claude-v3.0';
+const ADH_CACHE_VERSION = 'claude-v3.1';
 function adhCacheRead(key, maxAgeMs=30*24*60*60*1000){
   try{
     const store=adhGetStorage('localStorage');if(!store)return null;
@@ -226,7 +226,7 @@ setInterval(()=>{try{if(adhSession&&adhProfile&&adhProfile.role==='state_admin'&
 
 function adhPendingBanner(){const b=document.getElementById('pendingBanner');if(!b)return;const n=adhAccessRequests.filter(x=>x.status==='pending').length;const ok=n>0&&adhProfile&&adhProfile.role==='state_admin';b.hidden=!ok;b.style.display=ok?'flex':'none';if(ok)document.getElementById('pendingBannerText').textContent='▣ '+n+(n===1?' solicitação de cadastro aguardando análise.':' solicitações de cadastro aguardando análise.')}
 
-/* v3.0 · histórico de ações vindo do banco (admin_audit_log) */
+/* v3.1 · histórico de ações vindo do banco (admin_audit_log) */
 async function loadAuditDb(){const el=document.getElementById('auditRows');if(!el)return;if(!adhSession){el.innerHTML='<tr><td colspan="5" class="empty">Entre como administrador para ver o histórico.</td></tr>';return}
  el.innerHTML='<tr><td colspan="5" class="empty">Carregando…</td></tr>';
  try{const rows=await adhFetch('/rest/v1/admin_audit_log?select=id,actor_id,action,entity_type,entity_id,summary,created_at&order=created_at.desc&limit=200');
@@ -234,3 +234,6 @@ async function loadAuditDb(){const el=document.getElementById('auditRows');if(!e
   if(ids.length){try{const ps=await adhFetch('/rest/v1/profiles?select=id,full_name&id=in.('+ids.join(',')+')');pm=new Map((ps||[]).map(p=>[p.id,p.full_name]))}catch(e){}}
   el.innerHTML=(rows||[]).map(r=>`<tr><td>${escapeHtml(new Date(r.created_at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}))}</td><td>${escapeHtml(pm.get(r.actor_id)||(r.actor_id?('ID '+String(r.actor_id).slice(0,8)):'Sistema'))}</td><td><strong>${escapeHtml(r.action)}</strong></td><td>${escapeHtml(r.entity_type+(r.entity_id?' #'+r.entity_id:''))}</td><td>${escapeHtml(r.summary||'—')}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Nenhuma ação registrada ainda.</td></tr>'}
  catch(e){el.innerHTML='<tr><td colspan="5" class="empty">Não foi possível carregar o histórico: '+escapeHtml(e.message)+'</td></tr>'}}
+
+/* v3.1: o administrador estadual sempre enxerga "Solicitações de cadastro", mesmo que o app.js em cache/publicado seja mais antigo */
+(function(){const _rp=rolePermissions;rolePermissions=function(r){let p=_rp(r);if(typeof adhProfile!=='undefined'&&adhProfile&&adhProfile.role==='state_admin'&&!p.pages.includes('access-requests')){p={pages:[...p.pages,'access-requests'],edit:p.edit}}return p}})();
