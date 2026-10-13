@@ -296,7 +296,7 @@ button,.btn,.nav,.switch{touch-action:manipulation;-webkit-tap-highlight-color:t
 .amap-admin .muni.st-none{fill-opacity:.82}
 .amap-relief,.amap-bgimg{transition:opacity .5s ease}
 
-/* ===== claude v2.3: terreno procedural alinhado aos limites reais ===== */
+/* ===== claude v2.4: terreno procedural alinhado aos limites reais ===== */
 .amap-relief,.amap-bgimg{display:none}
 .amap-terrain{transition:opacity .5s ease}
 .amap-stage:not([data-level="0"]) .amap-terrain{opacity:.75}
@@ -306,6 +306,6 @@ button,.btn,.nav,.switch{touch-action:manipulation;-webkit-tap-highlight-color:t
 .muni.st-active,.muni.st-activation,.muni.st-reactivation,.muni.st-inactive{stroke:rgba(255,255,255,.75);stroke-width:.55}
 .amap-public .muni.has-ch{stroke:#fff3c4;stroke-width:.55}
 
-/* v2.3 ativos em dourado ouro */
+/* v2.4 ativos em dourado ouro */
 .amap-admin .muni.st-active{fill:url(#sg-active);stroke:#fff3c4;stroke-width:.7;filter:drop-shadow(0 0 4px rgba(255,200,80,.85))}
 .amap-admin .muni.st-active:hover{filter:brightness(1.1) drop-shadow(0 0 7px rgba(255,214,110,1))}

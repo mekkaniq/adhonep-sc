@@ -1,5 +1,5 @@
 /* ADHONEP-SC · service worker (claude v1.6). Só guarda o "casco" do site; dados do Supabase nunca ficam em cache aqui. */
-const V='adh-shell-v2.3';
+const V='adh-shell-v2.4';
 const SHELL=['./','index.html','assets/mapa-terreno.jpg','assets/mapa-mar.jpg','styles.css','js/app.js','js/mapa.js','js/supabase.js','manifest.webmanifest','assets/logo-branca.png','assets/icon-192.png','assets/fundo-hero.jpg'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
