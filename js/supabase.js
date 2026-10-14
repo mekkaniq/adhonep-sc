@@ -1,4 +1,4 @@
-window.ADH_VER_SB='3.18';
+window.ADH_VER_SB='3.19';
 /* Endereço (slug) da Edge Function que cria contas, como o Supabase a publicou: .../functions/v1/rapid-responder */
 const ADH_USER_FN='rapid-responder';
 
@@ -581,7 +581,7 @@ function adhMapFull(on){
 document.addEventListener('fullscreenchange',()=>{const p=document.getElementById('adminMapPanel');if(!document.fullscreenElement&&p&&p.classList.contains('adh-full'))adhMapFull(false)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=document.getElementById('adminMapPanel');if(p&&p.classList.contains('adh-full')&&!document.fullscreenElement)adhMapFull(false)}});
 
-/* ===== v3.18: Minha conta (nome, telefone, e-mail, senha) ===== */
+/* ===== v3.19: Minha conta (nome, telefone, e-mail, senha) ===== */
 async function openAccount(){
  const $=id=>document.getElementById(id);
  if(!adhSession){toast('Entre na sua conta primeiro.');return}
@@ -631,4 +631,93 @@ async function saveAccountPassword(ev){
   await adhFetch('/auth/v1/user',{method:'PUT',body:JSON.stringify({password:p1})});
   m.textContent='Senha alterada com sucesso.';toast('Senha alterada.');f.reset();
  }catch(e){m.textContent='Não foi possível alterar a senha: '+e.message}
+}
+
+/* ===== v3.19: página pública do capítulo (reuniões, endereço, foto) ===== */
+let adhInfoIds=new Set(), adhInfoRows={};
+const ADH_PHOTO_BASE=()=>ADH_SUPABASE_URL+'/storage/v1/object/public/chapter-photos/';
+(function(){const _l=loadPublicChapters;loadPublicChapters=async function(){
+ const r=await _l.apply(this,arguments);
+ try{const rows=await adhFetch('/rest/v1/public_chapter_info?select=chapter_id&limit=1000',{headers:{Authorization:'Bearer '+ADH_SUPABASE_KEY}});adhInfoIds=new Set((rows||[]).map(x=>String(x.chapter_id)));renderAll()}catch(e){}
+ try{adhRouteChapterPage()}catch(e){}
+ return r}})();
+(function(){const _c=adhContactHtml;adhContactHtml=function(c,fb){
+ const base=_c(c,fb);
+ if(!c||!adhInfoIds.has(String(c.id)))return base;
+ return base+'<p><button type="button" class="btn small" onclick="adhOpenChapterPage('+Number(c.id)+')">Informações sobre as reuniões</button></p>'}})();
+function adhRouteChapterPage(){const m=location.hash.match(/^#capitulo\/(\d+)$/);if(m)adhOpenChapterPage(Number(m[1]),true)}
+window.addEventListener('hashchange',()=>{const m=location.hash.match(/^#capitulo\/(\d+)$/);if(m)adhOpenChapterPage(Number(m[1]),true);else adhCloseChapterPage(true)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=document.getElementById('chapterPage');if(p&&p.classList.contains('open'))adhCloseChapterPage()}});
+function adhCloseChapterPage(fromHash){const p=document.getElementById('chapterPage');if(!p)return;p.classList.remove('open');document.body.classList.remove('adh-noscroll');if(window.__adhTitle0)document.title=window.__adhTitle0;if(!fromHash&&/^#capitulo\//.test(location.hash))history.pushState(null,'',location.pathname+location.search)}
+async function adhOpenChapterPage(id,fromHash){
+ const p=document.getElementById('chapterPage'),b=document.getElementById('chapterPageBody');
+ const c=(chapters||[]).find(x=>String(x.id)===String(id));
+ p.classList.add('open');document.body.classList.add('adh-noscroll');p.scrollTop=0;
+ b.innerHTML='<div class="cp-top"><button class="btn" onclick="adhCloseChapterPage()">← Voltar ao mapa</button></div><p class="sub">Carregando…</p>';
+ if(!fromHash)history.pushState(null,'','#capitulo/'+id);
+ let i=null;
+ try{const r=await adhFetch('/rest/v1/public_chapter_info?select=*&chapter_id=eq.'+encodeURIComponent(id)+'&limit=1',{headers:{Authorization:'Bearer '+ADH_SUPABASE_KEY}});i=r&&r[0]}catch(e){}
+ const E=s=>escapeHtml(String(s==null?'':s));
+ const back='<div class="cp-top"><button class="btn" onclick="adhCloseChapterPage()">← Voltar ao mapa</button></div>';
+ if(!c||!i){b.innerHTML=back+'<div class="cp-box"><strong>Esta página não está disponível.</strong><p>O capítulo pode não ter publicado as informações das reuniões ainda. Volte ao mapa para ver os contatos.</p></div>';return}
+ const when=[i.frequency,i.meeting_day,i.meeting_time].filter(Boolean);
+ const addr=i.address||'';
+ const mapsOk=i.maps_url&&/^https:\/\//i.test(i.maps_url);
+ const mapLink=mapsOk?i.maps_url:(addr?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(addr+' '+(c.city||'')+' SC'):'');
+ const d=String(c.contact||'').replace(/\D/g,'');
+ const wa=/^55\d{10,11}$/.test(d)?'https://wa.me/'+d+'?text='+encodeURIComponent('Olá! Vi a página do capítulo '+c.name+' no site da ADHONEP-SC e gostaria de saber mais sobre as reuniões.'):'';
+ const photo=i.photo_path?'<img class="cp-photo" src="'+E(ADH_PHOTO_BASE()+i.photo_path)+'" alt="Foto do local de reunião do capítulo '+E(c.name)+'" loading="lazy">':'';
+ b.innerHTML=back+'<div class="eyebrow">Capítulo ADHONEP</div><h1>'+E(c.name)+'</h1><p class="sub">'+E(c.city)+' · Região '+E(c.region)+'</p>'+photo
+  +'<div class="cp-grid">'
+  +(when.length?'<div class="cp-box"><small>Quando</small><strong>'+E(when.join(' · '))+'</strong></div>':'')
+  +((i.meeting_place||addr)?'<div class="cp-box"><small>Onde</small>'+(i.meeting_place?'<strong>'+E(i.meeting_place)+'</strong>':'')+(addr?'<p>'+E(addr)+'</p>':'')+'</div>':'')
+  +(c.president?'<div class="cp-box"><small>Presidente</small><strong>'+E(c.president)+'</strong></div>':'')
+  +'</div>'
+  +(i.notes?'<div class="cp-box"><small>Como chegar / observações</small><p style="white-space:pre-line;color:var(--ink)">'+E(i.notes)+'</p></div>':'')
+  +'<div class="cp-acts">'+(wa?'<a class="btn primary" target="_blank" rel="noopener" href="'+E(wa)+'">Falar com o presidente no WhatsApp</a>':'')+(mapLink?'<a class="btn" target="_blank" rel="noopener" href="'+E(mapLink)+'">Abrir no mapa</a>':'')+'<button class="btn" type="button" onclick="adhShareChapterPage('+Number(id)+')">Compartilhar</button></div>'
+  +'<div class="cp-note">Confirme dia e horário com o presidente antes de ir: eles podem mudar em datas especiais.</div>';
+ if(!window.__adhTitle0)window.__adhTitle0=document.title;document.title='Capítulo '+c.name+' · ADHONEP-SC';
+}
+async function adhShareChapterPage(id){const url=location.origin+location.pathname+'#capitulo/'+id;const c=(chapters||[]).find(x=>String(x.id)===String(id));try{if(navigator.share){await navigator.share({title:'ADHONEP-SC · '+(c?c.name:'Capítulo'),url});return}}catch(e){if(e&&e.name==='AbortError')return}try{await navigator.clipboard.writeText(url);toast('Link copiado.')}catch(e){prompt('Copie o link:',url)}}
+
+/* --- edição (presidente, diretor regional, administração) --- */
+let adhInfoCache={};
+async function openChapterInfo(id){
+ const c=(chapters||[]).find(x=>String(x.id)===String(id));if(!c)return;
+ const f=document.querySelector('#infoModal form');f.reset();f.elements.chapter_id.value=id;
+ document.getElementById('infoTitle').textContent='Página — '+c.name;
+ document.getElementById('infoMsg').textContent='Carregando…';
+ ['infoPhotoPrev'].forEach(x=>document.getElementById(x).hidden=true);document.getElementById('infoPhotoDelBox').hidden=true;document.getElementById('infoPhotoDel').checked=false;
+ document.getElementById('infoModal').classList.add('open');
+ let i={};try{const r=await adhFetch('/rest/v1/chapter_public_info?select=*&chapter_id=eq.'+encodeURIComponent(id)+'&limit=1');i=(r&&r[0])||{}}catch(e){i={}}
+ adhInfoCache[id]=i;
+ ['meeting_place','address','maps_url','frequency','meeting_day','meeting_time','notes'].forEach(k=>{f.elements[k].value=i[k]||''});
+ f.elements.show_public.value=i.show_public?'yes':'no';
+ if(i.photo_path){const im=document.getElementById('infoPhotoPrev');im.src=ADH_PHOTO_BASE()+i.photo_path;im.hidden=false;document.getElementById('infoPhotoDelBox').hidden=false}
+ document.getElementById('infoMsg').textContent='A página só aparece no site se o capítulo estiver ativo, publicado e com a opção acima em "Sim".';
+}
+function adhResizeImage(file,max){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(file);img.onload=()=>{let w=img.width,h=img.height;const k=Math.min(1,max/Math.max(w,h));w=Math.round(w*k);h=Math.round(h*k);const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);URL.revokeObjectURL(u);cv.toBlob(b=>b?res(b):rej(new Error('Não foi possível otimizar a imagem.')),'image/jpeg',.82)};img.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('Arquivo de imagem inválido.'))};img.src=u})}
+async function saveChapterInfo(ev){
+ ev.preventDefault();const f=ev.target,btn=document.getElementById('infoSubmit'),msg=document.getElementById('infoMsg');
+ const id=Number(f.elements.chapter_id.value),old=adhInfoCache[id]||{},show=f.elements.show_public.value==='yes';
+ const v=k=>(f.elements[k].value||'').trim()||null;
+ const maps=v('maps_url');if(maps&&!/^https:\/\//i.test(maps)){msg.textContent='O link do mapa precisa começar com https://';return}
+ const file=document.getElementById('infoPhotoFile').files[0],del=document.getElementById('infoPhotoDel').checked;
+ if(show&&!(v('meeting_place')||v('address'))){msg.textContent='Para mostrar no site, informe pelo menos o local ou o endereço.';return}
+ btn.disabled=true;msg.textContent='Salvando…';
+ try{
+  let photo=old.photo_path||null,oldToDelete=null;
+  if(file){
+   if(!/^image\/(jpeg|png|webp)$/.test(file.type))throw new Error('Use uma foto JPG, PNG ou WebP.');
+   const blob=await adhResizeImage(file,1600);if(blob.size>5*1024*1024)throw new Error('A foto ficou maior que 5 MB. Escolha outra.');
+   const path=id+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.jpg';
+   const up=await fetch(ADH_SUPABASE_URL+'/storage/v1/object/chapter-photos/'+path,{method:'POST',headers:{apikey:ADH_SUPABASE_KEY,Authorization:'Bearer '+adhSession.access_token,'Content-Type':'image/jpeg','x-upsert':'false'},body:blob});
+   if(!up.ok){const t=await up.text();throw new Error('Falha ao enviar a foto ('+up.status+'): '+(/row-level|policy|403|401/i.test(t)?'sem permissão ou migração v3.19 ainda não rodada.':t))}
+   oldToDelete=photo;photo=path;
+  }else if(del&&photo){oldToDelete=photo;photo=null}
+  await adhFetch('/rest/v1/chapter_public_info?on_conflict=chapter_id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({chapter_id:id,meeting_place:v('meeting_place'),address:v('address'),maps_url:maps,frequency:v('frequency'),meeting_day:v('meeting_day'),meeting_time:v('meeting_time'),notes:v('notes'),photo_path:photo,show_public:show})});
+  if(oldToDelete){try{await fetch(ADH_SUPABASE_URL+'/storage/v1/object/chapter-photos/'+oldToDelete,{method:'DELETE',headers:{apikey:ADH_SUPABASE_KEY,Authorization:'Bearer '+adhSession.access_token}})}catch(e){}}
+  document.getElementById('infoPhotoFile').value='';closeModal('infoModal');toast(show?'Página salva e liberada no site público.':'Página salva (não aparece no site).');
+ }catch(e){msg.textContent='Não foi possível salvar: '+(/row-level security|permission/i.test(e.message)?'sem permissão para este capítulo (ou a migração v3.19 ainda não foi rodada).':e.message)}
+ finally{btn.disabled=false}
 }
