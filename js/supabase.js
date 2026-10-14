@@ -1,4 +1,4 @@
-window.ADH_VER_SB='3.10';
+window.ADH_VER_SB='3.12';
 /* Endereço (slug) da Edge Function que cria contas, como o Supabase a publicou: .../functions/v1/rapid-responder */
 const ADH_USER_FN='rapid-responder';
 
@@ -80,7 +80,7 @@ function openPublicRequest(){document.getElementById('publicRequestModal').class
 async function loadRequestChapters(){const sel=document.getElementById('publicRequestChapter');try{const rows=await adhFetch('/rest/v1/chapters?select=id,name,municipality_id&order=name.asc&limit=1000',{headers:{Authorization:'Bearer '+ADH_SUPABASE_KEY}});if(Array.isArray(rows)){const ms=await adhFetch('/rest/v1/municipalities?select=id,name&limit=1000',{headers:{Authorization:'Bearer '+ADH_SUPABASE_KEY}}).catch(()=>[]);const mm=new Map((ms||[]).map(m=>[String(m.id),m.name]));sel.innerHTML='<option value="">Não se aplica / será analisado</option>'+rows.map(c=>`<option value="${String(c.id).replace(/[^0-9]/g,'')}">${escapeHtml(c.name||'Capítulo')}${mm.get(String(c.municipality_id))?' — '+escapeHtml(mm.get(String(c.municipality_id))):''}</option>`).join('')}}catch{ /* capítulo opcional; não impede a solicitação */}}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function submitPublicAccessRequest(ev){ev.preventDefault();const f=ev.target;if(f.elements.website&&f.elements.website.value){toast('Solicitação enviada com sucesso.');return}if(Date.now()-adhPageT0<8000){toast('Aguarde alguns segundos e envie novamente.');return}if(!f.elements.privacy_consent?.checked){toast('É necessário consentir com o uso dos dados para enviar a solicitação.');return}const fdata=new FormData(f),d=fdata,msg=document.getElementById('publicRequestMessage'),btn=document.getElementById('publicRequestSubmit');btn.disabled=true;msg.textContent='Enviando solicitação…';const body={full_name:String(d.get('full_name')).trim(),email:String(d.get('email')).trim().toLowerCase(),phone:String(d.get('phone')||'').trim()||null,city:String(d.get('city')).trim(),requested_role:String(d.get('requested_role')),chapter_id:d.get('chapter_id')?Number(d.get('chapter_id')):null,justification:String(d.get('justification')).trim(),status:'pending'};try{await adhFetch('/rest/v1/access_requests',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(body)});msg.textContent='✓ Recebemos o seu pedido! A diretoria estadual vai analisá-lo e entrará em contato. Não é preciso enviar de novo.';f.reset();toast('Solicitação enviada com sucesso.');}catch(e){msg.textContent='Não foi possível enviar: '+e.message; }finally{btn.disabled=false}}
-async function loadAccessRequests(){const status=document.getElementById('accessRequestStatusMessage');if(!adhSession){status.textContent='Entre com uma conta state_admin para consultar as solicitações.';return}status.textContent='Carregando solicitações do Supabase…';try{adhAccessRequests=await adhFetch('/rest/v1/access_requests?select=id,full_name,email,phone,city,chapter_id,requested_role,justification,status,created_at,review_notes&order=created_at.desc&limit=500');if(!Array.isArray(adhAccessRequests))adhAccessRequests=[];status.textContent=adhAccessRequests.length+' solicitação(ões) carregada(s) do banco.';document.getElementById('accessRequestCount').textContent=adhAccessRequests.filter(x=>x.status==='pending').length||'';adhPendingBanner();renderAccessRequests()}catch(e){status.textContent='Falha ao carregar solicitações: '+e.message+' — verifique a política SELECT de access_requests e a função de autorização.'}}
+async function loadAccessRequests(){const status=document.getElementById('accessRequestStatusMessage');if(!adhSession){status.textContent='Entre com uma conta state_admin para consultar as solicitações.';return}status.textContent='Carregando solicitações do Supabase…';try{adhAccessRequests=await adhFetch('/rest/v1/access_requests?select=id,full_name,email,phone,city,chapter_id,requested_role,justification,status,created_at,review_notes&order=created_at.desc&limit=500');if(!Array.isArray(adhAccessRequests))adhAccessRequests=[];status.textContent='';status.style.display='none';document.getElementById('accessRequestCount').textContent=adhAccessRequests.filter(x=>x.status==='pending').length||'';adhPendingBanner();renderAccessRequests()}catch(e){status.textContent='Falha ao carregar solicitações: '+e.message+' — verifique a política SELECT de access_requests e a função de autorização.'}}
 const adhRoleNames={state_director:'Diretor estadual',regional_director:'Diretor regional',field_representative:'Representante de campo',chapter_president:'Presidente de capítulo',member:'Sócio',youth_coordinator:'Apoio jovem',women_coordinator:'Apoio feminino'};
 function renderAccessRequests(){const body=document.getElementById('accessRequestRows');if(!body)return;const q=(document.getElementById('accessRequestSearch')?.value||'').toLowerCase(),st=document.getElementById('accessRequestStatus')?.value||'pending';const rows=adhAccessRequests.filter(r=>(st==='all'||r.status===st)&&[r.full_name,r.email,r.city].some(v=>String(v||'').toLowerCase().includes(q)));body.innerHTML=rows.map(r=>`<tr><td><strong>${escapeHtml(r.full_name)}</strong><div class="meta">${escapeHtml(r.email)}${r.phone?' · '+escapeHtml(r.phone):''}</div><div class="meta">${escapeHtml(r.justification||'')}</div></td><td>${escapeHtml(adhRoleNames[r.requested_role]||r.requested_role)}</td><td>${escapeHtml(r.city||'—')}</td><td>${escapeHtml(r.created_at?new Date(r.created_at).toLocaleDateString('pt-BR'):'—')}</td><td><span class="tag ${r.status==='approved'?'active':r.status==='rejected'?'inactive':'activation'}">${escapeHtml(r.status)}</span>${r.review_notes?'<div class="meta">'+escapeHtml(r.review_notes)+'</div>':''}</td><td>${r.status==='pending'?`<div class="actions"><button class="btn small primary" onclick="decideAccessRequest('${r.id}','approved')">Aprovar</button><button class="btn small danger" onclick="decideAccessRequest('${r.id}','rejected')">Rejeitar</button></div>`:'—'}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Nenhuma solicitação encontrada.</td></tr>'}
 async function decideAccessRequest(id,decision){if(!adhSession)return openRealLogin();let notes='';if(decision==='rejected'){notes=(await adhDialog({title:'Rejeitar solicitação',message:'Informe o motivo da rejeição (será registrado no pedido):',input:true,confirmLabel:'Rejeitar'}))||'';if(!notes.trim()){toast('Informe o motivo para rejeitar.');return}}else if(!(await adhDialog({title:'Aprovar solicitação',message:'Confirmar aprovação desta solicitação? A conta de autenticação precisa já existir no Supabase.'})))return;try{await adhFetch('/rest/v1/rpc/review_access_request',{method:'POST',body:JSON.stringify({p_request_id:id,p_decision:decision,p_notes:notes||null})});toast(decision==='approved'?'Solicitação aprovada.':'Solicitação rejeitada.');await loadAccessRequests()}catch(e){toast('A decisão não foi concluída: '+e.message+'\n\nA aprovação depende de a conta já existir no Supabase Auth e de a função SQL estar compatível com as colunas reais.');}}
@@ -132,7 +132,7 @@ async function loadPublicChapters(){
    });
    renderAll();
    const n=document.createElement('div');n.id=noteId;n.className='meta';n.style.cssText='padding:6px 10px;margin-top:8px';
-   n.textContent=chapters.length+' registro(s) de capítulo recebido(s) do Supabase. Se forem zero, é preciso importar os capítulos oficiais para a tabela chapters; cache não importa registros.';
+   n.textContent='';n.style.display='none';
    document.getElementById('publicList')?.parentElement?.appendChild(n);
  }catch(err){
    console.error('Falha ao consultar capítulos no Supabase:',err);
@@ -202,7 +202,7 @@ document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest
 async function loadMembers(){const body=document.getElementById('memberRows'),msg=document.getElementById('memberMsg');if(!adhSession||!body)return;body.innerHTML='<tr><td colspan="5" class="empty">Carregando…</td></tr>';try{const roles=await adhFetch('/rest/v1/user_roles?select=user_id,chapter_id,is_active&role=eq.member&limit=1000');const ids=[...new Set((roles||[]).map(r=>r.user_id))];let profs=[];if(ids.length)profs=await adhFetch('/rest/v1/profiles?select=id,full_name,phone&id=in.('+ids.join(',')+')');const pm=new Map((profs||[]).map(p=>[p.id,p])),cm=new Map(adhDbChapters.map(c=>[String(c.id),c.name]));const adm=adhProfile&&adhProfile.role==='state_admin';body.innerHTML=(roles||[]).map(r=>{const p=pm.get(r.user_id)||{};const nm=p.full_name||'Nome não informado';return `<tr><td><strong>${escapeHtml(nm)}</strong></td><td>${escapeHtml(p.phone||'—')}</td><td>${escapeHtml(cm.get(String(r.chapter_id))||('Capítulo #'+r.chapter_id))}</td><td><span class="tag ${r.is_active?'active':'inactive'}">${r.is_active?'Ativo':'Inativo'}</span></td><td><div class="actions"><button class="btn small" data-u="${escapeHtml(r.user_id)}" data-act="${r.is_active?'off':'on'}">${r.is_active?'Desativar':'Reativar'}</button>${adm?`<button class="btn small danger" data-u="${escapeHtml(r.user_id)}" data-n="${escapeHtml(nm)}" data-act="del">Excluir</button>`:''}</div></td></tr>`}).join('')||'<tr><td colspan="5" class="empty">Nenhum sócio cadastrado ainda. Use “+ Novo sócio”.</td></tr>';if(msg)msg.textContent=(roles||[]).length+' sócio(s). Desativar bloqueia o acesso sem apagar o cadastro.'}catch(e){body.innerHTML='<tr><td colspan="5" class="empty">Não foi possível carregar: '+escapeHtml(e.message)+'</td></tr>'}}
 
 function adhMemberViewOn(on){const mv=document.getElementById('memberView');if(!mv)return;if(on){document.getElementById('publicView').classList.remove('on');document.getElementById('adminView').classList.remove('on')}mv.classList.toggle('on',on)}
-async function showMemberArea(){adhMemberViewOn(true);window.scrollTo(0,0);const $=id=>document.getElementById(id);try{const user=await adhFetch('/auth/v1/user');const uid=user.id;const roles=await adhFetch('/rest/v1/user_roles?select=chapter_id&role=eq.member&is_active=eq.true&user_id=eq.'+encodeURIComponent(uid));const cid=roles&&roles[0]&&roles[0].chapter_id;let ch=null;if(cid){const r=await adhFetch('/rest/v1/chapters?select=name,city&id=eq.'+cid+'&limit=1').catch(()=>[]);ch=r&&r[0]}
+async function showMemberArea(){adhMemberViewOn(true);window.scrollTo(0,0);const $=id=>document.getElementById(id);try{const user=await adhFetch('/auth/v1/user');const uid=user.id;const roles=await adhFetch('/rest/v1/user_roles?select=chapter_id&role=in.(member,youth_coordinator,women_coordinator)&is_active=eq.true&user_id=eq.'+encodeURIComponent(uid));const cid=roles&&roles[0]&&roles[0].chapter_id;let ch=null;if(cid){const r=await adhFetch('/rest/v1/chapters?select=name,city&id=eq.'+cid+'&limit=1').catch(()=>[]);ch=r&&r[0]}
  const prof=((await adhFetch('/rest/v1/profiles?select=full_name,phone&id=eq.'+encodeURIComponent(uid)+'&limit=1').catch(()=>[]))||[])[0]||{};
  $('mbHello').textContent='Olá, '+((prof.full_name||'sócio').split(' ')[0])+'!';$('mbChapter').textContent=ch?('Capítulo '+ch.name+(ch.city?' · '+ch.city:'')):'Capítulo não identificado';
  const f=document.querySelector('#memberView form');f.elements.full_name.value=prof.full_name||'';f.elements.phone.value=String(prof.phone||'').replace(/^55(?=\d{10,11}$)/,'');
@@ -453,3 +453,88 @@ function approveAndCreate(id){const r=adhAccessRequests.find(x=>String(x.id)===S
   try{await loadAccessRequests()}catch(e){}}})();
 (function(){const cl=closeModal;closeModal=function(id){if(id==='newUserModal')window.adhApprovingReq=null;return cl.apply(this,arguments)}})();
 (function(){const on=openNewUser;openNewUser=function(){window.adhApprovingReq=null;return on.apply(this,arguments)}})();
+
+
+/* ===== v3.12 — Biblioteca de documentos + login de coordenadores ===== */
+const ADH_LIB_CATS=['Apoio Jovem','Apoio Feminino','Regimento e estatuto','Manuais','Formulários','Atas e relatórios','Outros'];
+const ADH_LIB_MAX=20*1024*1024;
+let adhLibDocs=[];
+(function(){const _r=adhResolveProfile;adhResolveProfile=function(roles,se){const p=_r(roles,se);if(p)return p;const act=(Array.isArray(roles)?roles:[]).filter(r=>r.is_active!==false);const lab={youth_coordinator:'Coordenador de apoio jovem',women_coordinator:'Coordenador de apoio feminino',field_representative:'Representante de campo'};const c=act.find(r=>lab[r.role]);return c?{role:'member',label:lab[c.role],speakerEditor:!!se,regionIds:[],chapterIds:[]}:null}})();
+(function(){const _p=rolePermissions;rolePermissions=function(r){let p=_p(r);const role=(typeof adhProfile!=='undefined'&&adhProfile)?adhProfile.role:null;if(['state_admin','state_director','regional_director','chapter_president'].includes(role)&&!p.pages.includes('library'))p={pages:[...p.pages,'library'],edit:p.edit};return p}})();
+function libFmtSize(n){n=Number(n)||0;return n>=1048576?(n/1048576).toFixed(1).replace('.',',')+' MB':Math.max(1,Math.round(n/1024))+' KB'}
+function libFmtDate(d){try{return new Date(d).toLocaleDateString('pt-BR')}catch(e){return ''}}
+function libCanPublish(){return !!adhProfile&&['state_admin','state_director','regional_director','chapter_president'].includes(adhProfile.role)}
+function libCanDirectors(){return !!adhProfile&&['state_admin','state_director','regional_director'].includes(adhProfile.role)}
+async function adhLibUid(){try{return (await adhFetch('/auth/v1/user')).id}catch(e){return null}}
+async function loadLibrary(target){
+ const notice=document.getElementById('libNotice');
+ try{adhLibDocs=(await adhFetch('/rest/v1/library_docs?select=*&order=created_at.desc&limit=500'))||[];adhLibMe=await adhLibUid()}
+ catch(e){adhLibDocs=[];const m=/relation .*library_docs|does not exist|schema cache/i.test(e.message)?'A biblioteca ainda não foi ativada no banco: rode a migracao-v3.12-biblioteca.sql no Supabase.':'Não foi possível carregar os documentos: '+e.message;if(notice)notice.textContent=m;const mb=document.getElementById('mbLib');if(mb)mb.innerHTML='<p class="sub">'+escapeHtml(m)+'</p>';return}
+ renderLibrary();
+}
+let adhLibMe=null;
+function libItemHtml(d,canDel){
+ const aud=d.audience==='directors'?'<span class="tag inactive">Somente diretoria</span>':'<span class="tag active">Todos os sócios</span>';
+ const who=d.uploaded_by_name?('Publicado por '+escapeHtml(d.uploaded_by_name)+' em '+libFmtDate(d.created_at)):('Publicado em '+libFmtDate(d.created_at));
+ const del=canDel&&(adhProfile&&(adhProfile.role==='state_admin'||d.uploaded_by===adhLibMe))?`<button class="btn small" data-lib-del="${escapeHtml(d.id)}" style="color:#a83c42">Excluir</button>`:'';
+ return `<div class="libitem"><div><h4>${escapeHtml(d.title)}</h4><div>${aud} <span class="tag activation">${escapeHtml(d.category||'Outros')}</span></div>${d.description?'<p>'+escapeHtml(d.description)+'</p>':''}<div class="meta">${who} · ${escapeHtml(libFmtSize(d.size_bytes))}</div></div><div class="libbtns"><button class="btn small primary" data-lib-open="${escapeHtml(d.id)}">Abrir</button><button class="btn small" data-lib-dl="${escapeHtml(d.id)}">Baixar</button>${del}</div></div>`}
+function renderLibrary(){
+ const q=(document.getElementById('libSearch')?.value||'').toLowerCase(),cat=document.getElementById('libCat')?.value||'';
+ const sel=document.getElementById('libCat');if(sel&&sel.options.length<2){sel.innerHTML='<option value="">Todas as categorias</option>'+ADH_LIB_CATS.map(c=>`<option>${escapeHtml(c)}</option>`).join('')}
+ const btn=document.getElementById('libNewBtn');if(btn)btn.style.display=libCanPublish()?'':'none';
+ const list=adhLibDocs.filter(d=>(!cat||d.category===cat)&&(!q||(d.title+' '+(d.description||'')+' '+(d.category||'')).toLowerCase().includes(q)));
+ const notice=document.getElementById('libNotice'),box=document.getElementById('libList');
+ if(notice)notice.textContent=adhLibDocs.length?(list.length+' documento(s)'):'Nenhum documento publicado ainda.';
+ if(box)box.innerHTML=list.map(d=>libItemHtml(d,true)).join('');
+ const mb=document.getElementById('mbLib');if(mb)mb.innerHTML=adhLibDocs.length?adhLibDocs.map(d=>libItemHtml(d,false)).join(''):'<p class="sub">Nenhum documento disponível no momento.</p>';
+}
+async function libSignedUrl(d,download){
+ const out=await adhFetch('/storage/v1/object/sign/library/'+d.file_path.split('/').map(encodeURIComponent).join('/'),{method:'POST',body:JSON.stringify({expiresIn:120})});
+ const u=out&&(out.signedURL||out.signedUrl);if(!u)throw new Error('Não foi possível gerar o link do arquivo.');
+ return ADH_SUPABASE_URL+'/storage/v1'+(u.startsWith('/')?u:'/'+u)+(download?'&download='+encodeURIComponent(d.file_name||'documento'):'');
+}
+async function libOpen(id,download){
+ const d=adhLibDocs.find(x=>x.id===id);if(!d)return;
+ const w=download?null:window.open('','_blank');
+ try{const url=await libSignedUrl(d,download);if(w){w.location.href=url}else{const a=document.createElement('a');a.href=url;a.rel='noopener';if(download)a.download=d.file_name||'';document.body.appendChild(a);a.click();a.remove()}}
+ catch(e){if(w)w.close();toast('Não foi possível abrir: '+adhFnMsg(e.message))}
+}
+function openLibraryForm(){
+ if(!libCanPublish()){toast('Sem permissão para publicar documentos.');return}
+ const f=document.querySelector('#libraryModal form');f.reset();
+ document.getElementById('libFormCat').innerHTML=ADH_LIB_CATS.map(c=>`<option>${escapeHtml(c)}</option>`).join('');
+ document.getElementById('libOptDir').style.display=libCanDirectors()?'':'none';
+ document.getElementById('libMsg').textContent='Ficará registrado o seu nome e a data da publicação.';
+ document.getElementById('libraryModal').classList.add('open');
+}
+function libSafeName(n){const dot=n.lastIndexOf('.');const ext=dot>0?n.slice(dot).toLowerCase().replace(/[^.a-z0-9]/g,''):'';const base=(dot>0?n.slice(0,dot):n).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9_-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'documento';return base+ext}
+async function submitLibrary(ev){
+ ev.preventDefault();const f=ev.target,d=new FormData(f),file=document.getElementById('libFile').files[0],btn=document.getElementById('libSubmit'),msg=document.getElementById('libMsg');
+ if(!file){msg.textContent='Escolha o arquivo.';return}
+ if(file.size>ADH_LIB_MAX){msg.textContent='O arquivo tem '+libFmtSize(file.size)+'. O limite é 20 MB.';return}
+ const audience=d.get('audience')==='directors'&&libCanDirectors()?'directors':'members';
+ const id=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random().toString(16).slice(2));
+ const path=id+'/'+libSafeName(file.name);
+ btn.disabled=true;msg.textContent='Enviando arquivo…';let uploaded=false;
+ try{
+  const up=await fetch(ADH_SUPABASE_URL+'/storage/v1/object/library/'+path.split('/').map(encodeURIComponent).join('/'),{method:'POST',headers:adhHeaders({'Content-Type':file.type||'application/octet-stream','x-upsert':'false'}),body:file});
+  const raw=await up.text();let j=null;try{j=JSON.parse(raw)}catch(e){}
+  if(!up.ok)throw new Error((j&&(j.message||j.error))||('HTTP '+up.status));
+  uploaded=true;msg.textContent='Registrando…';
+  await adhFetch('/rest/v1/library_docs',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({id,title:String(d.get('title')).trim(),description:String(d.get('description')||'').trim()||null,category:String(d.get('category')||'Outros'),audience,file_path:path,file_name:file.name,mime_type:file.type||null,size_bytes:file.size})});
+  closeModal('libraryModal');toast('Documento publicado.');await loadLibrary();
+ }catch(e){
+  if(uploaded){try{await fetch(ADH_SUPABASE_URL+'/storage/v1/object/library/'+path.split('/').map(encodeURIComponent).join('/'),{method:'DELETE',headers:adhHeaders()})}catch(x){}}
+  let m=e.message;if(/mime|not supported|invalid_mime/i.test(m))m='Tipo de arquivo não aceito. Use PDF, Word, Excel, PowerPoint ou imagem.';else if(/row-level security|violates|permission/i.test(m))m='Sem permissão para publicar este documento (ou a migração v3.12 ainda não foi rodada).';
+  msg.textContent='Não foi possível publicar: '+m;
+ }finally{btn.disabled=false}
+}
+async function libDelete(id){
+ const d=adhLibDocs.find(x=>x.id===id);if(!d)return;
+ if(!(await adhDialog({title:'Excluir documento',message:'“'+d.title+'” será apagado para todos. Esta ação não pode ser desfeita.',confirmLabel:'Excluir'})))return;
+ try{await adhFetch('/rest/v1/library_docs?id=eq.'+encodeURIComponent(id),{method:'DELETE',headers:{Prefer:'return=representation'}}).then(r=>{if(Array.isArray(r)&&!r.length)throw new Error('Sem permissão para excluir este documento.')});
+  try{await fetch(ADH_SUPABASE_URL+'/storage/v1/object/library/'+d.file_path.split('/').map(encodeURIComponent).join('/'),{method:'DELETE',headers:adhHeaders()})}catch(x){}
+  toast('Documento excluído.');await loadLibrary()}catch(e){toast('Não foi possível excluir: '+e.message)}
+}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-lib-open],[data-lib-dl],[data-lib-del]');if(!b)return;if(b.dataset.libOpen)libOpen(b.dataset.libOpen,false);else if(b.dataset.libDl)libOpen(b.dataset.libDl,true);else if(b.dataset.libDel)libDelete(b.dataset.libDel)});
+(function(){const _s=showMemberArea;showMemberArea=async function(){await _s();loadLibrary().catch(()=>{})}})();
