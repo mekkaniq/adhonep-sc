@@ -1,4 +1,4 @@
-window.ADH_VER_SB='3.13';
+window.ADH_VER_SB='3.14';
 /* Endereço (slug) da Edge Function que cria contas, como o Supabase a publicou: .../functions/v1/rapid-responder */
 const ADH_USER_FN='rapid-responder';
 
