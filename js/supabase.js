@@ -1,4 +1,4 @@
-window.ADH_VER_SB='3.17';
+window.ADH_VER_SB='3.18';
 /* Endereço (slug) da Edge Function que cria contas, como o Supabase a publicou: .../functions/v1/rapid-responder */
 const ADH_USER_FN='rapid-responder';
 
@@ -580,3 +580,55 @@ function adhMapFull(on){
 }
 document.addEventListener('fullscreenchange',()=>{const p=document.getElementById('adminMapPanel');if(!document.fullscreenElement&&p&&p.classList.contains('adh-full'))adhMapFull(false)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=document.getElementById('adminMapPanel');if(p&&p.classList.contains('adh-full')&&!document.fullscreenElement)adhMapFull(false)}});
+
+/* ===== v3.18: Minha conta (nome, telefone, e-mail, senha) ===== */
+async function openAccount(){
+ const $=id=>document.getElementById(id);
+ if(!adhSession){toast('Entre na sua conta primeiro.');return}
+ ['acctMsg','acctMailMsg','acctPwMsg'].forEach(i=>{const e=$(i);if(e)e.textContent=''});
+ const f=$('accountForm');f.reset();$('accountMailForm').reset();$('accountPwForm').reset();
+ $('accountModal').classList.add('open');
+ try{
+  const user=await adhFetch('/auth/v1/user');
+  $('acctEmail').textContent=user.email||'';
+  const p=((await adhFetch('/rest/v1/profiles?select=full_name,phone&id=eq.'+encodeURIComponent(user.id)+'&limit=1').catch(()=>[]))||[])[0]||{};
+  f.elements.full_name.value=p.full_name||'';
+  const n=String(p.phone||'').replace(/^55(?=\d{10,11}$)/,'');f.elements.phone.value=n;if(n)prMask(f.elements.phone);
+  $('acctRole').textContent=(typeof adhProfile!=='undefined'&&adhProfile&&adhProfile.label)||'';
+ }catch(e){$('acctMsg').textContent='Não foi possível carregar seus dados: '+e.message}
+}
+async function saveAccount(ev){
+ ev.preventDefault();const f=ev.target,m=document.getElementById('acctMsg');
+ let phone=String(f.elements.phone.value||'').replace(/\D/g,'');
+ if(phone&&!/^(55)?\d{10,11}$/.test(phone)){m.textContent='Telefone inválido. Use DDD + número.';return}
+ if(phone&&!phone.startsWith('55'))phone='55'+phone;
+ try{
+  const user=await adhFetch('/auth/v1/user');
+  const r=await adhFetch('/rest/v1/profiles?id=eq.'+encodeURIComponent(user.id),{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({full_name:f.elements.full_name.value.trim(),phone:phone||null})});
+  if(Array.isArray(r)&&!r.length)throw new Error('nenhuma linha atualizada (rode a migracao-v2.3 no Supabase).');
+  m.textContent='Dados atualizados.';toast('Dados atualizados.');
+  const h=document.getElementById('mbHello');if(h)h.textContent='Olá, '+(f.elements.full_name.value.trim().split(' ')[0]||'sócio')+'!';
+ }catch(e){m.textContent='Não foi possível salvar: '+e.message}
+}
+async function saveAccountEmail(ev){
+ ev.preventDefault();const f=ev.target,m=document.getElementById('acctMailMsg'),email=f.elements.email.value.trim().toLowerCase();
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){m.textContent='E-mail inválido.';return}
+ try{
+  await adhFetch('/auth/v1/user',{method:'PUT',body:JSON.stringify({email})});
+  m.textContent='Pedido enviado. Abra o link de confirmação que chegou no e-mail novo (e, se pedido, no antigo). Até confirmar, o login continua com o e-mail atual.';f.reset();
+ }catch(e){m.textContent='Não foi possível alterar o e-mail: '+e.message}
+}
+async function saveAccountPassword(ev){
+ ev.preventDefault();const f=ev.target,m=document.getElementById('acctPwMsg');
+ const cur=f.elements.cur.value,p1=f.elements.pw1.value,p2=f.elements.pw2.value;
+ if(p1.length<10){m.textContent='A nova senha precisa ter pelo menos 10 caracteres.';return}
+ if(p1!==p2){m.textContent='A confirmação não confere com a nova senha.';return}
+ if(p1===cur){m.textContent='A nova senha precisa ser diferente da atual.';return}
+ try{
+  const user=await adhFetch('/auth/v1/user');
+  const chk=await fetch(ADH_SUPABASE_URL+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:ADH_SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify({email:user.email,password:cur})});
+  if(!chk.ok){m.textContent='A senha atual está incorreta.';return}
+  await adhFetch('/auth/v1/user',{method:'PUT',body:JSON.stringify({password:p1})});
+  m.textContent='Senha alterada com sucesso.';toast('Senha alterada.');f.reset();
+ }catch(e){m.textContent='Não foi possível alterar a senha: '+e.message}
+}
