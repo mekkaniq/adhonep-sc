@@ -1,4 +1,4 @@
-window.ADH_VER_SB='3.6';
+window.ADH_VER_SB='3.9';
 /* Endereço (slug) da Edge Function que cria contas, como o Supabase a publicou: .../functions/v1/rapid-responder */
 const ADH_USER_FN='rapid-responder';
 
@@ -173,8 +173,9 @@ async function loadPublicAnnouncements(){const box=document.getElementById('anno
 function renderRegionalAnnouncements(){const id=document.getElementById('annRegionPick').value;document.querySelector('#announcementsSection [data-rlist]').innerHTML=id?adhPublicRegional.filter(r=>String(r.region_id)===id).map(annCardHtml).join(''):''}
 
 /* ---- v2.4: usuários, sócios, exclusão (Edge Function admin-create-user) ---- */
-async function adhUserFn(body){const res=await fetch(ADH_SUPABASE_URL+'/functions/v1/'+ADH_USER_FN,{method:'POST',headers:adhHeaders(),body:JSON.stringify(body)});const out=await res.json().catch(()=>({}));if(!res.ok||!out.ok)throw new Error(out.error||('Erro '+res.status+(res.status===404?' — a função de criar contas ('+ADH_USER_FN+') não foi encontrada no Supabase.':'')));return out}
-function nuScope(){const r=document.getElementById('nuRole').value;document.getElementById('nuRegionWrap').style.display=r==='regional_director'||r==='field_representative'?'':'none';document.getElementById('nuChapterWrap').style.display=r==='chapter_president'||r==='member'?'':'none'}
+function adhFnMsg(m){m=String(m||'');if(/already (been )?registered|already exists/i.test(m))return 'Este e-mail já tem uma conta no sistema. Se a tentativa anterior falhou, apague o usuário em Authentication > Users no Supabase e tente de novo.';if(/permission denied for table/i.test(m))return 'O servidor ainda não tem permissão nesta tabela ('+m.replace(/.*table\s+/i,'')+'). Rode o SQL de permissões do service_role no Supabase.';if(/invalid login|jwt|token/i.test(m)&&/expired|invalid/i.test(m))return 'Sessão vencida. Saia, entre de novo e tente outra vez.';return m}
+async function adhUserFn(body){let res;try{res=await fetch(ADH_SUPABASE_URL+'/functions/v1/'+ADH_USER_FN,{method:'POST',headers:adhHeaders(),body:JSON.stringify(body)})}catch(e){throw new Error('Sem conexão com a função de criar contas. Verifique a internet e, se persistir, se a função está publicada com Verify JWT desligado.')}const out=await res.json().catch(()=>({}));if(!res.ok||!out.ok)throw new Error(adhFnMsg(out.error)||('Erro '+res.status+(res.status===404?' — a função de criar contas ('+ADH_USER_FN+') não foi encontrada no Supabase.':'')));return out}
+function nuScope(){const r=document.getElementById('nuRole').value;document.getElementById('nuRegionWrap').style.display=r==='regional_director'||r==='field_representative'?'':'none';document.getElementById('nuChapterWrap').style.display=r==='chapter_president'||r==='member'||r==='youth_coordinator'||r==='women_coordinator'?'':'none'}
 function openNewUser(mode){if(!adhSession)return openRealLogin();const pres=adhProfile&&adhProfile.role==='chapter_president';if(!adhProfile||(adhProfile.role!=='state_admin'&&!pres)){toast('Sem permissão para cadastrar usuários.');return}
  const f=document.querySelector('#newUserModal form');f.reset();const roleSel=document.getElementById('nuRole');
  if(!window.__nuRoleHtml)window.__nuRoleHtml=roleSel.innerHTML;
@@ -188,7 +189,7 @@ function openNewUser(mode){if(!adhSession)return openRealLogin();const pres=adhP
  nuScope();document.getElementById('nuMsg').textContent='Com senha provisória a conta já nasce ativa e você repassa a senha à pessoa (peça para trocá-la). Sem senha, um convite é enviado ao e-mail.';document.getElementById('newUserModal').classList.add('open')}
 async function submitNewUser(ev){ev.preventDefault();const f=ev.target,d=new FormData(f),btn=document.getElementById('nuSubmit'),msg=document.getElementById('nuMsg');
  let phone=String(d.get('phone')||'').replace(/\D/g,'');if(phone&&!phone.startsWith('55'))phone='55'+phone;
- const role=document.getElementById('nuRole').value;const body={action:'create',full_name:d.get('full_name'),email:d.get('email'),role,phone,password:d.get('password')||'',region_id:(role==='regional_director'||role==='field_representative')?(d.get('region_id')||null):null,chapter_id:(role==='chapter_president'||role==='member')?(d.get('chapter_id')||null):null,redirect_to:location.origin+location.pathname};
+ const role=document.getElementById('nuRole').value;const body={action:'create',full_name:d.get('full_name'),email:d.get('email'),role,phone,password:d.get('password')||'',region_id:(role==='regional_director'||role==='field_representative')?(d.get('region_id')||null):null,chapter_id:(role==='chapter_president'||role==='member'||role==='youth_coordinator'||role==='women_coordinator')?(d.get('chapter_id')||null):null,redirect_to:location.origin+location.pathname};
  btn.disabled=true;msg.textContent='Criando…';
  try{const out=await adhUserFn(body);closeModal('newUserModal');toast(out.mode==='senha'?'Conta criada com senha provisória.':'Convite enviado ao e-mail informado.');if(document.getElementById('page-members').classList.contains('on'))loadMembers();else loadRealUsers()}
  catch(e){msg.textContent='Não foi possível criar: '+e.message}finally{btn.disabled=false}}
