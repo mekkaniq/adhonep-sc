@@ -587,6 +587,7 @@
     function onClick(e) { var p = e.target.closest && e.target.closest('path.muni'); if (p && !p.classList.contains('is-dim')) clickMuni(p.getAttribute('data-id')); else back(); }
     function hideTip() { if (S.els.tip) S.els.tip.hidden = true; }
     function onMove(e) {
+      if (root.matchMedia && root.matchMedia('(hover: none)').matches) { hideTip(); return; }
       var p = e.target.closest && e.target.closest('path.muni'); if (!p || p.classList.contains('is-dim')) { hideTip(); return; }
       var m = S.byId.get(p.getAttribute('data-id')), r = S.regions.get(m.regionId), st = muniStatus(m.id), n = (S.chBy.get(m.id) || []).length;
       var line = pub ? (n ? n + ' capítulo(s) ativo(s)' : 'Sem capítulo ativo') : (st === 'none' ? 'Sem capítulo' : ST[st].label + (n > 1 ? ' · ' + n + ' capítulos' : ''));
@@ -630,7 +631,7 @@
       }).join('') + '</div>';
     }
     function chapterCard(c) {
-      if (pub) return '<div class="detail"><strong>' + esc((c.number != null ? String(c.number).padStart(3, '0') + ' — ' : '') + c.name) + '</strong>' + (c.address ? '<p>Endereço: ' + esc(c.address) + '</p>' : '') + '<p>Contato: ' + esc(c.contact || 'Contato público a confirmar') + '</p></div>';
+      if (pub) return '<div class="detail"><strong>' + esc((c.number != null ? String(c.number).padStart(3, '0') + ' — ' : '') + c.name) + '</strong>' + (c.address ? '<p>Endereço: ' + esc(c.address) + '</p>' : '') + (typeof adhContactHtml === 'function' ? adhContactHtml(c, 'Contato público a confirmar') : '<p>Contato: ' + esc(c.contact || 'Contato público a confirmar') + '</p>') + '</div>';
       return '<div class="detail"><div class="statusline"><span class="tag ' + ({ active: 'active', inactive: 'inactive', activation: 'activation', reactivation: 'reactivation' }[c.status]) + '">' + ST[c.status].label + '</span><span class="tag ' + (c.published ? 'active' : 'inactive') + '">' + (c.published ? 'Público' : 'Não público') + '</span></div><strong>' + esc((c.number != null ? String(c.number).padStart(3, '0') + ' — ' : '') + c.name) + '</strong>' + (c.president ? '<p>Presidente: ' + esc(c.president) + '</p>' : '') + (c.address ? '<p>Endereço: ' + esc(c.address) + '</p>' : '') + (typeof canEdit === 'function' && canEdit('chapter', true) && typeof openChapter === 'function' ? '<div class="actions" style="margin-top:8px"><button class="btn small" type="button" onclick="openChapter(' + Number(c.id) + ')">Editar capítulo</button></div>' : '') + '</div>';
     }
     function renderPanel() {

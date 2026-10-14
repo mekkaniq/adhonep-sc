@@ -1,4 +1,4 @@
-window.ADH_VER_SB='3.12';
+window.ADH_VER_SB='3.13';
 /* Endereço (slug) da Edge Function que cria contas, como o Supabase a publicou: .../functions/v1/rapid-responder */
 const ADH_USER_FN='rapid-responder';
 
@@ -107,10 +107,11 @@ async function loadPublicChapters(){
  const noteOld=document.getElementById(noteId);if(noteOld)noteOld.remove();
  let cacheMode=false, savedAt=null;
  try{
-   const [rows,munis,regs]=await Promise.all([
+   const [rows,munis,regs,pcs]=await Promise.all([
      adhFetch('/rest/v1/chapters?select=*&order=name.asc&limit=1000'),
      adhFetch('/rest/v1/municipalities?select=id,name,ibge_code&limit=1000'),
-     adhFetch('/rest/v1/regions?select=*&limit=500')
+     adhFetch('/rest/v1/regions?select=*&limit=500'),
+     adhFetch('/rest/v1/public_chapter_contacts?select=chapter_id,president_phone&limit=1000').catch(()=>[])
    ]);
    if(!Array.isArray(rows)||!Array.isArray(munis)||!Array.isArray(regs))throw new Error('O Supabase retornou um formato inesperado.');
    adhCacheWrite('chapters',rows);adhCacheWrite('municipalities',munis);adhCacheWrite('regions',regs);
@@ -127,7 +128,7 @@ async function loadPublicChapters(){
        city:mm.get(String(mid))||c.city||c.municipality||c.municipio||'Município não vinculado',
        region:rm.get(String(rid))||c.region_name||c.region||'Região não vinculada',
        president:c.president_name||c.president||'',status:statusMap[dbStatus]||c.status||'Inativo',
-       contact:c.contact||c.phone||'',address:c.address||c.address_line||'',
+       contact:((Array.isArray(pcs)?pcs:[]).find(x=>String(x.chapter_id)===String(c.id))||{}).president_phone||c.contact||c.phone||'',address:c.address||c.address_line||'',
        published:pub,chapter_number:c.chapter_number??c.number??null,raw:c};
    });
    renderAll();
@@ -459,11 +460,11 @@ function approveAndCreate(id){const r=adhAccessRequests.find(x=>String(x.id)===S
 const ADH_LIB_CATS=['Apoio Jovem','Apoio Feminino','Regimento e estatuto','Manuais','Formulários','Atas e relatórios','Outros'];
 const ADH_LIB_MAX=20*1024*1024;
 let adhLibDocs=[];
-(function(){const _r=adhResolveProfile;adhResolveProfile=function(roles,se){const p=_r(roles,se);if(p)return p;const act=(Array.isArray(roles)?roles:[]).filter(r=>r.is_active!==false);const lab={youth_coordinator:'Coordenador de apoio jovem',women_coordinator:'Coordenador de apoio feminino',field_representative:'Representante de campo'};const c=act.find(r=>lab[r.role]);return c?{role:'member',label:lab[c.role],speakerEditor:!!se,regionIds:[],chapterIds:[]}:null}})();
-(function(){const _p=rolePermissions;rolePermissions=function(r){let p=_p(r);const role=(typeof adhProfile!=='undefined'&&adhProfile)?adhProfile.role:null;if(['state_admin','state_director','regional_director','chapter_president'].includes(role)&&!p.pages.includes('library'))p={pages:[...p.pages,'library'],edit:p.edit};return p}})();
+(function(){const _r=adhResolveProfile;adhResolveProfile=function(roles,se){const p=_r(roles,se);if(p)return p;const act=(Array.isArray(roles)?roles:[]).filter(r=>r.is_active!==false);const lab={youth_coordinator:'Coordenador de apoio jovem',women_coordinator:'Coordenador de apoio feminino',field_representative:'Representante de campo'};const co=act.filter(r=>r.role==='youth_coordinator'||r.role==='women_coordinator');if(co.length)return {role:'coordinator',label:lab[co[0].role],speakerEditor:!!se,regionIds:[],chapterIds:[...new Set(co.map(r=>r.chapter_id).filter(x=>x!=null))]};const c=act.find(r=>lab[r.role]);return c?{role:'member',label:lab[c.role],speakerEditor:!!se,regionIds:[],chapterIds:[]}:null}})();
+(function(){const _p=rolePermissions;rolePermissions=function(r){let p=_p(r);const role=(typeof adhProfile!=='undefined'&&adhProfile)?adhProfile.role:null;if(['state_admin','state_director','regional_director','chapter_president','coordinator'].includes(role)&&!p.pages.includes('library'))p={pages:[...p.pages,'library'],edit:p.edit};return p}})();
 function libFmtSize(n){n=Number(n)||0;return n>=1048576?(n/1048576).toFixed(1).replace('.',',')+' MB':Math.max(1,Math.round(n/1024))+' KB'}
 function libFmtDate(d){try{return new Date(d).toLocaleDateString('pt-BR')}catch(e){return ''}}
-function libCanPublish(){return !!adhProfile&&['state_admin','state_director','regional_director','chapter_president'].includes(adhProfile.role)}
+function libCanPublish(){return !!adhProfile&&['state_admin','state_director','regional_director','chapter_president','coordinator'].includes(adhProfile.role)}
 function libCanDirectors(){return !!adhProfile&&['state_admin','state_director','regional_director'].includes(adhProfile.role)}
 async function adhLibUid(){try{return (await adhFetch('/auth/v1/user')).id}catch(e){return null}}
 async function loadLibrary(target){
@@ -538,3 +539,44 @@ async function libDelete(id){
 }
 document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-lib-open],[data-lib-dl],[data-lib-del]');if(!b)return;if(b.dataset.libOpen)libOpen(b.dataset.libOpen,false);else if(b.dataset.libDl)libOpen(b.dataset.libDl,true);else if(b.dataset.libDel)libDelete(b.dataset.libDel)});
 (function(){const _s=showMemberArea;showMemberArea=async function(){await _s();loadLibrary().catch(()=>{})}})();
+
+
+/* ===== v3.13 — permissões revistas, contato do presidente, mapa em tela cheia ===== */
+let adhChapterContacts={};
+(function(){const _l=loadChaptersAdmin;loadChaptersAdmin=async function(){await _l();const r=adhProfile&&adhProfile.role;
+ if(r==='chapter_president'||r==='regional_director'){const ids=(adhProfile.chapterIds||[]).map(String),rg=(adhProfile.regionIds||[]).map(String);chapters=chapters.filter(c=>r==='chapter_president'?ids.includes(String(c.id)):rg.includes(String(c.region_id)));adhDbChapters=adhDbChapters.filter(c=>r==='chapter_president'?ids.includes(String(c.id)):rg.includes(String(c.region_id)))}
+ try{const rows=await adhFetch('/rest/v1/chapter_contacts?select=chapter_id,president_phone,show_public&limit=2000');adhChapterContacts={};(rows||[]).forEach(x=>{adhChapterContacts[String(x.chapter_id)]=x})}catch(e){adhChapterContacts={}}
+ try{renderAll()}catch(e){}}})();
+(function(){const _o=openChapter;openChapter=function(id){if(!id&&!(adhProfile&&['state_admin','state_director'].includes(adhProfile.role))){toast('Somente a administração estadual cadastra novos capítulos.');return}return _o(id)}})();
+function openChapterContact(id){
+ const c=(chapters||[]).find(x=>String(x.id)===String(id));if(!c)return;
+ const f=document.querySelector('#contactModal form'),cc=adhChapterContacts[String(id)]||{};
+ f.reset();f.elements.chapter_id.value=id;
+ const n=String(cc.president_phone||'').replace(/^55/,'');f.elements.phone.value=n;if(n)prMask(f.elements.phone);
+ f.elements.show_public.value=cc.show_public?'yes':'no';
+ document.getElementById('contactTitle').textContent='Contato — '+c.name;
+ document.getElementById('contactMsg').textContent=c.president?'Presidente cadastrado: '+c.president+'.':'';
+ document.getElementById('contactModal').classList.add('open');
+}
+async function saveChapterContact(ev){
+ ev.preventDefault();const f=ev.target,btn=document.getElementById('contactSubmit'),msg=document.getElementById('contactMsg');
+ const digits=String(f.elements.phone.value||'').replace(/\D/g,'');const show=f.elements.show_public.value==='yes';
+ if(digits&&(digits.length<10||digits.length>11)){msg.textContent='Informe DDD + número (10 ou 11 dígitos).';return}
+ if(show&&!digits){msg.textContent='Para mostrar no site, informe o telefone.';return}
+ const id=Number(f.elements.chapter_id.value);btn.disabled=true;msg.textContent='Salvando…';
+ try{await adhFetch('/rest/v1/chapter_contacts?on_conflict=chapter_id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({chapter_id:id,president_phone:digits?'55'+digits:null,show_public:show})});
+  adhChapterContacts[String(id)]={chapter_id:id,president_phone:digits?'55'+digits:null,show_public:show};closeModal('contactModal');toast(show?'Contato salvo e liberado no site público.':'Contato salvo (não aparece no site).')}
+ catch(e){msg.textContent='Não foi possível salvar: '+(/row-level security|permission/i.test(e.message)?'sem permissão para este capítulo (ou a migração v3.13 ainda não foi rodada).':e.message)}
+ finally{btn.disabled=false}
+}
+function adhMapFull(on){
+ const p=document.getElementById('adminMapPanel');if(!p)return;
+ const want=on===undefined?!p.classList.contains('adh-full'):!!on;
+ p.classList.toggle('adh-full',want);document.body.classList.toggle('adh-noscroll',want);
+ const b=document.getElementById('adminMapFullBtn');if(b)b.textContent='⛶ Tela cheia';
+ try{if(want){if(p.requestFullscreen&&!document.fullscreenElement)p.requestFullscreen().catch(()=>{})}else if(document.fullscreenElement){document.exitFullscreen()}}catch(e){}
+ if(want)p.scrollTop=0;
+ [80,300,700].forEach(t=>setTimeout(()=>window.dispatchEvent(new Event('resize')),t));
+}
+document.addEventListener('fullscreenchange',()=>{const p=document.getElementById('adminMapPanel');if(!document.fullscreenElement&&p&&p.classList.contains('adh-full'))adhMapFull(false)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=document.getElementById('adminMapPanel');if(p&&p.classList.contains('adh-full')&&!document.fullscreenElement)adhMapFull(false)}});
