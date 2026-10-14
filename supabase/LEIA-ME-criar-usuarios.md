@@ -1,4 +1,4 @@
-# Criar usuários pelo painel (claude v2.4)
+# Criar usuários pelo painel (claude v3.4)
 
 O navegador nunca pode guardar a chave `service_role`. Por isso a criação de contas roda numa **Edge Function** do Supabase.
 
@@ -27,3 +27,27 @@ Sócio vê: eventos publicados do próprio capítulo, comunicados publicados (es
 ## v2.4 — lançamento
 Rode `supabase/migracao-v2.4-lancamento.sql`. Ela troca a trava antiga (40 pedidos/hora no site todo) por: bloqueio de e-mail repetido (pendente ou aprovado), pausa de 7 dias após rejeição e teto de 300/minuto e 3000/hora contra robôs.
 No painel: Solicitações de cadastro → **Exportar planilha (CSV)** para aprovar em lote.
+
+## v2.5 — solicitações de cadastro
+Rode `supabase/migracao-v2.5-solicitacoes.sql`. Ela garante os GRANTs e as regras (RLS) para o formulário público gravar e só o administrador ler/decidir.
+No painel, a tela "Solicitações de cadastro" agora carrega ao abrir e se atualiza a cada 45 s.
+
+## v2.7
+Sem SQL novo. Suba: index.html, styles.css, js/app.js e sw.js (e mantenha js/supabase.js da v2.6).
+Corrige: "Solicitações de cadastro" estava oculta no menu do administrador.
+
+## v2.8
+Sem SQL novo. Suba: index.html, sw.js, sitemap.xml, privacidade.html, termos.html e assets/apple-touch-icon-2.png (pasta assets).
+Termos de Uso e Política de Privacidade copiados do site anterior (texto idêntico, atualização 22/08/2026).
+
+## v2.9
+Sem SQL novo. Suba: index.html, 404.html, sw.js e js/supabase.js (pasta js).
+No celular o menu do painel é uma faixa que rola para o lado; "Solicitações de cadastro" agora é o 2º item e há um aviso na Visão geral com a contagem de pedidos pendentes.
+
+## v3.2
+Sem SQL obrigatório. Opcional: rode `supabase/checagem-pre-lancamento.sql` (somente leitura) e confira os 4 resultados.
+Novo: Histórico de ações agora vem do banco; links de comunicados só aceitam http/https.
+Novo na v3.2: botão "Solicitar cadastro" no topo do site público.
+
+## Endereço da função (v3.6)
+No Supabase o editor gera um endereço aleatório. Aqui a função ficou em .../functions/v1/rapid-responder e o site usa esse endereço (constante ADH_USER_FN em js/supabase.js). Se publicar de novo com outro endereço, troque essa constante.
