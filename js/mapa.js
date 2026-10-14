@@ -481,9 +481,9 @@
       S.chapters.forEach(function (c) { cnt[c.status] = (cnt[c.status] || 0) + 1; });
       S.munis.forEach(function (m) { if (muniStatus(m.id) === 'none') none++; });
       L.innerHTML = ST_ORDER.map(function (k) { return '<button type="button" class="lg lg-btn' + (S.statusFilter === k ? ' on' : '') + '" data-st="' + k + '" aria-pressed="' + (S.statusFilter === k) + '"><i class="sw" style="background:' + ST[k].color + '"></i>' + ST[k].label + ' <b>' + cnt[k] + '</b></button>'; }).join('')
-        + '<button type="button" class="lg lg-btn' + (S.hideNone ? ' on' : '') + '" data-none aria-pressed="' + !!S.hideNone + '" title="Ocultar os municípios sem capítulo"><i class="sw soft"></i>Município sem capítulo <b>' + none + '</b>' + (S.hideNone ? ' <em class="lg-off">oculto</em>' : '') + '</button><button type="button" class="lg lg-link" data-refresh>Atualizar limites municipais</button>';
-      L.querySelectorAll('[data-st]').forEach(function (b) { b.onclick = function () { S.statusFilter = S.statusFilter === b.dataset.st ? null : b.dataset.st; renderLegend(); applyVisibility(); }; });
-      var nb = L.querySelector('[data-none]'); if (nb) nb.onclick = function () { S.hideNone = !S.hideNone; renderLegend(); applyVisibility(); };
+        + '<button type="button" class="lg lg-btn' + (S.onlyNone ? ' on' : '') + '" data-none aria-pressed="' + !!S.onlyNone + '" title="Mostrar somente os municípios sem capítulo"><i class="sw soft"></i>Município sem capítulo <b>' + none + '</b>' + (S.onlyNone ? ' <em class="lg-off">só estes</em>' : '') + '</button><button type="button" class="lg lg-link" data-refresh>Atualizar limites municipais</button>';
+      L.querySelectorAll('[data-st]').forEach(function (b) { b.onclick = function () { S.statusFilter = S.statusFilter === b.dataset.st ? null : b.dataset.st; S.onlyNone = false; renderLegend(); applyVisibility(); }; });
+      var nb = L.querySelector('[data-none]'); if (nb) nb.onclick = function () { S.onlyNone = !S.onlyNone; if (S.onlyNone) S.statusFilter = null; renderLegend(); applyVisibility(); };
       var rf = L.querySelector('[data-refresh]'); if (rf) rf.onclick = function () { api.load({ geo: true }); };
     }
 
@@ -539,7 +539,7 @@
         p.classList.toggle('is-focus', L === 2 && id === S.st.muni);
         p.classList.toggle('is-near', L === 2 && S.near.indexOf(id) >= 0);
         p.classList.toggle('is-faded', !pub && !!S.statusFilter && on && st !== S.statusFilter);
-        var hid = !pub && !!S.hideNone && on && st === 'none'; p.classList.toggle('is-hidden', hid);
+        var hid = !pub && !!S.onlyNone && on && st !== 'none'; p.classList.toggle('is-hidden', hid);
         var want = on && L === 2 && id === S.st.muni ? m.d1 : m.d0; if (p.__d !== want) { p.setAttribute('d', want); p.__d = want; }
         var inter = on && (pub ? (L === 0 || L === 1 ? true : true) : true);
         if (on && (pub ? st !== 'none' : true)) p.setAttribute('tabindex', 0); else p.removeAttribute('tabindex');
