@@ -539,7 +539,7 @@
         p.classList.toggle('is-focus', L === 2 && id === S.st.muni);
         p.classList.toggle('is-near', L === 2 && S.near.indexOf(id) >= 0);
         p.classList.toggle('is-faded', !pub && !!S.statusFilter && on && st !== S.statusFilter);
-        var hid = !pub && !!S.onlyNone && on && st !== 'none'; p.classList.toggle('is-hidden', hid);
+        var hid = !pub && !!S.onlyNone && on && st !== 'none'; p.classList.toggle('is-hidden', hid); p.classList.toggle('is-only', !pub && !!S.onlyNone && on && st === 'none');
         var want = on && L === 2 && id === S.st.muni ? m.d1 : m.d0; if (p.__d !== want) { p.setAttribute('d', want); p.__d = want; }
         var inter = on && (pub ? (L === 0 || L === 1 ? true : true) : true);
         if (on && (pub ? st !== 'none' : true)) p.setAttribute('tabindex', 0); else p.removeAttribute('tabindex');
