@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+Disallow: /beta/
+Sitemap: https://www.adhonepemsc.com.br/sitemap.xml
