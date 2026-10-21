@@ -6,6 +6,7 @@ self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V&&k.indexOf('adh-shell-')===0&&k.endsWith('-beta')===BETA).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',e=>{
  const r=e.request,u=new URL(r.url);
- if(r.method!=='GET'||u.origin!==location.origin)return;           // Supabase e outros domínios: direto na rede
+ if(r.method!=='GET'||u.origin!==location.origin)return;
+ if(r.headers.has('range')||/\.(mp4|webm|m4a)$/i.test(u.pathname))return;   // vídeo/áudio: direto na rede (respostas parciais não vão para o cache)           // Supabase e outros domínios: direto na rede
  e.respondWith(fetch(r).then(res=>{if(res.ok){const cp=res.clone();caches.open(V).then(c=>c.put(r,cp))}return res}).catch(()=>caches.match(r).then(m=>m||(r.mode==='navigate'?caches.match('index.html'):Response.error()))));
 });
