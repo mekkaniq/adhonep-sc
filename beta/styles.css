@@ -538,30 +538,22 @@ html[data-theme="dark"]{color-scheme:dark;
 html[data-theme="dark"] body{background:#08152a;color:#e7eef8}
 html[data-theme="dark"] a{color:#8fbdee}
 html[data-theme="dark"] ::placeholder{color:#7f93ab}
-html[data-theme="dark"] .switch.on{background:var(--gold);border-color:var(--gold);color:#0b1b33}
 html[data-theme="dark"] .btn.primary{background:#2868a5;border-color:#2868a5;color:#fff}
 html[data-theme="dark"] .btn.gold{background:var(--gold);border-color:var(--gold);color:#0b1b33}
 html[data-theme="dark"] .btn.danger{color:#f08a90}
-html[data-theme="dark"] .footer a{color:#f5e7c5}
 html[data-theme="dark"] .modal{background:#02081499}
 html[data-theme="dark"] .toast{background:#16304f;border:1px solid #c9a45c55}
-html[data-theme="dark"] img.logo-colorida{filter:brightness(1.15)}
 #themeBtn{min-width:40px;padding:9px 11px;line-height:1}
 html[data-theme="dark"] body{color:#e7eef8}
-html[data-theme="dark"] .logo{color:#e2c58d}
 html[data-theme="dark"] .btn{background:#16263e;color:#e7eef8}
 html[data-theme="dark"] .btn.danger{border-color:#61383b}
 html[data-theme="dark"] .eyebrow{color:#7bb4ea}
-html[data-theme="dark"] .hero .eyebrow{color:#e2c58d}
-html[data-theme="dark"] .hero-box strong{color:#e2c58d}
 html[data-theme="dark"] .head h2{color:#e7eef8}
 html[data-theme="dark"] .head p{color:#c3d0e0}
 html[data-theme="dark"] .panel{background:#16263e}
 html[data-theme="dark"] .panel h3{color:#e7eef8}
 html[data-theme="dark"] .sub{color:#c3d0e0}
 html[data-theme="dark"] .map{border:1px solid #293d5b;background:linear-gradient(135deg,#0f1c2e,#1c2f4c)}
-html[data-theme="dark"] .muni{fill:#293f60;stroke:#293d5b}
-html[data-theme="dark"] .pin{stroke:#293d5b}
 html[data-theme="dark"] .field{background:#16263e;color:#e7eef8}
 html[data-theme="dark"] .item:hover, html[data-theme="dark"] .item.sel{border-color:#293d5b;background:#0f1c2e}
 html[data-theme="dark"] .monogram{color:#7bb4ea}
@@ -598,10 +590,6 @@ html[data-theme="dark"] .role-preview-note{color:#e2c68d}
 html[data-theme="dark"] .access-note{border:1px solid #293d5b;background:#0f1c2e;color:#c3d0e0}
 html[data-theme="dark"] .access-note strong{color:#e7eef8}
 @media(max-width:680px){html[data-theme="dark"] body{background:linear-gradient(to bottom,#16263e 0 30px,var(--bg) 30px)}}
-html[data-theme="dark"] .map-legend{background:#16263e;color:#c3d0e0}
-html[data-theme="dark"] .map-legend strong{color:#e7eef8}
-html[data-theme="dark"] .muni{stroke:#293d5bd9}
-html[data-theme="dark"] .region-palette span{color:#c3d0e0}
 html[data-theme="dark"] .admin-map-controls{background:#0f1c2e}
 html[data-theme="dark"] .admin-map-controls label{color:#e7eef8}
 html[data-theme="dark"] .admin-map-side{background:#16263e}
@@ -615,60 +603,12 @@ html[data-theme="dark"] .card, html[data-theme="dark"] .panel, html[data-theme="
 html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea{border:1px solid #293d5b}
 html[data-theme="dark"] th{color:#c3d0e0;background:#0f1c2e}
 html[data-theme="dark"] th, html[data-theme="dark"] td{border-bottom:1px solid #293d5b}
-html[data-theme="dark"] .map-container, html[data-theme="dark"] .map-wrap, html[data-theme="dark"] .map-panel{border:1px solid #293d5b;background:#0f1c2e}
 html[data-theme="dark"] #territoryLoadStatus{background:#0f1c2e;color:#e7eef8}
-html[data-theme="dark"] #officialMap .muni{stroke:#293d5b}
-html[data-theme="dark"] #adminOfficialMap path.muni{stroke:#293d5bdd}
 html[data-theme="dark"] .map{background:linear-gradient(160deg,#0f1c2e,#1c2f4c)}
-html[data-theme="dark"] .amap-crumbs{color:#c3d0e0}
-html[data-theme="dark"] .amap-crumbs button{background:#16263eeb;color:#e7eef8}
-html[data-theme="dark"] .amap-crumbs button:hover{background:#413616}
-html[data-theme="dark"] .amap-loading{color:#e7eef8}
-html[data-theme="dark"] .amap-spin{border:3px solid #293d5b}
-html[data-theme="dark"] .amap-legend{color:#7bafea}
 html[data-theme="dark"] .lg-btn:hover, html[data-theme="dark"] .lg-btn.on{background:#16263e}
 html[data-theme="dark"] .lg-link{color:#7bb4ea}
 html[data-theme="dark"] .sw.soft{background:#1c2f4c}
-html[data-theme="dark"] .muni{fill:var(--tint,#1c2f4c);stroke:#293d5b}
-html[data-theme="dark"] .amap-label{stroke:#293d5be6}
-html[data-theme="dark"] .achip{background:#16263e;color:#e7eef8}
-html[data-theme="dark"] .achip:hover{background:#413516}
-html[data-theme="dark"] .achip b{color:#e2c98d}
-html[data-theme="dark"] .statline{color:#7bafea}
-html[data-theme="dark"] .near-card{background:#16263e}
-html[data-theme="dark"] .fnote{background:#413516}
-html[data-theme="dark"] .amap-stage{background:radial-gradient(120% 90% at 50% 0%,#16263e 0%,#0f1c2e 60%,#1c2f4c 100%);border:1px solid #293d5b}
-html[data-theme="dark"] .muni{fill:var(--tint,#1c2f4c);stroke:#293d5b}
-html[data-theme="dark"] .amap-public .muni.has-ch{stroke:#293d5b}
-html[data-theme="dark"] .muni.st-active{stroke:#293d5b}
-html[data-theme="dark"] .muni.st-activation{stroke:#293d5b}
-html[data-theme="dark"] .muni.st-reactivation{fill:#293f60;stroke:#293d5b}
-html[data-theme="dark"] .muni.st-inactive{stroke:#293d5b}
-html[data-theme="dark"] .amap-label{stroke:#293d5bf2}
-html[data-theme="dark"] .fnote.warn{background:#413116;color:#e2c58d}
-html[data-theme="dark"] .achip{background:#16263e}
-html[data-theme="dark"] .achip b{background:#413616;color:#e2c88d}
-html[data-theme="dark"] .statline span{background:#16263e}
-html[data-theme="dark"] .amap-public .muni.has-ch{stroke:#736326}
-html[data-theme="dark"] .muni.is-focus{stroke:#293d5b}
-html[data-theme="dark"] .amap-label{fill:#16263e}
-html[data-theme="dark"] .amap-label.cl{fill:#16263e}
-html[data-theme="dark"] .amap-label.main{fill:#16263e}
-html[data-theme="dark"] .amap-bdg circle{stroke:#293d5b}
-html[data-theme="dark"] .amap-num{fill:#16263e}
-html[data-theme="dark"] .amap-scale i{border:1.5px solid #293d5b}
-html[data-theme="dark"] .amap-crumbs button{background:#16263ef0}
-html[data-theme="dark"] .amap-crumbs button.back{background:#16263e;color:#e7eef8}
 html[data-theme="dark"] .sw.ring{border-color:#293d5b}
-html[data-theme="dark"] .near-card span{color:#c3d0e0}
-html[data-theme="dark"] .amap-public .muni.has-ch{stroke:#736226}
-html[data-theme="dark"] .muni.st-active, html[data-theme="dark"] .muni.st-activation, html[data-theme="dark"] .muni.st-reactivation, html[data-theme="dark"] .muni.st-inactive{stroke:#293d5bb2}
-html[data-theme="dark"] .muni.is-focus{stroke:#293d5b}
-html[data-theme="dark"] .amap-label{stroke:#293d5bcc}
-html[data-theme="dark"] .amap .muni:focus-visible{stroke:#293d5b}
-html[data-theme="dark"] .muni.st-active, html[data-theme="dark"] .muni.st-activation, html[data-theme="dark"] .muni.st-reactivation, html[data-theme="dark"] .muni.st-inactive{stroke:#293d5bbf}
-html[data-theme="dark"] .amap-public .muni.has-ch{stroke:#736326}
-html[data-theme="dark"] .amap-admin .muni.st-active{stroke:#736326}
 html[data-theme="dark"] .about{background:#16263e}
 html[data-theme="dark"] .about-lead{color:#e7eef8}
 html[data-theme="dark"] .about-card{background:#0f1c2e}
@@ -694,19 +634,12 @@ html[data-theme="dark"] .gx-sec h2{color:#e7eef8}
 html[data-theme="dark"] .gx-sec p.note{color:#c3d0e0}
 html[data-theme="dark"] .gx-end{color:#e7eef8}
 @media print{html[data-theme="dark"] body.gx-printing #gxPrint{background:#16263e!important}}
-html[data-theme="dark"] .hero .btn.gold{background:linear-gradient(180deg,#413416,#c9a45c);color:#e7eef8}
 html[data-theme="dark"] .infocard{background:linear-gradient(180deg,#16263e,#3e3319)}
 html[data-theme="dark"] .about{background:linear-gradient(180deg,#16263e,#3a311c)}
 html[data-theme="dark"] .about-lead{color:#e7eef8}
 html[data-theme="dark"] .about-lead strong{color:#e7eef8}
 html[data-theme="dark"] .about-card{background:#16263e}
 html[data-theme="dark"] .reveal .about-card{background:#16263e}
-html[data-theme="dark"] #cmdMap path.muni{stroke:#293d5bdd}
-html[data-theme="dark"] .cmd-sel option{color:#e7eef8}
-html[data-theme="dark"] .cmd-dbig{fill:#16263e}
-html[data-theme="dark"] .cmd-dsm{fill:#293f60}
-html[data-theme="dark"] .cmd-ax{fill:#293f60}
-html[data-theme="dark"] .cmd-val{fill:#1c2f4c}
 @media print{html[data-theme="dark"] #page-central .cmd{background:#16263e;color:#e7eef8}}
 html[data-theme="dark"] .gx-quick{background:#16263e}
 html[data-theme="dark"] .gx-q-row{border-top:1px dashed #5a533f}
@@ -814,3 +747,11 @@ html.pub-vintro .hero-vmode .hero-grid{align-self:center}
  .hero-vmode p{font-size:15px}
 }
 html.pub-vintro .top{margin-top:0!important}
+
+
+/* v1.9 — regra do tema escuro: o que já é escuro por design (Central de comando, mapas, capa, menu, rodapé)
+   fica igual ao modo claro; a legenda do mapa também. */
+html[data-theme="dark"] :is(#cmdRoot,.amap-stage,#officialMap,#adminOfficialMap,#cmdMap,.map-legend,.amap-legend,.hero,.footer,.top,.map-tip){
+ --navy:#102b4e;--navy2:#183d68;--navy-2:#102847;--blue:#2868a5;--blue-bright:#2d6bb5;--blue2:#eaf2fa;--gold:#c9a45c;--gold-light:#e4ce9a;--gold-soft:#e6cf9c;--gold-deep:#a8823a;
+ --ink:#19283a;--muted:#6b7a8c;--line:#dfe6ee;--bg:#f3f6fa;--white:#fff;--surface:#fff;--surface-soft:#f5f7fa;--paper:#f6f3ec;--paper2:#efe9dc;
+ --green:#237750;--greenbg:#e8f5ee;--red:#a83c42;--redbg:#fbecee;--amber:#966315;--amberbg:#fff3df;--purple:#6b56a1;--purplebg:#f0ecfb;--shadow:0 12px 32px #112d4b0b;color-scheme:light}
