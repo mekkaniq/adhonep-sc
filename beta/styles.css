@@ -796,3 +796,21 @@ html.pub-vintro.intro-hidden .top{transform:translateY(-105%);opacity:0;pointer-
 html.pub-vintro .hero-vmode{min-height:100vh;padding-top:calc(var(--hh,68px) + 18px)!important}
 @supports(height:100svh){html.pub-vintro .hero-vmode{min-height:100svh}}
 html.intro-hidden #gxBetaRibbon{display:none}
+
+/* v1.9 — diagramação: menu e faixa de teste nunca sobre o texto; vídeo encerrado após a rolagem */
+html.pub-vintro .top{top:var(--rib,0px)}
+html.pub-vintro .hero-vmode{padding-top:calc(var(--hh,68px) + var(--rib,0px) + 34px)!important;padding-bottom:72px!important}
+html.pub-vintro .hero-vmode .hero-grid{align-self:center}
+.hero-vmode.hero-text-on .hero-sound{opacity:0;pointer-events:none;transition:opacity .4s}
+.hero-vmode.vdone .hero-shade{opacity:.95}
+.hero-vmode.vdone .hero-cue{opacity:0}
+@media(max-width:760px){
+ html.pub-vintro .hero-vmode{padding-top:calc(var(--hh,68px) + var(--rib,0px) + 26px)!important;padding-bottom:56px!important}
+ .hero-vmode .hero-grid{gap:18px}
+ .hero-vmode .hero-box{padding:14px 16px!important}
+ .hero-vmode .hero-box strong{font-size:34px!important;line-height:1.1}
+ .hero-vmode .hero-box p{font-size:13px!important;margin-top:2px}
+ .hero-vmode .hero-box .eyebrow{font-size:10px}
+ .hero-vmode p{font-size:15px}
+}
+html.pub-vintro .top{margin-top:0!important}
