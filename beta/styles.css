@@ -755,3 +755,12 @@ html[data-theme="dark"] :is(#cmdRoot,.amap-stage,#officialMap,#adminOfficialMap,
  --navy:#102b4e;--navy2:#183d68;--navy-2:#102847;--blue:#2868a5;--blue-bright:#2d6bb5;--blue2:#eaf2fa;--gold:#c9a45c;--gold-light:#e4ce9a;--gold-soft:#e6cf9c;--gold-deep:#a8823a;
  --ink:#19283a;--muted:#6b7a8c;--line:#dfe6ee;--bg:#f3f6fa;--white:#fff;--surface:#fff;--surface-soft:#f5f7fa;--paper:#f6f3ec;--paper2:#efe9dc;
  --green:#237750;--greenbg:#e8f5ee;--red:#a83c42;--redbg:#fbecee;--amber:#966315;--amberbg:#fff3df;--purple:#6b56a1;--purplebg:#f0ecfb;--shadow:0 12px 32px #112d4b0b;color-scheme:light}
+
+/* v1.9 — modo escuro: menos laranja, mais dourado (azul-marinho + ouro) */
+html[data-theme="dark"] .infocard{background:radial-gradient(120% 70% at 50% 0%,rgba(201,164,92,.14),transparent 60%),linear-gradient(180deg,#132744,#0e1f38)!important;border:1px solid rgba(201,164,92,.32)!important}
+html[data-theme="dark"] .infocard:hover{border-color:rgba(230,207,156,.6)!important}
+html[data-theme="dark"] .about{background:linear-gradient(180deg,#0f2240,#0b1b33)!important}
+html[data-theme="dark"] .symbol{background:linear-gradient(135deg,#e6cf9c,#c9a45c 55%,#a8823a)!important;color:#0b1b33!important;box-shadow:0 6px 18px rgba(201,164,92,.25)}
+html[data-theme="dark"] .rolebar,html[data-theme="dark"] mark,html[data-theme="dark"] .gx-chip{background:rgba(201,164,92,.16)!important;color:#ecd9ad!important}
+html[data-theme="dark"]{--gxb-warn:rgba(201,164,92,.16)}
+html[data-theme="dark"] [style*="background:#fff3df"],html[data-theme="dark"] [style*="background:#fff8e"]{background:rgba(201,164,92,.16)!important;color:#ecd9ad!important;border-color:rgba(201,164,92,.45)!important}
