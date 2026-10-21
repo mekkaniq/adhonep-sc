@@ -153,6 +153,7 @@ function cmdUpcoming() {
 function cmdRender() {
   const root = cmdEl('cmdRoot'); if (!root) return;
   root.classList.toggle('cmd-reg', !(CMD.scope === 'state' && !cmdIsRegional()));
+  root.classList.toggle('cmd-st', CMD.scope === 'state' && !cmdIsRegional());
   const E = cmdE, act = cmdActive(), all = cmdScopeChapters(), rows = cmdHealthRows();
   const avg = rows.length ? Math.round(rows.reduce((s, x) => s + x.h.score, 0) / rows.length) : null;
   const weeks = cmdWeeks(12), months = cmdMonths(6);
