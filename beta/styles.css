@@ -789,3 +789,10 @@ html[data-theme="dark"] [style*="border:1px solid #dbe4ee"],html[data-theme="dar
 .hero-static+.hero-spacer{display:none}
 .hero-vmode .hero-video.on{filter:blur(calc(var(--q,0) * 7px)) brightness(calc(1 - var(--q,0) * .38)) saturate(calc(1 - var(--q,0) * .2));transform:scale(calc(1 + var(--q,0) * .04));will-change:filter,transform}
 @media(max-width:760px){.hero-vmode .hero-video.on{filter:blur(calc(var(--q,0) * 5px)) brightness(calc(1 - var(--q,0) * .45))}}
+
+/* v1.9 — abertura só com o vídeo: menu escondido; ao rolar, o menu desce junto com os textos */
+html.pub-vintro .top{position:fixed;top:0;left:0;right:0;z-index:40;transition:transform .5s cubic-bezier(.2,.7,.2,1),opacity .5s ease;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+html.pub-vintro.intro-hidden .top{transform:translateY(-105%);opacity:0;pointer-events:none;box-shadow:none}
+html.pub-vintro .hero-vmode{min-height:100vh;padding-top:calc(var(--hh,68px) + 18px)!important}
+@supports(height:100svh){html.pub-vintro .hero-vmode{min-height:100svh}}
+html.intro-hidden #gxBetaRibbon{display:none}
