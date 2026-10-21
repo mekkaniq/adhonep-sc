@@ -152,6 +152,7 @@ function cmdUpcoming() {
 /* ---------- desenho ---------- */
 function cmdRender() {
   const root = cmdEl('cmdRoot'); if (!root) return;
+  root.classList.toggle('cmd-reg', !(CMD.scope === 'state' && !cmdIsRegional()));
   const E = cmdE, act = cmdActive(), all = cmdScopeChapters(), rows = cmdHealthRows();
   const avg = rows.length ? Math.round(rows.reduce((s, x) => s + x.h.score, 0) / rows.length) : null;
   const weeks = cmdWeeks(12), months = cmdMonths(6);
@@ -217,10 +218,14 @@ function cmdRender() {
       + '</tbody></table></div><p class="cmd-foot">Clique em uma região para abrir a visão regional.</p>';
   } else {
     cmdEl('cmdCompareTitle').textContent = 'Capítulos da região';
-    const sorted = rows.slice().sort((a, b) => a.h.score - b.h.score);
-    cmdEl('cmdCompare').innerHTML = '<div class="tablewrap"><table class="cmd-tb"><thead><tr><th>Capítulo</th><th>Presidente</th><th>Saúde</th><th>Reunião</th><th>Relatório</th><th>Mandato</th><th>Sócios</th></tr></thead><tbody>'
-      + sorted.map(x => { const mi = gxMeetInfo(x.c), p = x.h.parts; return '<tr class="cmd-click" onclick="gxChapterTimeline(\'' + x.c.id + '\')"><td><b>' + E(x.c.name) + '</b><em>' + E(x.c.city || '') + '</em></td><td>' + E(x.c.president || '—') + '</td><td><span class="cmd-pill" style="color:' + cmdBandColor(x.h.score) + ';border-color:' + cmdBandColor(x.h.score) + '">' + x.h.score + '</span></td><td>' + E(p[1][3]) + '</td><td>' + E(p[0][3]) + '</td><td>' + E(p[2][3]) + '</td><td>' + (CMD.members ? cmdN(CMD.members[String(x.c.id)] || 0) : '—') + '</td></tr>'; }).join('')
-      + '</tbody></table></div><p class="cmd-foot">Clique em um capítulo para ver o histórico.</p>';
+    // ranking embutido: posição e pontos do mês na própria tabela da região
+    const rkAll = ((CMD.rank && CMD.rank.chapters) || []).filter(x => ids.has(String(x.chapter_id != null ? x.chapter_id : x.id))).slice().sort((a, b) => b.points - a.points);
+    const rkMap = new Map(rkAll.map((x, i) => [String(x.chapter_id != null ? x.chapter_id : x.id), { pos: i + 1, pts: x.points }]));
+    const sorted = rows.slice().sort((a, b) => ((rkMap.get(String(b.c.id)) || { pts: -1 }).pts - (rkMap.get(String(a.c.id)) || { pts: -1 }).pts) || (b.h.score - a.h.score));
+    const rkCell = c => { const r = rkMap.get(String(c.id)); return r ? '<span class="cmd-rkpos' + (r.pos <= 3 ? ' top' : '') + '">' + r.pos + 'º</span><em>' + cmdN(r.pts) + ' pts</em>' : '<em>—</em>'; };
+    cmdEl('cmdCompare').innerHTML = '<div class="tablewrap"><table class="cmd-tb"><thead><tr><th>Ranking</th><th>Capítulo</th><th>Presidente</th><th>Saúde</th><th>Reunião</th><th>Relatório</th><th>Mandato</th><th>Sócios</th></tr></thead><tbody>'
+      + sorted.map(x => { const mi = gxMeetInfo(x.c), p = x.h.parts; return '<tr class="cmd-click" onclick="gxChapterTimeline(\'' + x.c.id + '\')"><td class="cmd-rkcell">' + rkCell(x.c) + '</td><td><b>' + E(x.c.name) + '</b><em>' + E(x.c.city || '') + '</em></td><td class="cmd-pres">' + E(x.c.president || '—') + '</td><td><span class="cmd-pill" style="color:' + cmdBandColor(x.h.score) + ';border-color:' + cmdBandColor(x.h.score) + '">' + x.h.score + '</span></td><td>' + E(p[1][3]) + '</td><td>' + E(p[0][3]) + '</td><td>' + E(p[2][3]) + '</td><td>' + (CMD.members ? cmdN(CMD.members[String(x.c.id)] || 0) : '—') + '</td></tr>'; }).join('')
+      + '</tbody></table></div><p class="cmd-foot">Ordenado pelo ranking do mês. Clique em um capítulo para ver o histórico.</p>';
   }
 
   // alertas

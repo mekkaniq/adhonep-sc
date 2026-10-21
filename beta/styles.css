@@ -764,3 +764,52 @@ html[data-theme="dark"] .symbol{background:linear-gradient(135deg,#e6cf9c,#c9a45
 html[data-theme="dark"] .rolebar,html[data-theme="dark"] mark,html[data-theme="dark"] .gx-chip{background:rgba(201,164,92,.16)!important;color:#ecd9ad!important}
 html[data-theme="dark"]{--gxb-warn:rgba(201,164,92,.16)}
 html[data-theme="dark"] [style*="background:#fff3df"],html[data-theme="dark"] [style*="background:#fff8e"]{background:rgba(201,164,92,.16)!important;color:#ecd9ad!important;border-color:rgba(201,164,92,.45)!important}
+
+/* v1.9 — Central de comando, visão REGIONAL compacta: tudo numa tela (computador) */
+.cmd-rkpos{display:inline-block;min-width:34px;text-align:center;padding:2px 6px;border-radius:8px;font:700 12px system-ui;color:#fff;background:rgba(255,255,255,.08);border:1px solid var(--c-line)}
+.cmd-rkpos.top{background:linear-gradient(135deg,#e6cf9c,#c9a45c);color:#0b1b33;border-color:transparent}
+.cmd-rkcell em{display:block;margin-top:2px}
+@media(min-width:1100px){
+ .cmd.cmd-reg{padding:14px 16px}
+ .cmd.cmd-reg .cmd-top{margin-bottom:10px}
+ .cmd.cmd-reg .cmd-top h1{font-size:26px;margin:2px 0}
+ .cmd.cmd-reg .cmd-kpis{grid-template-columns:repeat(10,minmax(0,1fr))!important;gap:8px;margin-bottom:10px}
+ .cmd.cmd-reg .cmd-kpi{min-height:0;padding:8px 10px;border-radius:11px}
+ .cmd.cmd-reg .cmd-kpi label{font-size:9.5px;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .cmd.cmd-reg .cmd-kpi strong{font-size:24px;line-height:1.1;margin-top:2px}
+ .cmd.cmd-reg .cmd-kpi small{font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .cmd.cmd-reg .cmd-kpi .cmd-spark{display:none}
+ .cmd.cmd-reg .cmd-grid{grid-template-columns:repeat(12,minmax(0,1fr));gap:10px}
+ .cmd.cmd-reg .cmd-card{padding:11px 13px;border-radius:12px}
+ .cmd.cmd-reg h3{margin-bottom:7px;font-size:11px}
+ .cmd.cmd-reg .cmd-map{grid-column:1/span 4!important;grid-row:1/span 2!important}
+ .cmd.cmd-reg .cmd-compare{grid-column:5/span 5!important;grid-row:1!important}
+ .cmd.cmd-reg .cmd-health{grid-column:10/span 3!important;grid-row:1!important}
+ .cmd.cmd-reg .cmd-alerts{grid-column:5/span 5!important;grid-row:2!important;max-height:190px;overflow:auto}
+ .cmd.cmd-reg .cmd-events{grid-column:10/span 3!important;grid-row:2!important;max-height:190px;overflow:auto}
+ .cmd.cmd-reg .cmd-rank{display:none}
+ .cmd.cmd-reg :is(.cmd-t1,.cmd-t2,.cmd-t3,.cmd-t4,.cmd-t5,.cmd-t6){grid-column:span 2!important;grid-row:3!important;padding:9px 11px}
+ .cmd.cmd-reg :is(.cmd-t1,.cmd-t2,.cmd-t3,.cmd-t4,.cmd-t5,.cmd-t6) h3{font-size:10px;letter-spacing:.1em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .cmd.cmd-reg :is(.cmd-t1,.cmd-t2,.cmd-t3,.cmd-t4,.cmd-t5,.cmd-t6) .cmd-chart{max-height:110px}
+ .cmd.cmd-reg .cmd-key{font-size:10px;margin-top:2px}
+ .cmd.cmd-reg .cmd-tb{font-size:12px}
+ .cmd.cmd-reg .cmd-tb th{padding:4px 6px;font-size:9.5px}
+ .cmd.cmd-reg .cmd-tb td{padding:5px 6px}
+ .cmd.cmd-reg .cmd-pres{max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .cmd.cmd-reg .cmd-compare .tablewrap{max-height:230px;overflow:auto}
+ .cmd.cmd-reg .cmd-health{display:grid;grid-template-columns:1fr 1fr;grid-template-areas:"a c" "b d";column-gap:10px;align-content:start}
+ .cmd.cmd-reg .cmd-health>h3:first-of-type{grid-area:a}
+ .cmd.cmd-reg .cmd-health>#cmdHealth{grid-area:b}
+ .cmd.cmd-reg .cmd-health>h3:nth-of-type(2){grid-area:c;margin-top:0!important}
+ .cmd.cmd-reg .cmd-health>#cmdStatus{grid-area:d}
+ .cmd.cmd-reg .cmd-health .cmd-split{flex-direction:column;align-items:flex-start;gap:6px}
+ .cmd.cmd-reg .cmd-health .cmd-donut{width:86px;height:86px}
+ .cmd.cmd-reg .cmd-health .cmd-foot{display:none}
+ .cmd.cmd-reg .cmd-health :is(.cmd-lg,.cmd-legend,ul,li,div){font-size:11.5px}
+ .cmd.cmd-reg .cmd-mapdetail,.cmd.cmd-reg #cmdMap .amap-stats{display:none}
+ .cmd.cmd-reg #cmdMap .amap-stage{height:400px!important;min-height:0!important;aspect-ratio:auto!important}
+ .cmd.cmd-reg .cmd-al{font-size:12px;padding:5px 0}
+ .cmd.cmd-reg .cmd-ev{padding:5px 0}
+}
+.cmd-tb td .cmd-rkpos{display:inline-block!important;height:auto!important;min-height:0!important;line-height:1.5!important;width:auto!important;padding:1px 7px!important;vertical-align:middle}
+.cmd-tb td.cmd-rkcell{white-space:nowrap;width:1%}
