@@ -257,8 +257,8 @@ function cmdRender() {
     + '<div class="cmd-key"><i style="background:' + CMD_C.yellow + '"></i>capítulos com Ministério de Prisões ativo</div>';
 
   // eventos próximos
-  cmdEl('cmdEvents').innerHTML = up.length ? up.slice(0, 6).map(e => { const d = new Date(e.starts_at), c = gxChapById(e.chapter_id); return '<div class="cmd-ev"><div class="cmd-evd"><b>' + String(d.getDate()).padStart(2, '0') + '</b><span>' + GX_MONTHS[d.getMonth()].slice(0, 3) + '</span></div><div><b>' + E(e.title || 'Evento') + '</b><em>' + E(c ? c.name : '') + ' · ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + '</em></div></div>'; }).join('')
-    : '<p class="cmd-empty">Nenhum evento futuro cadastrado.</p>';
+  cmdEvSlides(up);
+  cmdFit();
 }
 
 /* ---------- controles ---------- */
@@ -316,3 +316,37 @@ document.addEventListener('fullscreenchange', () => { const p = cmdEl('page-cent
     return p;
   };
 })();
+
+
+/* ---------- Próximos eventos: apresentação com os banners (claude v1.9) ---------- */
+function cmdEvSlides(up) {
+  const el = cmdEl('cmdEvents'); if (!el) return;
+  clearInterval(CMD.slideTimer); CMD.slideTimer = null;
+  if (!up.length) { el.innerHTML = '<p class="cmd-empty">Nenhum evento futuro cadastrado.</p>'; return; }
+  const list = up.slice(0, 8), E = cmdE;
+  el.innerHTML = '<div class="cmd-slides">' + list.map((e, i) => {
+    const d = new Date(e.starts_at), c = gxChapById(e.chapter_id), img = e.image_url || e.image_data || '';
+    const when = String(d.getDate()).padStart(2, '0') + ' ' + GX_MONTHS[d.getMonth()].slice(0, 3).toLowerCase() + ' · ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    return '<div class="cmd-slide' + (i === 0 ? ' on' : '') + (img ? '' : ' noimg') + '">' + (img ? '<img src="' + E(img) + '" alt="" loading="lazy" decoding="async">' : '<div class="cmd-slide-date"><b>' + String(d.getDate()).padStart(2, '0') + '</b><span>' + GX_MONTHS[d.getMonth()].slice(0, 3) + '</span></div>')
+      + '<div class="cmd-slide-cap"><b>' + E(e.title || 'Evento') + '</b><em>' + E((c ? c.name + ' · ' : '') + when) + '</em></div></div>';
+  }).join('') + (list.length > 1 ? '<div class="cmd-dots">' + list.map((_, i) => '<i' + (i === 0 ? ' class="on"' : '') + '></i>').join('') + '</div>' : '') + '</div>';
+  if (list.length > 1) {
+    let k = 0;
+    CMD.slideTimer = setInterval(() => {
+      const sl = el.querySelectorAll('.cmd-slide'), dt = el.querySelectorAll('.cmd-dots i'); if (!sl.length) { clearInterval(CMD.slideTimer); return; }
+      sl[k].classList.remove('on'); dt[k] && dt[k].classList.remove('on'); k = (k + 1) % sl.length; sl[k].classList.add('on'); dt[k] && dt[k].classList.add('on');
+    }, 6000);
+  }
+}
+
+/* ---------- ajusta a Central à altura da tela (visões compactas) ---------- */
+function cmdFit() {
+  const root = cmdEl('cmdRoot'); if (!root) return;
+  const compact = root.classList.contains('cmd-reg') || root.classList.contains('cmd-st');
+  if (!compact || innerWidth < 1100 || !root.offsetParent) { root.style.height = ''; return; }
+  const fs = !!document.fullscreenElement;
+  const top = fs ? 14 : root.getBoundingClientRect().top + (window.pageYOffset || 0);
+  root.style.height = Math.max(640, innerHeight - top - (fs ? 14 : 12)) + 'px';
+}
+addEventListener('resize', () => { clearTimeout(CMD.fitT); CMD.fitT = setTimeout(cmdFit, 120); });
+document.addEventListener('fullscreenchange', () => setTimeout(cmdFit, 60));
