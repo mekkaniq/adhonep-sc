@@ -1,0 +1,242 @@
+{
+ "_leia": "Conteúdo estático local. Só entra o que for verificado/autorizado. eventos: {titulo,cidade,data:'AAAA-MM-DD',tipo,url}. testemunhos: {nome,cidade,texto,autorizado:true}. historias: {titulo,paises:['ISO3','ISO3'],texto,fonte,autorizado:true}. agenda: {pais:'ISO3',cidade,data:'AAAA-MM-DD',titulo,tipo:'jantar|workshop|convencao',url}.",
+ "paises": {
+  "BRA": {
+   "links": [
+    {
+     "t": "Site oficial da ADHONEP",
+     "u": "https://adhonep.com/pt/"
+    },
+    {
+     "t": "Lista oficial de capítulos",
+     "u": "https://adhonep.com/pt/nossos-capitulos/"
+    },
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": [],
+   "inst": "Sede: Rod. Amaral Peixoto, Km 6,5 · São Gonçalo – RJ. Atendimento: segunda a quinta, 8h–18h; sexta, 8h–17h. WhatsApp +55 21 97190-0883 · adhonep@adhonep.com"
+  },
+  "DEU": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    },
+    {
+     "t": "FGBMFI Europa",
+     "u": "https://fgbmfi.eu/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "ARG": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    },
+    {
+     "t": "FIHNEC (América Latina)",
+     "u": "https://fihnec.com/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "AZE": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "KAZ": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "CHN": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "CYP": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "COL": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    },
+    {
+     "t": "FIHNEC (América Latina)",
+     "u": "https://fihnec.com/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "SLV": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    },
+    {
+     "t": "FIHNEC (América Latina)",
+     "u": "https://fihnec.com/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "ESP": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    },
+    {
+     "t": "FGBMFI Europa",
+     "u": "https://fgbmfi.eu/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "USA": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "MEX": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    },
+    {
+     "t": "FIHNEC (América Latina)",
+     "u": "https://fihnec.com/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "PRT": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    },
+    {
+     "t": "FGBMFI Europa",
+     "u": "https://fgbmfi.eu/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "RUS": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "TUR": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "URY": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    },
+    {
+     "t": "FIHNEC (América Latina)",
+     "u": "https://fihnec.com/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "ARE": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "ZAF": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    },
+    {
+     "t": "FGBMFI África",
+     "u": "https://fgbmfi.africa/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  },
+  "BLR": {
+   "links": [
+    {
+     "t": "FGBMFI Internacional",
+     "u": "https://www.fgbmfi.org/"
+    }
+   ],
+   "eventos": [],
+   "testemunhos": []
+  }
+ },
+ "historias": [],
+ "agenda": []
+}
