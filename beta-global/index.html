@@ -106,12 +106,15 @@ html.app-on #app{display:block}
 .g-map path{stroke:var(--g-bg);stroke-width:.35;vector-effect:non-scaling-stroke;stroke-width:1;cursor:pointer;transition:filter .15s,opacity .2s}
 html[data-theme=dark] .g-map path{stroke:#07101f}
 .g-map path:hover{filter:brightness(1.18) saturate(1.1)}
-.g-map.zm path.dim{opacity:.35}.g-map path.ct{stroke:var(--g-bg);fill:#6b7f99}.g-map path.ct.off{fill:#9db0c8;opacity:.45}.g-map path.ct.on{fill:#2f6fb5}.g-map path.ct.br{fill:#c9a45c}html[data-theme=dark] .g-map path.ct.off{fill:#2a3f5f;opacity:.9}
+.g-map.zm path.dim{opacity:.35}
+#gGlobe{display:none;width:100%;height:min(74vh,720px);cursor:grab;touch-action:none}#gGlobe:active{cursor:grabbing}
+.g-map.gl{background:radial-gradient(80% 90% at 50% 45%,#0d1e38,#060d1a 62%,#03070f);border-color:#1d3150}.g-map.gl #gGlobe{display:block}.g-map.gl svg{display:none}
+.g-hint{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:12px;color:#9fb2c8;pointer-events:none;display:none}.g-map.gl .g-hint{display:block}.g-map path.ct{stroke:var(--g-bg);fill:#6b7f99}.g-map path.ct.off{fill:#9db0c8;opacity:.45}.g-map path.ct.on{fill:#2f6fb5}.g-map path.ct.br{fill:#c9a45c}html[data-theme=dark] .g-map path.ct.off{fill:#2a3f5f;opacity:.9}
 .g-map path.sel{stroke:var(--g-gold);stroke-width:2.2;filter:brightness(1.15)}
 .g-tip{position:absolute;pointer-events:none;background:#0b1b33;color:#fff;border:1px solid var(--g-gold);border-radius:8px;padding:6px 10px;font-size:12.5px;line-height:1.35;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;white-space:nowrap;z-index:5}
 .g-tip small{color:#e6cf9c;display:block}
 .g-back{position:absolute;left:12px;top:12px;z-index:6;display:none}
-.g-map.zm .g-back{display:block}.g-back.g-btn{background:#0b1b33}
+.g-map.zm .g-back,.g-map.gl.zc .g-back{display:block}.g-back.g-btn{background:#0b1b33}
 .g-side{background:var(--g-card);border:1px solid var(--g-line);border-radius:16px;padding:14px;max-height:min(74vh,720px);overflow:auto;display:flex;flex-direction:column;gap:10px}
 .g-side h3{margin:0;font:600 18px var(--display);color:var(--g-ink)}
 .g-side input{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--g-line);background:var(--g-bg);color:var(--g-ink);font:14px var(--body)}
@@ -157,7 +160,7 @@ html.app-on .stage{pointer-events:none}
   <div class="g-wrap">
     <div class="g-h"><div><h1 id="gTitle">Mundo</h1><p id="gSub"></p></div><div class="g-st" id="gStats"></div></div>
     <div class="g-grid">
-      <div class="g-map" id="gMap"><button class="g-btn g-back" id="gBack" type="button">← Mundo</button><svg id="gSvg" role="img" aria-label="Mapa do Brasil por estados"></svg><div class="g-tip" id="gTip"></div></div>
+      <div class="g-map" id="gMap"><button class="g-btn g-back" id="gBack" type="button">← Mundo</button><canvas id="gGlobe"></canvas><svg id="gSvg" role="img" aria-label="Mapa do Brasil por estados"></svg><div class="g-tip" id="gTip"></div><div class="g-hint">Arraste para girar · role/pinça para aproximar · toque em um país</div></div>
       <aside class="g-side"><h3 id="gSideT">Países</h3><input id="gQ" type="search" placeholder="Buscar país…" autocomplete="off"><div class="g-list" id="gList"></div><div class="g-card" id="gCard" hidden></div><p class="g-note" id="gNote">Teste · Brasil: limites IBGE 2025. Mundo: contornos simplificados (domínio público). A lista de países é de referência e não confirma presença.</p></aside>
     </div>
   </div>
@@ -286,22 +289,77 @@ function showTip(e,h){const r=map.getBoundingClientRect();tip.innerHTML=h;tip.st
 const hide=()=>tip.style.opacity=0;
 function stats(a){$('gStats').innerHTML=a.map(x=>'<div><b>'+x[0]+'</b><span>'+x[1]+'</span></div>').join('')}
 function head(t,s,side,ph){$('gTitle').textContent=t;$('gSub').textContent=s;$('gSideT').textContent=side;q.placeholder=ph;q.value='';card.hidden=true;hide()}
-function crumbs(){back.textContent=lvl==='uf'?'← Brasil':'← Mundo';map.classList.toggle('zm',lvl!=='world')}
+function crumbs(){back.textContent=lvl==='uf'?'← Brasil':'← Mundo';map.classList.toggle('zm',lvl==='br'||lvl==='uf');map.classList.toggle('zc',lvl==='country')}
+const cv=$('gGlobe'),cx=cv.getContext('2d');
+let G={lon:-45,lat:12,k:1,tl:null,spin:true,idle:0,hov:null,run:false,drag:null,last:0};
+const RAD=Math.PI/180,col={br:'#c9a45c',on:'#2f6fb5',off:'#1b2f4d',ln:'rgba(8,18,34,.9)'};
+function size(){const r=map.getBoundingClientRect(),d=devicePixelRatio||1,w=Math.max(200,r.width),h=cv.clientHeight||500;if(cv.width!==Math.round(w*d)||cv.height!==Math.round(h*d)){cv.width=Math.round(w*d);cv.height=Math.round(h*d)}return[w,h,d]}
+function prj(lonD,latD,R,cxp,cyp){const l=(lonD-G.lon)*RAD,f=latD*RAD,p0=G.lat*RAD,cl=Math.cos(l),X=Math.cos(f)*Math.sin(l),Y=Math.cos(p0)*Math.sin(f)-Math.sin(p0)*Math.cos(f)*cl,Z=Math.sin(p0)*Math.sin(f)+Math.cos(p0)*Math.cos(f)*cl;return{X:X,Y:Y,Z:Z}}
+function ringPath(ring,path,R,cxp,cyp){
+  const n=ring.length,P=ring.map(p=>prj(p[0]/100,p[1]/100)),out=[];let exitA=null,pend=null,any=false;
+  const add=(X,Y)=>out.push([cxp+X*R,cyp-Y*R]);
+  const arc=(a0,a1)=>{let d=a1-a0;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;const s=Math.max(1,Math.ceil(Math.abs(d)/.15));for(let i=1;i<s;i++){const a=a0+d*i/s;add(Math.cos(a),Math.sin(a))}};
+  for(let i=0;i<n;i++){const a=P[i],b=P[(i+1)%n];
+    if(a.Z>=0){add(a.X,a.Y);any=true}
+    if((a.Z>=0)!==(b.Z>=0)){const t=a.Z/(a.Z-b.Z);let hx=a.X+t*(b.X-a.X),hy=a.Y+t*(b.Y-a.Y);const L=Math.hypot(hx,hy)||1;hx/=L;hy/=L;const ang=Math.atan2(hy,hx);
+      if(a.Z>=0){add(hx,hy);exitA=ang}else{if(exitA!==null)arc(exitA,ang);else pend=ang;add(hx,hy)}}}
+  if(!any)return;if(pend!==null&&exitA!==null)arc(exitA,pend);
+  if(out.length<3)return;path.moveTo(out[0][0],out[0][1]);for(let i=1;i<out.length;i++)path.lineTo(out[i][0],out[i][1]);path.closePath()}
+function drawGlobe(){
+  const s=size(),w=s[0],h=s[1],d=s[2];cx.setTransform(d,0,0,d,0,0);cx.clearRect(0,0,w,h);
+  const R=Math.min(w,h)*.44*G.k,cxp=w/2,cyp=h/2;
+  // halo + oceano
+  let g=cx.createRadialGradient(cxp,cyp,R*.96,cxp,cyp,R*1.18);g.addColorStop(0,'rgba(80,140,220,.35)');g.addColorStop(1,'rgba(80,140,220,0)');cx.fillStyle=g;cx.beginPath();cx.arc(cxp,cyp,R*1.18,0,7);cx.fill();
+  g=cx.createRadialGradient(cxp-R*.35,cyp-R*.4,R*.1,cxp,cyp,R);g.addColorStop(0,'#16345f');g.addColorStop(.6,'#0a1d3a');g.addColorStop(1,'#050f22');cx.fillStyle=g;cx.beginPath();cx.arc(cxp,cyp,R,0,7);cx.fill();
+  cx.save();cx.beginPath();cx.arc(cxp,cyp,R,0,7);cx.clip();
+  // grade
+  cx.strokeStyle='rgba(150,180,220,.10)';cx.lineWidth=1;
+  for(let la=-60;la<=60;la+=30){const p=new Path2D();let f=true;for(let lo=-180;lo<=180;lo+=4){const q=prj(lo,la);if(q.Z<0){f=true;continue}const x=cxp+q.X*R,y=cyp-q.Y*R;f?p.moveTo(x,y):p.lineTo(x,y);f=false}cx.stroke(p)}
+  for(let lo=-180;lo<180;lo+=30){const p=new Path2D();let f=true;for(let la=-90;la<=90;la+=4){const q=prj(lo,la);if(q.Z<0){f=true;continue}const x=cxp+q.X*R,y=cyp-q.Y*R;f?p.moveTo(x,y):p.lineTo(x,y);f=false}cx.stroke(p)}
+  // países
+  W.forEach(c=>{const p=new Path2D();c.p.forEach(r=>ringPath(r,p,R,cxp,cyp));const br=c.id==='BRA',on=PI[c.id];
+    cx.fillStyle=br?col.br:on?col.on:col.off;if(G.hov===c.id){cx.fillStyle=br?'#e6cf9c':on?'#5b9be0':'#2c4a74'}
+    if(ctry&&ctry.id===c.id)cx.fillStyle=br?'#e6cf9c':'#e6cf9c';
+    cx.fill(p,'evenodd');cx.strokeStyle=col.ln;cx.lineWidth=.6;cx.stroke(p)});
+  // brilho
+  g=cx.createRadialGradient(cxp-R*.4,cyp-R*.45,R*.05,cxp,cyp,R*1.02);g.addColorStop(0,'rgba(255,255,255,.10)');g.addColorStop(.5,'rgba(255,255,255,0)');g.addColorStop(1,'rgba(0,0,0,.45)');cx.fillStyle=g;cx.fillRect(0,0,w,h);
+  cx.restore();cx.strokeStyle='rgba(201,164,92,.35)';cx.lineWidth=1;cx.beginPath();cx.arc(cxp,cyp,R,0,7);cx.stroke()}
+function hit(ev){const r=cv.getBoundingClientRect(),w=r.width,h=r.height,R=Math.min(w,h)*.44*G.k,x=(ev.clientX-r.left-w/2)/R,y=-(ev.clientY-r.top-h/2)/R,rho=Math.hypot(x,y);if(rho>1)return null;
+  const c=Math.asin(rho),p0=G.lat*RAD;let f=rho===0?p0:Math.asin(Math.cos(c)*Math.sin(p0)+y*Math.sin(c)*Math.cos(p0)/rho),l=G.lon*RAD+Math.atan2(x*Math.sin(c),rho*Math.cos(p0)*Math.cos(c)-y*Math.sin(p0)*Math.sin(c));
+  let lo=((l/RAD+540)%360)-180,la=f/RAD;
+  for(const c2 of W){for(const r2 of c2.p){let ins=false,n=r2.length;if(n<4)continue;for(let i=0,j=n-1;i<n;j=i++){const xi=r2[i][0]/100,yi=r2[i][1]/100,xj=r2[j][0]/100,yj=r2[j][1]/100;if((yi>la)!==(yj>la)&&lo<(xj-xi)*(la-yi)/(yj-yi)+xi)ins=!ins}if(ins)return c2}}return null}
+function frame(ts){if(!G.run)return;const dt=Math.min(50,ts-(G.last||ts));G.last=ts;
+  if(G.tl){const T=G.tl,u=Math.min(1,(ts-T.t0)/T.d),e=u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;G.lon=T.l0+T.dl*e;G.lat=T.f0+(T.f1-T.f0)*e;G.k=T.k0+(T.k1-T.k0)*e;if(u>=1){const cb=T.cb;G.tl=null;cb&&cb()}}
+  else if(G.spin&&!G.drag&&lvl==='world'&&ts>G.idle){G.lon+=dt*.012}
+  if(G.inertia&&!G.drag){G.lon+=G.inertia.x;G.lat=Math.max(-70,Math.min(70,G.lat+G.inertia.y));G.inertia.x*=.94;G.inertia.y*=.94;if(Math.abs(G.inertia.x)<.01&&Math.abs(G.inertia.y)<.01)G.inertia=null}
+  G.lon=((G.lon+540)%360)-180;drawGlobe();requestAnimationFrame(frame)}
+function fly(lon,lat,k,cb){let dl=lon-G.lon;while(dl>180)dl-=360;while(dl<-180)dl+=360;G.tl={t0:performance.now(),d:1100,l0:G.lon,dl:dl,f0:G.lat,f1:lat,k0:G.k,k1:k,cb:cb};G.inertia=null}
+function globeOn(){map.classList.add('gl');if(!G.run){G.run=true;G.last=0;requestAnimationFrame(frame)}}
+function globeOff(){map.classList.remove('gl');G.run=false}
+function cInfo(c){let best=c.p[0];c.p.forEach(r=>{if(r.length>best.length)best=r});let a=1e9,b=-1e9,e=1e9,f=-1e9;best.forEach(p=>{a=Math.min(a,p[0]);b=Math.max(b,p[0]);e=Math.min(e,p[1]);f=Math.max(f,p[1])});
+  const lo=(a+b)/200,la=(e+f)/200,sp=Math.max((b-a)/100*Math.cos(la*RAD),(f-e)/100);return{lon:lo,lat:Math.max(-60,Math.min(60,la)),k:Math.max(1.4,Math.min(4,32/Math.max(sp,8)))}}
+let dn=null,moved=0;
+cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);G.drag={x:e.clientX,y:e.clientY};moved=0;G.tl=null;G.inertia=null});
+cv.addEventListener('pointermove',e=>{if(G.drag){const dx=e.clientX-G.drag.x,dy=e.clientY-G.drag.y;moved+=Math.abs(dx)+Math.abs(dy);const s=.35/G.k;G.lon-=dx*s;G.lat=Math.max(-70,Math.min(70,G.lat+dy*s));G.inertia={x:-dx*s*.6,y:dy*s*.6};G.drag={x:e.clientX,y:e.clientY};hide();return}
+  const c=hit(e);G.hov=c?c.id:null;cv.style.cursor=c?'pointer':'grab';if(c)showTip(e,'<b>'+c.pt+'</b><small>'+(c.id==='BRA'?'Plataforma ativa · estados e municípios':PI[c.id]||'Sem informação ainda')+'</small>');else hide()});
+cv.addEventListener('pointerup',e=>{G.drag=null;G.idle=performance.now()+4000;if(moved<6){const c=hit(e);c&&pickCountry(c)}});
+cv.addEventListener('pointerleave',()=>{G.hov=null;hide()});
+cv.addEventListener('wheel',e=>{e.preventDefault();G.tl=null;G.k=Math.max(.8,Math.min(6,G.k*(e.deltaY<0?1.12:.89)));G.idle=performance.now()+4000},{passive:false});
+let pin=null;cv.addEventListener('touchmove',e=>{if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pin)G.k=Math.max(.8,Math.min(6,G.k*d/pin));pin=d}},{passive:true});cv.addEventListener('touchend',()=>pin=null);
 function drawWorld(){
-  lvl='world';cur=ctry=null;munData=[];svg.innerHTML='';crumbs();
-  head('Mundo','Clique em um país. Quanto mais perto, mais detalhe: país → estado → município.','Países','Buscar país…');
-  const all=[];W.forEach(c=>{const on=PI[c.id],br=c.id==='BRA';const p=mk(dW(c.p),br?'#c9a45c':on?'#2f6fb5':null,'ct'+(br?' br':on?' on':' off'));all.push.apply(all,c.p);
-    p.addEventListener('mousemove',e=>showTip(e,'<b>'+c.pt+'</b><small>'+(br?'Plataforma ativa · estados e municípios':on?(PI[c.id]||''):'Sem informação ainda')+'</small>'));p.addEventListener('mouseleave',hide);p.addEventListener('click',()=>pickCountry(c))});
-  view(bboxW(all),.015);stats([[W.length,'Países no mapa'],[Object.keys(PI).length,'Na lista de referência'],[4,'Idiomas iniciais']]);renderList()}
-function pickCountry(c){hide();if(c.id==='BRA')return drawBR();
-  lvl='country';ctry=c;svg.innerHTML='';crumbs();const on=PI[c.id];
+  const was=lvl;lvl='world';cur=ctry=null;munData=[];svg.innerHTML='';crumbs();map.classList.remove('zm');globeOn();
+  head('Mundo','Gire o globo e toque em um país. Quanto mais perto, mais detalhe: país → estado → município.','Países','Buscar país…');
+  if(was!=='world')fly(G.lon,Math.min(G.lat,30),1);G.idle=performance.now()+1500;
+  stats([[W.length,'Países no mapa'],[Object.keys(PI).length,'Na lista de referência'],[4,'Idiomas iniciais']]);renderList()}
+function pickCountry(c){hide();const ci=cInfo(c);
+  if(c.id==='BRA'){lvl='country';ctry=c;crumbs();map.classList.remove('zm');fly(-52,-14,2.3,()=>{globeOff();drawBR()});return}
+  lvl='country';ctry=c;crumbs();map.classList.remove('zm');globeOn();const on=PI[c.id];
   head(c.pt,on?'Presença a confirmar com a diretoria nacional.':'Ainda sem informação neste teste.','País','Buscar…');
-  mk(dW(c.p),on?'#2f6fb5':'#6b7f99','ct');view(bboxW(c.p),.25);
-  stats([[on?'A confirmar':'—','Presença'],[on?on.split(/[;,]| e /)[0]:'—','Idioma principal']]);
-  list.innerHTML='<p class="g-note">Os estados/províncias e capítulos deste país entram quando tivermos os dados.</p>';
+  fly(ci.lon,ci.lat,ci.k);stats([[on?'A confirmar':'—','Presença'],[on?on.split(/[;,]| e /)[0]:'—','Idioma principal']]);
+  list.innerHTML='<p class="g-note">Estados/províncias e capítulos deste país entram quando tivermos os dados.</p>';
   card.hidden=false;card.innerHTML='<b>'+c.pt+'</b><br>'+(on?'Idiomas: '+on:'Fora da lista de referência.')+'<br><span class="g-note">Nível seguinte (divisões internas) ainda não carregado.</span>'}
 function drawBR(){
-  lvl='br';cur=ctry=null;munData=[];svg.innerHTML='';crumbs();
+  globeOff();lvl='br';cur=ctry=null;munData=[];svg.innerHTML='';crumbs();
   head('Brasil','Clique em um estado para abrir seus municípios.','Estados','Buscar estado…');
   const all=[];UF.forEach(u=>{const p=mk(dB(u.p,100),PAL[u.col],'uf');p.dataset.s=u.sigla;all.push.apply(all,u.p);
     p.addEventListener('mousemove',e=>showTip(e,'<b>'+u.nome+'</b><small>'+u.sigla+' · '+u.reg+' · '+fmt(Math.round(u.area))+' km²</small>'));p.addEventListener('mouseleave',hide);p.addEventListener('click',()=>openUF(u.sigla))});
@@ -315,7 +373,7 @@ function pick(m){svg.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel
   card.hidden=false;card.innerHTML='<b>'+m.n+'</b><br>'+cur.nome+' · '+cur.sigla+'<br>Área: '+fmt(Math.round(m.a))+' km²'+(m.rgi?'<br>Região geográfica imediata: '+m.rgi:'')+'<br>Código IBGE: '+m.id+
     (cur.sigla==='SC'?'<br><a href="../beta/">Abrir ADHONEP-SC →</a>':'')}
 async function openUF(s){
-  const u=UF.find(x=>x.sigla===s);cur=u;lvl='uf';svg.innerHTML='';crumbs();
+  const u=UF.find(x=>x.sigla===s);globeOff();cur=u;lvl='uf';svg.innerHTML='';crumbs();
   head(u.nome,'Carregando municípios…','Municípios','Buscar município…');
   view(bboxB(u.p,100),.04);mk(dB(u.p,100),PAL[u.col],'dim').style.opacity=.5;
   try{munData=munCache[s]||(munCache[s]=await (await fetch('data/mun/'+s+'.json')).json())}catch(e){$('gSub').textContent='Não foi possível carregar os municípios.';return}
@@ -324,7 +382,7 @@ async function openUF(s){
     p.addEventListener('mousemove',e=>showTip(e,'<b>'+m.n+'</b><small>'+fmt(Math.round(m.a))+' km²</small>'));p.addEventListener('mouseleave',hide);p.addEventListener('click',()=>pick(m))});
   view(bboxB(all,1000),.03);$('gSub').textContent=munData.length+' municípios · passe o mouse ou busque pelo nome.';
   stats([[munData.length,'Municípios'],[fmt(Math.round(u.area)),'km²'],[u.reg,'Região']]);renderList()}
-q.addEventListener('input',renderList);back.onclick=()=>{lvl==='uf'?drawBR():drawWorld()};
+q.addEventListener('input',renderList);back.onclick=()=>{if(lvl==='uf')drawBR();else{if(lvl==='br'){G.lon=-52;G.lat=-14;G.k=2.3}drawWorld()}};
 $('gTheme').onclick=()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('adh-tema',n)}catch(e){}};
 $('gIntro').onclick=()=>{document.documentElement.classList.remove('app-on');$('stage').classList.remove('gone');window.__play&&window.__play()};
 $('enter').onclick=()=>{document.documentElement.classList.add('app-on');$('stage').classList.add('gone');scrollTo(0,0)};
