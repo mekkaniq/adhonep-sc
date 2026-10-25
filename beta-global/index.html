@@ -127,6 +127,14 @@ html[data-theme=dark] .g-map path{stroke:#07101f}
 .g-note{font-size:12px;color:var(--g-mute)}
 .enter{margin-top:6px;font:600 14px var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--navy);background:linear-gradient(135deg,var(--gold-soft),var(--gold));border:0;border-radius:999px;padding:14px 30px;cursor:pointer;opacity:0;transform:translateY(10px);transition:opacity .9s ease .45s,transform .9s ease .45s,filter .2s;pointer-events:none}
 .s3 .enter{opacity:1;transform:none;pointer-events:auto}.enter:hover{filter:brightness(1.08)}
+.flags{display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(12px,2.4vw,26px);opacity:0;transform:translateY(10px);transition:opacity .9s ease .45s,transform .9s ease .45s;pointer-events:none}
+.s3 .flags{opacity:1;transform:none;pointer-events:auto}
+.fl{display:grid;justify-items:center;gap:9px;background:none;border:0;cursor:pointer;color:var(--ink);font:500 13px var(--body);letter-spacing:.04em;padding:6px;border-radius:12px}
+.fl svg{width:72px;height:50px;border-radius:7px;box-shadow:0 0 0 1px rgba(255,255,255,.18),0 8px 22px rgba(0,0,0,.45);transition:transform .25s,box-shadow .25s}
+.fl:hover svg,.fl:focus-visible svg{transform:translateY(-4px) scale(1.06);box-shadow:0 0 0 2px var(--gold),0 12px 28px rgba(0,0,0,.55)}
+.fl:focus-visible{outline:none}.fl span{opacity:.85}
+.g-map path.ct{}
+.g-ch{display:flex;flex-wrap:wrap;gap:6px}.g-ch button{font:600 12px var(--body);border:1px solid var(--g-line);background:var(--g-bg);color:var(--g-ink);border-radius:999px;padding:6px 11px;cursor:pointer}.g-ch button.on{background:linear-gradient(135deg,#e6cf9c,#c9a45c);color:#0b1b33;border-color:transparent}.g-ch button:hover{border-color:var(--g-gold)}
 .stage.gone{opacity:0;visibility:hidden;transition:opacity .7s ease,visibility 0s .7s}
 html.app-on .stage{pointer-events:none}
 </style>
@@ -142,8 +150,8 @@ html.app-on .stage{pointer-events:none}
         <div class="wordbox" id="wordbox"><div class="word" id="word" role="img" aria-label="ADHONEP Businessman Network"><img src="assets/g/wordtop.png" alt="" width="900" height="133"><span class="bn" id="bn">BUSINESSMAN NETWORK</span></div></div>
       </div>
       <div class="rule" aria-hidden="true"></div>
-      <p class="tag" id="tag" lang="pt">Uma comunhão que fala muitas línguas.</p>
-      <button class="enter" id="enter" type="button">Entrar na plataforma</button>
+      <p class="tag" id="tag" lang="en">Choose your language</p>
+      <div class="flags" id="flags" role="group" aria-label="Choose your language"></div>
     </div>
     <div class="foot"><span></span><button class="replay" id="replay" type="button">↻ Ver a abertura de novo</button></div>
   </section>
@@ -161,7 +169,7 @@ html.app-on .stage{pointer-events:none}
     <div class="g-h"><div><h1 id="gTitle">Mundo</h1><p id="gSub"></p></div><div class="g-st" id="gStats"></div></div>
     <div class="g-grid">
       <div class="g-map" id="gMap"><button class="g-btn g-back" id="gBack" type="button">← Mundo</button><canvas id="gGlobe"></canvas><svg id="gSvg" role="img" aria-label="Mapa do Brasil por estados"></svg><div class="g-tip" id="gTip"></div><div class="g-hint">Arraste para girar · role/pinça para aproximar · toque em um país</div></div>
-      <aside class="g-side"><h3 id="gSideT">Países</h3><input id="gQ" type="search" placeholder="Buscar país…" autocomplete="off"><div class="g-list" id="gList"></div><div class="g-card" id="gCard" hidden></div><p class="g-note" id="gNote">Teste · Brasil: limites IBGE 2025. Mundo: contornos simplificados (domínio público). A lista de países é de referência e não confirma presença.</p></aside>
+      <aside class="g-side"><h3 id="gSideT">Países</h3><div class="g-ch" id="gCh"></div><input id="gQ" type="search" placeholder="Buscar país…" autocomplete="off"><div class="g-list" id="gList"></div><div class="g-card" id="gCard" hidden></div><p class="g-note" id="gNote">Teste · Brasil: limites IBGE 2025. Mundo: contornos simplificados (domínio público). A lista de países é de referência e não confirma presença.</p></aside>
     </div>
   </div>
 </main>
@@ -274,8 +282,19 @@ if (document.readyState === "complete") setTimeout(play, 150);
 (function(){
 const PAL=['#2f6fb5','#c9a45c','#2fa39b','#7a6bc4','#58a468','#6fa8dc','#b89a4e','#3d4fa8'];
 const $=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg',K=Math.cos(14*Math.PI/180);
-let UF=[],W=[],PI={},lvl='world',cur=null,ctry=null,munCache={},munData=[];
+let UF=[],W=[],PI={},ADH=new Set(),lvl='world',cur=null,ctry=null,munCache={},munData=[];
 const svg=$('gSvg'),tip=$('gTip'),map=$('gMap'),list=$('gList'),q=$('gQ'),card=$('gCard'),back=$('gBack');
+const TR={
+pt:{theme:'◐ Tema',intro:'↻ Abertura',hint:'Arraste para girar · role/pinça para aproximar · toque em um país',note:'Teste · Brasil: limites IBGE 2025. Mundo: contornos simplificados (domínio público). Presença da ADHONEP a confirmar.',world:'Mundo',worldSub:'Gire o globo e toque em um país. Quanto mais perto, mais detalhe: país → estado → município.',countries:'Países',searchC:'Buscar país…',nC:'Países no mapa',nA:'Com ADHONEP',nL:'Idiomas iniciais',active:'Plataforma ativa · estados e municípios',has:'ADHONEP presente',none:'Sem informação ainda',toWorld:'← Mundo',toBR:'← Brasil',presence:'Presença',confirm:'A confirmar',mainLang:'Idioma principal',langs:'Idiomas',noLvl:'Divisões internas ainda não carregadas.',states:'Estados',muni:'Municípios',regions:'Regiões',brSub:'Clique em um estado para abrir seus municípios.',searchS:'Buscar estado…',loading:'Carregando municípios…',searchM:'Buscar município…',type:'Digite o nome de um município para encontrá-lo.',area:'Área',rgi:'Região geográfica imediata',ibge:'Código IBGE',openSC:'Abrir ADHONEP-SC →',region:'Região',mSub:'municípios · passe o mouse ou busque pelo nome.',nextLvl:'Estados/províncias e capítulos deste país entram quando tivermos os dados.',country:'País',present:'ADHONEP presente neste país',pres2:'Detalhes (capítulos, diretoria) a confirmar.'},
+en:{theme:'◐ Theme',intro:'↻ Intro',hint:'Drag to spin · scroll/pinch to zoom · tap a country',note:'Test · Brazil: IBGE 2025 boundaries. World: simplified outlines (public domain). ADHONEP presence to be confirmed.',world:'World',worldSub:'Spin the globe and tap a country. The closer you get, the more detail: country → state → city.',countries:'Countries',searchC:'Search country…',nC:'Countries on map',nA:'With ADHONEP',nL:'Starting languages',active:'Active platform · states and cities',has:'ADHONEP present',none:'No information yet',toWorld:'← World',toBR:'← Brazil',presence:'Presence',confirm:'To confirm',mainLang:'Main language',langs:'Languages',noLvl:'Internal divisions not loaded yet.',states:'States',muni:'Cities',regions:'Regions',brSub:'Click a state to open its municipalities.',searchS:'Search state…',loading:'Loading municipalities…',searchM:'Search municipality…',type:'Type a municipality name to find it.',area:'Area',rgi:'Immediate geographic region',ibge:'IBGE code',openSC:'Open ADHONEP-SC →',region:'Region',mSub:'municipalities · hover or search by name.',nextLvl:'States/provinces and chapters for this country will appear once we have the data.',country:'Country',present:'ADHONEP is present in this country',pres2:'Details (chapters, leadership) to be confirmed.'},
+es:{theme:'◐ Tema',intro:'↻ Intro',hint:'Arrastra para girar · rueda/pellizco para acercar · toca un país',note:'Prueba · Brasil: límites IBGE 2025. Mundo: contornos simplificados (dominio público). Presencia de ADHONEP por confirmar.',world:'Mundo',worldSub:'Gira el globo y toca un país. Cuanto más cerca, más detalle: país → estado → municipio.',countries:'Países',searchC:'Buscar país…',nC:'Países en el mapa',nA:'Con ADHONEP',nL:'Idiomas iniciales',active:'Plataforma activa · estados y municipios',has:'ADHONEP presente',none:'Sin información aún',toWorld:'← Mundo',toBR:'← Brasil',presence:'Presencia',confirm:'Por confirmar',mainLang:'Idioma principal',langs:'Idiomas',noLvl:'Divisiones internas aún no cargadas.',states:'Estados',muni:'Municipios',regions:'Regiones',brSub:'Haz clic en un estado para abrir sus municipios.',searchS:'Buscar estado…',loading:'Cargando municipios…',searchM:'Buscar municipio…',type:'Escribe el nombre de un municipio para encontrarlo.',area:'Área',rgi:'Región geográfica inmediata',ibge:'Código IBGE',openSC:'Abrir ADHONEP-SC →',region:'Región',mSub:'municipios · pasa el ratón o busca por nombre.',nextLvl:'Los estados/provincias y capítulos de este país aparecerán cuando tengamos los datos.',country:'País',present:'ADHONEP está presente en este país',pres2:'Detalles (capítulos, directiva) por confirmar.'},
+fr:{theme:'◐ Thème',intro:'↻ Intro',hint:'Faites glisser pour tourner · molette/pincement pour zoomer · touchez un pays',note:'Test · Brésil : limites IBGE 2025. Monde : contours simplifiés (domaine public). Présence d’ADHONEP à confirmer.',world:'Monde',worldSub:'Faites tourner le globe et touchez un pays. Plus on s’approche, plus il y a de détails : pays → état → municipalité.',countries:'Pays',searchC:'Rechercher un pays…',nC:'Pays sur la carte',nA:'Avec ADHONEP',nL:'Langues initiales',active:'Plateforme active · états et municipalités',has:'ADHONEP présent',none:'Pas encore d’information',toWorld:'← Monde',toBR:'← Brésil',presence:'Présence',confirm:'À confirmer',mainLang:'Langue principale',langs:'Langues',noLvl:'Divisions internes pas encore chargées.',states:'États',muni:'Municipalités',regions:'Régions',brSub:'Cliquez sur un état pour ouvrir ses municipalités.',searchS:'Rechercher un état…',loading:'Chargement des municipalités…',searchM:'Rechercher une municipalité…',type:'Saisissez le nom d’une municipalité pour la trouver.',area:'Superficie',rgi:'Région géographique immédiate',ibge:'Code IBGE',openSC:'Ouvrir ADHONEP-SC →',region:'Région',mSub:'municipalités · survolez ou cherchez par nom.',nextLvl:'Les états/provinces et chapitres de ce pays apparaîtront quand nous aurons les données.',country:'Pays',present:'ADHONEP est présent dans ce pays',pres2:'Détails (chapitres, direction) à confirmer.'}};
+let LANG='pt';try{LANG=localStorage.getItem('adh-lang')||'pt'}catch(e){}if(!TR[LANG])LANG='pt';
+const T=k=>(TR[LANG]||TR.pt)[k]||TR.pt[k]||k;
+const dnames=()=>new Intl.DisplayNames([LANG],{type:'region'});
+let DN=dnames();const cname=c=>{try{return /^X/.test(c.c)?c.n:DN.of(c.c)}catch(e){return c.n}};
+function applyStatic(){document.documentElement.lang=LANG==='pt'?'pt-BR':LANG;$('gTheme').textContent=T('theme');$('gIntro').textContent=T('intro');document.querySelector('.g-hint').textContent=T('hint');$('gNote').textContent=T('note')}
+function setLang(l){LANG=l;try{localStorage.setItem('adh-lang',l)}catch(e){}DN=dnames();applyStatic();({world:drawWorld,country:()=>pickCountry(ctry),br:drawBR,uf:()=>openUF(cur.sigla)})[lvl]()}
 const px=(a,d)=>a/d*K, py=(a,d)=>-a/d, fmt=n=>n.toLocaleString('pt-BR');
 function ne(lon,lat){const l=lon*Math.PI/180,f=lat*Math.PI/180,f2=f*f,f4=f2*f2;
   return[l*(.8707-.131979*f2+f4*(-.013791+f4*(.003971*f2-.001529*f4))),-f*(1.007226+f2*(.015085+f4*(-.044475+.028874*f2-.005916*f4)))]}
@@ -289,7 +308,17 @@ function showTip(e,h){const r=map.getBoundingClientRect();tip.innerHTML=h;tip.st
 const hide=()=>tip.style.opacity=0;
 function stats(a){$('gStats').innerHTML=a.map(x=>'<div><b>'+x[0]+'</b><span>'+x[1]+'</span></div>').join('')}
 function head(t,s,side,ph){$('gTitle').textContent=t;$('gSub').textContent=s;$('gSideT').textContent=side;q.placeholder=ph;q.value='';card.hidden=true;hide()}
-function crumbs(){back.textContent=lvl==='uf'?'← Brasil':'← Mundo';map.classList.toggle('zm',lvl==='br'||lvl==='uf');map.classList.toggle('zc',lvl==='country')}
+function crumbs(){const _c=$('gCh');if(_c)_c.style.display=lvl==='world'?'flex':'none';back.textContent=lvl==='uf'?T('toBR'):T('toWorld');map.classList.toggle('zm',lvl==='br'||lvl==='uf');map.classList.toggle('zc',lvl==='country')}
+
+const CL={Americas:'ARG BHS BLZ BMU BOL BRA CAN CHL COL CRI CUB DOM ECU FLK GRL GTM GUF GUY HND HTI JAM MEX NIC PAN PER PRI PRY SLV SUR TTO URY USA VEN',
+Europe:'ALB AUT BEL BGR BIH BLR CHE CYP CZE DEU DNK ESP EST FIN FRA GBR GRC HRV HUN IRL ISL ITA LTU LUX LVA MDA MKD MLT MNE NLD NOR POL PRT ROU RUS SRB SVK SVN SWE UKR TUR ARM GEO AZE CS-KM',
+Africa:'AGO BDI BEN BFA BWA CAF CIV CMR COD COG DJI DZA EGY ERI ESH ETH GAB GHA GIN GMB GNB GNQ KEN LBR LBY LSO MAR MDG MLI MOZ MRT MWI NAM NER NGA RWA SDN SEN SLE SOM SSD SWZ TCD TGO TUN TZA UGA ZAF ZMB ZWE ATF',
+Oceania:'AUS FJI NCL NZL PNG SLB VUT'},CM={};Object.keys(CL).forEach(k=>CL[k].split(' ').forEach(i=>CM[i]=k));
+const contOf=c=>CM[c.id]||(/Cyprus/.test(c.n)?'Europe':/Somaliland/.test(c.n)?'Africa':'Asia');
+const CF={Americas:[-70,5,1.5],Europe:[22,50,2.7],Africa:[20,2,1.7],Asia:[88,34,1.6],Oceania:[140,-22,2.3]};
+const CN={pt:{all:'Todos',Americas:'Américas',Europe:'Europa',Africa:'África',Asia:'Ásia',Oceania:'Oceania'},en:{all:'All',Americas:'Americas',Europe:'Europe',Africa:'Africa',Asia:'Asia',Oceania:'Oceania'},es:{all:'Todos',Americas:'América',Europe:'Europa',Africa:'África',Asia:'Asia',Oceania:'Oceanía'},fr:{all:'Tous',Americas:'Amériques',Europe:'Europe',Africa:'Afrique',Asia:'Asie',Oceania:'Océanie'}};
+let CONT='';
+function chips(){const el=$('gCh');el.style.display=lvl==='world'?'flex':'none';el.innerHTML='';['all','Americas','Europe','Africa','Asia','Oceania'].forEach(k=>{const b=document.createElement('button');b.textContent=CN[LANG][k];b.className=(k==='all'?!CONT:CONT===k)?'on':'';b.onclick=()=>{CONT=k==='all'?'':k;if(CONT){const f=CF[CONT];G.spin=false;fly(f[0],f[1],f[2])}else{G.spin=true;fly(G.lon,12,1)}G.idle=performance.now()+2500;chips();renderList()};el.appendChild(b)})}
 const cv=$('gGlobe'),cx=cv.getContext('2d');
 let G={lon:-45,lat:12,k:1,tl:null,spin:true,idle:0,hov:null,run:false,drag:null,last:0};
 const RAD=Math.PI/180,col={br:'#c9a45c',on:'#2f6fb5',off:'#1b2f4d',ln:'rgba(8,18,34,.9)'};
@@ -317,9 +346,9 @@ function drawGlobe(){
   for(let la=-60;la<=60;la+=30){const p=new Path2D();let f=true;for(let lo=-180;lo<=180;lo+=4){const q=prj(lo,la);if(q.Z<0){f=true;continue}const x=cxp+q.X*R,y=cyp-q.Y*R;f?p.moveTo(x,y):p.lineTo(x,y);f=false}cx.stroke(p)}
   for(let lo=-180;lo<180;lo+=30){const p=new Path2D();let f=true;for(let la=-90;la<=90;la+=4){const q=prj(lo,la);if(q.Z<0){f=true;continue}const x=cxp+q.X*R,y=cyp-q.Y*R;f?p.moveTo(x,y):p.lineTo(x,y);f=false}cx.stroke(p)}
   // países
-  W.forEach(c=>{const p=new Path2D();c.p.forEach(r=>ringPath(r,p,R,cxp,cyp));const br=c.id==='BRA',on=PI[c.id];
-    cx.fillStyle=br?col.br:on?col.on:col.off;if(G.hov===c.id){cx.fillStyle=br?'#e6cf9c':on?'#5b9be0':'#2c4a74'}
-    if(ctry&&ctry.id===c.id)cx.fillStyle=br?'#e6cf9c':'#e6cf9c';
+  W.forEach(c=>{const p=new Path2D();c.p.forEach(r=>ringPath(r,p,R,cxp,cyp));const on=ADH.has(c.id);
+    cx.fillStyle=on?col.br:col.off;if(G.hov===c.id){cx.fillStyle=on?'#ecd9a8':'#2c4a74'}
+    if(ctry&&ctry.id===c.id)cx.fillStyle=on?'#f3e3b8':'#3b5f93';
     cx.fill(p,'evenodd');cx.strokeStyle=col.ln;cx.lineWidth=.6;cx.stroke(p)});
   // brilho
   g=cx.createRadialGradient(cxp-R*.4,cyp-R*.45,R*.05,cxp,cyp,R*1.02);g.addColorStop(0,'rgba(255,255,255,.10)');g.addColorStop(.5,'rgba(255,255,255,0)');g.addColorStop(1,'rgba(0,0,0,.45)');cx.fillStyle=g;cx.fillRect(0,0,w,h);
@@ -330,7 +359,7 @@ function hit(ev){const r=cv.getBoundingClientRect(),w=r.width,h=r.height,R=Math.
   for(const c2 of W){for(const r2 of c2.p){let ins=false,n=r2.length;if(n<4)continue;for(let i=0,j=n-1;i<n;j=i++){const xi=r2[i][0]/100,yi=r2[i][1]/100,xj=r2[j][0]/100,yj=r2[j][1]/100;if((yi>la)!==(yj>la)&&lo<(xj-xi)*(la-yi)/(yj-yi)+xi)ins=!ins}if(ins)return c2}}return null}
 function frame(ts){if(!G.run)return;const dt=Math.min(50,ts-(G.last||ts));G.last=ts;
   if(G.tl){const T=G.tl,u=Math.min(1,(ts-T.t0)/T.d),e=u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;G.lon=T.l0+T.dl*e;G.lat=T.f0+(T.f1-T.f0)*e;G.k=T.k0+(T.k1-T.k0)*e;if(u>=1){const cb=T.cb;G.tl=null;cb&&cb()}}
-  else if(G.spin&&!G.drag&&lvl==='world'&&ts>G.idle){G.lon+=dt*.012}
+  else if(G.spin&&!CONT&&!G.drag&&lvl==='world'&&ts>G.idle){G.lon+=dt*.012}
   if(G.inertia&&!G.drag){G.lon+=G.inertia.x;G.lat=Math.max(-70,Math.min(70,G.lat+G.inertia.y));G.inertia.x*=.94;G.inertia.y*=.94;if(Math.abs(G.inertia.x)<.01&&Math.abs(G.inertia.y)<.01)G.inertia=null}
   G.lon=((G.lon+540)%360)-180;drawGlobe();requestAnimationFrame(frame)}
 function fly(lon,lat,k,cb){let dl=lon-G.lon;while(dl>180)dl-=360;while(dl<-180)dl+=360;G.tl={t0:performance.now(),d:1100,l0:G.lon,dl:dl,f0:G.lat,f1:lat,k0:G.k,k1:k,cb:cb};G.inertia=null}
@@ -341,53 +370,60 @@ function cInfo(c){let best=c.p[0];c.p.forEach(r=>{if(r.length>best.length)best=r
 let dn=null,moved=0;
 cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);G.drag={x:e.clientX,y:e.clientY};moved=0;G.tl=null;G.inertia=null});
 cv.addEventListener('pointermove',e=>{if(G.drag){const dx=e.clientX-G.drag.x,dy=e.clientY-G.drag.y;moved+=Math.abs(dx)+Math.abs(dy);const s=.35/G.k;G.lon-=dx*s;G.lat=Math.max(-70,Math.min(70,G.lat+dy*s));G.inertia={x:-dx*s*.6,y:dy*s*.6};G.drag={x:e.clientX,y:e.clientY};hide();return}
-  const c=hit(e);G.hov=c?c.id:null;cv.style.cursor=c?'pointer':'grab';if(c)showTip(e,'<b>'+c.pt+'</b><small>'+(c.id==='BRA'?'Plataforma ativa · estados e municípios':PI[c.id]||'Sem informação ainda')+'</small>');else hide()});
+  const c=hit(e);G.hov=c?c.id:null;cv.style.cursor=c?'pointer':'grab';if(c)showTip(e,'<b>'+cname(c)+'</b><small>'+(c.id==='BRA'?T('active'):ADH.has(c.id)?T('has'):T('none'))+'</small>');else hide()});
 cv.addEventListener('pointerup',e=>{G.drag=null;G.idle=performance.now()+4000;if(moved<6){const c=hit(e);c&&pickCountry(c)}});
 cv.addEventListener('pointerleave',()=>{G.hov=null;hide()});
 cv.addEventListener('wheel',e=>{e.preventDefault();G.tl=null;G.k=Math.max(.8,Math.min(6,G.k*(e.deltaY<0?1.12:.89)));G.idle=performance.now()+4000},{passive:false});
 let pin=null;cv.addEventListener('touchmove',e=>{if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pin)G.k=Math.max(.8,Math.min(6,G.k*d/pin));pin=d}},{passive:true});cv.addEventListener('touchend',()=>pin=null);
 function drawWorld(){
   const was=lvl;lvl='world';cur=ctry=null;munData=[];svg.innerHTML='';crumbs();map.classList.remove('zm');globeOn();
-  head('Mundo','Gire o globo e toque em um país. Quanto mais perto, mais detalhe: país → estado → município.','Países','Buscar país…');
-  if(was!=='world')fly(G.lon,Math.min(G.lat,30),1);G.idle=performance.now()+1500;
-  stats([[W.length,'Países no mapa'],[Object.keys(PI).length,'Na lista de referência'],[4,'Idiomas iniciais']]);renderList()}
+  head(T('world'),T('worldSub'),T('countries'),T('searchC'));
+  if(CONT){const f=CF[CONT];fly(f[0],f[1],f[2])}else if(was!=='world')fly(G.lon,Math.min(G.lat,30),1);chips();G.idle=performance.now()+1500;
+  stats([[W.length,T('nC')],[ADH.size,T('nA')],[4,T('nL')]]);renderList()}
 function pickCountry(c){hide();const ci=cInfo(c);
   if(c.id==='BRA'){lvl='country';ctry=c;crumbs();map.classList.remove('zm');fly(-52,-14,2.3,()=>{globeOff();drawBR()});return}
   lvl='country';ctry=c;crumbs();map.classList.remove('zm');globeOn();const on=PI[c.id];
-  head(c.pt,on?'Presença a confirmar com a diretoria nacional.':'Ainda sem informação neste teste.','País','Buscar…');
-  fly(ci.lon,ci.lat,ci.k);stats([[on?'A confirmar':'—','Presença'],[on?on.split(/[;,]| e /)[0]:'—','Idioma principal']]);
-  list.innerHTML='<p class="g-note">Estados/províncias e capítulos deste país entram quando tivermos os dados.</p>';
-  card.hidden=false;card.innerHTML='<b>'+c.pt+'</b><br>'+(on?'Idiomas: '+on:'Fora da lista de referência.')+'<br><span class="g-note">Nível seguinte (divisões internas) ainda não carregado.</span>'}
+  head(cname(c),ADH.has(c.id)?T('present'):T('none'),T('country'),T('searchC'));
+  fly(ci.lon,ci.lat,ci.k);stats([[ADH.has(c.id)?T('confirm'):'—',T('presence')],[on?on.split(/[;,]| e /)[0]:'—',T('mainLang')]]);
+  list.innerHTML='<p class="g-note">'+T('nextLvl')+'</p>';
+  card.hidden=false;card.innerHTML='<b>'+cname(c)+'</b><br>'+(ADH.has(c.id)?T('present')+'<br>':'')+(on?T('langs')+': '+on+'<br>':'')+'<span class="g-note">'+(ADH.has(c.id)?T('pres2')+' ':'')+T('noLvl')+'</span>'}
 function drawBR(){
   globeOff();lvl='br';cur=ctry=null;munData=[];svg.innerHTML='';crumbs();
-  head('Brasil','Clique em um estado para abrir seus municípios.','Estados','Buscar estado…');
+  head(cname(W.find(x=>x.id==='BRA')||{c:'BR',n:'Brasil'}),T('brSub'),T('states'),T('searchS'));
   const all=[];UF.forEach(u=>{const p=mk(dB(u.p,100),PAL[u.col],'uf');p.dataset.s=u.sigla;all.push.apply(all,u.p);
     p.addEventListener('mousemove',e=>showTip(e,'<b>'+u.nome+'</b><small>'+u.sigla+' · '+u.reg+' · '+fmt(Math.round(u.area))+' km²</small>'));p.addEventListener('mouseleave',hide);p.addEventListener('click',()=>openUF(u.sigla))});
-  view(bboxB(all,100),.02);stats([[27,'Estados'],[fmt(5570),'Municípios'],[5,'Regiões']]);renderList()}
+  view(bboxB(all,100),.02);stats([[27,T('states')],[fmt(5570),T('muni')],[5,T('regions')]]);renderList()}
 function renderList(){const t=q.value.trim().toLowerCase();list.innerHTML='';
-  if(lvl==='world'){W.slice().sort((a,b)=>(!!PI[b.id]-!!PI[a.id])||a.pt.localeCompare(b.pt,'pt-BR')).filter(c=>!t||c.pt.toLowerCase().includes(t)).slice(0,t?40:80).forEach(c=>{const b=document.createElement('button');b.className='g-it';b.innerHTML='<i style="background:'+(c.id==='BRA'?'#c9a45c':PI[c.id]?'#2f6fb5':'#6b7f99')+'"></i>'+c.pt+'<em>'+(c.id==='BRA'?'ativo':'')+'</em>';b.onclick=()=>pickCountry(c);list.appendChild(b)})}
+  if(lvl==='world'){W.slice().sort((a,b)=>(ADH.has(b.id)-ADH.has(a.id))||cname(a).localeCompare(cname(b),LANG)).filter(c=>(!CONT||contOf(c)===CONT)&&(!t||cname(c).toLowerCase().includes(t))).slice(0,t?40:200).forEach(c=>{const b=document.createElement('button');b.className='g-it';b.innerHTML='<i style="background:'+(ADH.has(c.id)?'#c9a45c':'#6b7f99')+'"></i>'+cname(c)+'<em>'+(c.id==='BRA'?'●':'')+'</em>';b.onclick=()=>pickCountry(c);list.appendChild(b)})}
   else if(lvl==='br'){UF.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).filter(u=>!t||u.nome.toLowerCase().includes(t)||u.sigla.toLowerCase()===t).forEach(u=>{const b=document.createElement('button');b.className='g-it';b.innerHTML='<i style="background:'+PAL[u.col]+'"></i>'+u.nome+'<em>'+u.sigla+'</em>';b.onclick=()=>openUF(u.sigla);list.appendChild(b)})}
-  else if(lvl==='uf'){if(!t){list.innerHTML='<p class="g-note">Digite o nome de um município para encontrá-lo.</p>';return}
+  else if(lvl==='uf'){if(!t){list.innerHTML='<p class="g-note">'+T('type')+'</p>';return}
     munData.filter(m=>m.n.toLowerCase().includes(t)).slice(0,30).forEach(m=>{const b=document.createElement('button');b.className='g-it';b.innerHTML=m.n+'<em>'+(m.rgi||'')+'</em>';b.onclick=()=>pick(m);list.appendChild(b)})}}
 function pick(m){svg.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel'));if(m.el){m.el.classList.add('sel');m.el.parentNode.appendChild(m.el)}
-  card.hidden=false;card.innerHTML='<b>'+m.n+'</b><br>'+cur.nome+' · '+cur.sigla+'<br>Área: '+fmt(Math.round(m.a))+' km²'+(m.rgi?'<br>Região geográfica imediata: '+m.rgi:'')+'<br>Código IBGE: '+m.id+
-    (cur.sigla==='SC'?'<br><a href="../beta/">Abrir ADHONEP-SC →</a>':'')}
+  card.hidden=false;card.innerHTML='<b>'+m.n+'</b><br>'+cur.nome+' · '+cur.sigla+'<br>'+T('area')+': '+fmt(Math.round(m.a))+' km²'+(m.rgi?'<br>'+T('rgi')+': '+m.rgi:'')+'<br>'+T('ibge')+': '+m.id+
+    (cur.sigla==='SC'?'<br><a href="../beta/">'+T('openSC')+'</a>':'')}
 async function openUF(s){
   const u=UF.find(x=>x.sigla===s);globeOff();cur=u;lvl='uf';svg.innerHTML='';crumbs();
-  head(u.nome,'Carregando municípios…','Municípios','Buscar município…');
+  head(u.nome,T('loading'),T('muni'),T('searchM'));
   view(bboxB(u.p,100),.04);mk(dB(u.p,100),PAL[u.col],'dim').style.opacity=.5;
   try{munData=munCache[s]||(munCache[s]=await (await fetch('data/mun/'+s+'.json')).json())}catch(e){$('gSub').textContent='Não foi possível carregar os municípios.';return}
   if(cur!==u)return;svg.innerHTML='';const base=PAL[u.col],all=[];
   munData.forEach((m,i)=>{const p=mk(dB(m.p,1000),base,'mu');p.style.opacity=.78+((i*37)%5)*.055;m.el=p;all.push.apply(all,m.p);
     p.addEventListener('mousemove',e=>showTip(e,'<b>'+m.n+'</b><small>'+fmt(Math.round(m.a))+' km²</small>'));p.addEventListener('mouseleave',hide);p.addEventListener('click',()=>pick(m))});
-  view(bboxB(all,1000),.03);$('gSub').textContent=munData.length+' municípios · passe o mouse ou busque pelo nome.';
-  stats([[munData.length,'Municípios'],[fmt(Math.round(u.area)),'km²'],[u.reg,'Região']]);renderList()}
+  view(bboxB(all,1000),.03);$('gSub').textContent=munData.length+' '+T('mSub');
+  stats([[munData.length,T('muni')],[fmt(Math.round(u.area)),'km²'],[u.reg,T('region')]]);renderList()}
 q.addEventListener('input',renderList);back.onclick=()=>{if(lvl==='uf')drawBR();else{if(lvl==='br'){G.lon=-52;G.lat=-14;G.k=2.3}drawWorld()}};
 $('gTheme').onclick=()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('adh-tema',n)}catch(e){}};
 $('gIntro').onclick=()=>{document.documentElement.classList.remove('app-on');$('stage').classList.remove('gone');window.__play&&window.__play()};
-$('enter').onclick=()=>{document.documentElement.classList.add('app-on');$('stage').classList.add('gone');scrollTo(0,0)};
+
+const FLAGS={
+pt:['Português','<svg viewBox="0 0 72 50"><rect width="72" height="50" fill="#229e45"/><path d="M36 5 67 25 36 45 5 25Z" fill="#f8d90f"/><circle cx="36" cy="25" r="10.5" fill="#2b3f87"/><path d="M26 22.5c7-2 15-.5 20 4" stroke="#fff" stroke-width="2" fill="none"/></svg>'],
+es:['Español','<svg viewBox="0 0 72 50"><rect width="72" height="50" fill="#c60b1e"/><rect y="12.5" width="72" height="25" fill="#ffc400"/></svg>'],
+en:['English','<svg viewBox="0 0 72 50"><rect width="72" height="50" fill="#fff"/><g fill="#b22234"><rect width="72" height="3.85"/><rect y="7.7" width="72" height="3.85"/><rect y="15.4" width="72" height="3.85"/><rect y="23.1" width="72" height="3.85"/><rect y="30.8" width="72" height="3.85"/><rect y="38.5" width="72" height="3.85"/><rect y="46.2" width="72" height="3.8"/></g><rect width="32" height="27" fill="#3c3b6e"/><g fill="#fff"><circle cx="6" cy="5" r="1.2"/><circle cx="14" cy="5" r="1.2"/><circle cx="22" cy="5" r="1.2"/><circle cx="10" cy="11" r="1.2"/><circle cx="18" cy="11" r="1.2"/><circle cx="26" cy="11" r="1.2"/><circle cx="6" cy="17" r="1.2"/><circle cx="14" cy="17" r="1.2"/><circle cx="22" cy="17" r="1.2"/><circle cx="10" cy="22.5" r="1.2"/><circle cx="18" cy="22.5" r="1.2"/><circle cx="26" cy="22.5" r="1.2"/></g></svg>'],
+fr:['Français','<svg viewBox="0 0 72 50"><rect width="24" height="50" fill="#0055a4"/><rect x="24" width="24" height="50" fill="#fff"/><rect x="48" width="24" height="50" fill="#ef4135"/></svg>']};
+(function(){const fl=$('flags');Object.keys(FLAGS).forEach(k=>{const b=document.createElement('button');b.type='button';b.className='fl';b.lang=k;b.setAttribute('aria-label',FLAGS[k][0]);b.innerHTML=FLAGS[k][1]+'<span>'+FLAGS[k][0]+'</span>';b.onclick=()=>{setLang(k);document.documentElement.classList.add('app-on');$('stage').classList.add('gone');scrollTo(0,0)};fl.appendChild(b)})})();
+
 const J=u=>fetch(u).then(r=>r.json());
-Promise.all([J('data/world.json'),J('data/paises.json'),J('data/uf.json')]).then(r=>{W=r[0];PI=r[1];UF=r[2];drawWorld()}).catch(()=>{$('gSub').textContent='Abra por um servidor HTTP (não direto pelo arquivo).'});
+Promise.all([J('data/world.json'),J('data/paises.json'),J('data/uf.json'),J('data/adhonep.json')]).then(r=>{W=r[0];PI=r[1];UF=r[2];ADH=new Set(r[3]);applyStatic();drawWorld()}).catch(()=>{$('gSub').textContent='Abra por um servidor HTTP (não direto pelo arquivo).'});
 })();
 
 </script>
