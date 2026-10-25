@@ -106,7 +106,7 @@ html.app-on #app{display:block}
 .g-map path{stroke:var(--g-bg);stroke-width:.35;vector-effect:non-scaling-stroke;stroke-width:1;cursor:pointer;transition:filter .15s,opacity .2s}
 html[data-theme=dark] .g-map path{stroke:#07101f}
 .g-map path:hover{filter:brightness(1.18) saturate(1.1)}
-.g-map.zm path.dim{opacity:.35}
+.g-map.zm path.dim{opacity:.35}.g-map path.ct{stroke:var(--g-bg);fill:#6b7f99}.g-map path.ct.off{fill:#9db0c8;opacity:.45}.g-map path.ct.on{fill:#2f6fb5}.g-map path.ct.br{fill:#c9a45c}html[data-theme=dark] .g-map path.ct.off{fill:#2a3f5f;opacity:.9}
 .g-map path.sel{stroke:var(--g-gold);stroke-width:2.2;filter:brightness(1.15)}
 .g-tip{position:absolute;pointer-events:none;background:#0b1b33;color:#fff;border:1px solid var(--g-gold);border-radius:8px;padding:6px 10px;font-size:12.5px;line-height:1.35;opacity:0;transform:translate(-50%,-120%);transition:opacity .12s;white-space:nowrap;z-index:5}
 .g-tip small{color:#e6cf9c;display:block}
@@ -155,10 +155,10 @@ html.app-on .stage{pointer-events:none}
 <main id="app" aria-label="Plataforma ADHONEP Global">
   <header class="g-top"><img src="assets/logo-branca.png" alt="ADHONEP"><b>ADHONEP <i>·</i> BUSINESSMAN NETWORK</b><span class="sp"></span><button class="g-btn" id="gTheme" type="button" title="Alternar claro/escuro">◐ Tema</button><button class="g-btn" id="gIntro" type="button">↻ Abertura</button></header>
   <div class="g-wrap">
-    <div class="g-h"><div><h1 id="gTitle">Brasil</h1><p id="gSub">Clique em um estado para abrir seus municípios.</p></div><div class="g-st" id="gStats"></div></div>
+    <div class="g-h"><div><h1 id="gTitle">Mundo</h1><p id="gSub"></p></div><div class="g-st" id="gStats"></div></div>
     <div class="g-grid">
-      <div class="g-map" id="gMap"><button class="g-btn g-back" id="gBack" type="button">← Brasil</button><svg id="gSvg" role="img" aria-label="Mapa do Brasil por estados"></svg><div class="g-tip" id="gTip"></div></div>
-      <aside class="g-side"><h3 id="gSideT">Estados</h3><input id="gQ" type="search" placeholder="Buscar estado…" autocomplete="off"><div class="g-list" id="gList"></div><div class="g-card" id="gCard" hidden></div><p class="g-note" id="gNote">Teste local · limites IBGE 2025 · estados simplificados; municípios carregam só ao abrir o estado.</p></aside>
+      <div class="g-map" id="gMap"><button class="g-btn g-back" id="gBack" type="button">← Mundo</button><svg id="gSvg" role="img" aria-label="Mapa do Brasil por estados"></svg><div class="g-tip" id="gTip"></div></div>
+      <aside class="g-side"><h3 id="gSideT">Países</h3><input id="gQ" type="search" placeholder="Buscar país…" autocomplete="off"><div class="g-list" id="gList"></div><div class="g-card" id="gCard" hidden></div><p class="g-note" id="gNote">Teste · Brasil: limites IBGE 2025. Mundo: contornos simplificados (domínio público). A lista de países é de referência e não confirma presença.</p></aside>
     </div>
   </div>
 </main>
@@ -271,45 +271,65 @@ if (document.readyState === "complete") setTimeout(play, 150);
 (function(){
 const PAL=['#2f6fb5','#c9a45c','#2fa39b','#7a6bc4','#58a468','#6fa8dc','#b89a4e','#3d4fa8'];
 const $=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg',K=Math.cos(14*Math.PI/180);
-let UF=[],cur=null,munCache={},munData=[];
-const svg=$('gSvg'),tip=$('gTip'),map=$('gMap'),list=$('gList'),q=$('gQ'),card=$('gCard');
-const px=(a,d)=>a/d*K, py=(a,d)=>-a/d;
-function d(rings,dv){return rings.map(r=>'M'+r.map(p=>px(p[0],dv).toFixed(3)+' '+py(p[1],dv).toFixed(3)).join('L')+'Z').join('')}
-function mk(dd,fill,cls){const p=document.createElementNS(NS,'path');p.setAttribute('d',dd);p.setAttribute('fill',fill);if(cls)p.setAttribute('class',cls);svg.appendChild(p);return p}
-function bbox(rs,dv){let a=1e9,b=1e9,c=-1e9,e=-1e9;rs.forEach(r=>r.forEach(p=>{const x=px(p[0],dv),y=py(p[1],dv);a=Math.min(a,x);c=Math.max(c,x);b=Math.min(b,y);e=Math.max(e,y)}));return[a,b,c,e]}
+let UF=[],W=[],PI={},lvl='world',cur=null,ctry=null,munCache={},munData=[];
+const svg=$('gSvg'),tip=$('gTip'),map=$('gMap'),list=$('gList'),q=$('gQ'),card=$('gCard'),back=$('gBack');
+const px=(a,d)=>a/d*K, py=(a,d)=>-a/d, fmt=n=>n.toLocaleString('pt-BR');
+function ne(lon,lat){const l=lon*Math.PI/180,f=lat*Math.PI/180,f2=f*f,f4=f2*f2;
+  return[l*(.8707-.131979*f2+f4*(-.013791+f4*(.003971*f2-.001529*f4))),-f*(1.007226+f2*(.015085+f4*(-.044475+.028874*f2-.005916*f4)))]}
+function dB(rings,dv){return rings.map(r=>'M'+r.map(p=>px(p[0],dv).toFixed(3)+' '+py(p[1],dv).toFixed(3)).join('L')+'Z').join('')}
+function dW(rings){return rings.map(r=>'M'+r.map(p=>{const z=ne(p[0]/100,p[1]/100);return z[0].toFixed(4)+' '+z[1].toFixed(4)}).join('L')+'Z').join('')}
+function mk(dd,fill,cls){const p=document.createElementNS(NS,'path');p.setAttribute('d',dd);if(fill)p.setAttribute('fill',fill);if(cls)p.setAttribute('class',cls);svg.appendChild(p);return p}
+function bboxB(rs,dv){let a=1e9,b=1e9,c=-1e9,e=-1e9;rs.forEach(r=>r.forEach(p=>{const x=px(p[0],dv),y=py(p[1],dv);a=Math.min(a,x);c=Math.max(c,x);b=Math.min(b,y);e=Math.max(e,y)}));return[a,b,c,e]}
+function bboxW(rs){let a=1e9,b=1e9,c=-1e9,e=-1e9;rs.forEach(r=>r.forEach(p=>{const z=ne(p[0]/100,p[1]/100);a=Math.min(a,z[0]);c=Math.max(c,z[0]);b=Math.min(b,z[1]);e=Math.max(e,z[1])}));return[a,b,c,e]}
 function view(bb,pad){const w=bb[2]-bb[0],h=bb[3]-bb[1],p=Math.max(w,h)*pad;svg.setAttribute('viewBox',[bb[0]-p,bb[1]-p,w+2*p,h+2*p].join(' '))}
 function showTip(e,h){const r=map.getBoundingClientRect();tip.innerHTML=h;tip.style.left=(e.clientX-r.left)+'px';tip.style.top=(e.clientY-r.top)+'px';tip.style.opacity=1}
 const hide=()=>tip.style.opacity=0;
 function stats(a){$('gStats').innerHTML=a.map(x=>'<div><b>'+x[0]+'</b><span>'+x[1]+'</span></div>').join('')}
-function fmt(n){return n.toLocaleString('pt-BR')}
+function head(t,s,side,ph){$('gTitle').textContent=t;$('gSub').textContent=s;$('gSideT').textContent=side;q.placeholder=ph;q.value='';card.hidden=true;hide()}
+function crumbs(){back.textContent=lvl==='uf'?'← Brasil':'← Mundo';map.classList.toggle('zm',lvl!=='world')}
+function drawWorld(){
+  lvl='world';cur=ctry=null;munData=[];svg.innerHTML='';crumbs();
+  head('Mundo','Clique em um país. Quanto mais perto, mais detalhe: país → estado → município.','Países','Buscar país…');
+  const all=[];W.forEach(c=>{const on=PI[c.id],br=c.id==='BRA';const p=mk(dW(c.p),br?'#c9a45c':on?'#2f6fb5':null,'ct'+(br?' br':on?' on':' off'));all.push.apply(all,c.p);
+    p.addEventListener('mousemove',e=>showTip(e,'<b>'+c.pt+'</b><small>'+(br?'Plataforma ativa · estados e municípios':on?(PI[c.id]||''):'Sem informação ainda')+'</small>'));p.addEventListener('mouseleave',hide);p.addEventListener('click',()=>pickCountry(c))});
+  view(bboxW(all),.015);stats([[W.length,'Países no mapa'],[Object.keys(PI).length,'Na lista de referência'],[4,'Idiomas iniciais']]);renderList()}
+function pickCountry(c){hide();if(c.id==='BRA')return drawBR();
+  lvl='country';ctry=c;svg.innerHTML='';crumbs();const on=PI[c.id];
+  head(c.pt,on?'Presença a confirmar com a diretoria nacional.':'Ainda sem informação neste teste.','País','Buscar…');
+  mk(dW(c.p),on?'#2f6fb5':'#6b7f99','ct');view(bboxW(c.p),.25);
+  stats([[on?'A confirmar':'—','Presença'],[on?on.split(/[;,]| e /)[0]:'—','Idioma principal']]);
+  list.innerHTML='<p class="g-note">Os estados/províncias e capítulos deste país entram quando tivermos os dados.</p>';
+  card.hidden=false;card.innerHTML='<b>'+c.pt+'</b><br>'+(on?'Idiomas: '+on:'Fora da lista de referência.')+'<br><span class="g-note">Nível seguinte (divisões internas) ainda não carregado.</span>'}
 function drawBR(){
-  cur=null;munData=[];svg.innerHTML='';map.classList.remove('zm');card.hidden=true;
-  $('gTitle').textContent='Brasil';$('gSub').textContent='Clique em um estado para abrir seus municípios.';$('gSideT').textContent='Estados';q.placeholder='Buscar estado…';q.value='';
-  const all=[];UF.forEach(u=>{const p=mk(d(u.p,100),PAL[u.col],'uf');p.dataset.s=u.sigla;all.push.apply(all,u.p);
+  lvl='br';cur=ctry=null;munData=[];svg.innerHTML='';crumbs();
+  head('Brasil','Clique em um estado para abrir seus municípios.','Estados','Buscar estado…');
+  const all=[];UF.forEach(u=>{const p=mk(dB(u.p,100),PAL[u.col],'uf');p.dataset.s=u.sigla;all.push.apply(all,u.p);
     p.addEventListener('mousemove',e=>showTip(e,'<b>'+u.nome+'</b><small>'+u.sigla+' · '+u.reg+' · '+fmt(Math.round(u.area))+' km²</small>'));p.addEventListener('mouseleave',hide);p.addEventListener('click',()=>openUF(u.sigla))});
-  view(bbox(all,100),.02);stats([[27,'Estados'],[5570,'Municípios'],[5,'Regiões']]);renderList()}
-function renderList(){const t=q.value.trim().toLowerCase();
-  if(!cur){list.innerHTML='';UF.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).filter(u=>!t||u.nome.toLowerCase().includes(t)||u.sigla.toLowerCase()===t).forEach(u=>{const b=document.createElement('button');b.className='g-it';b.innerHTML='<i style="background:'+PAL[u.col]+'"></i>'+u.nome+'<em>'+u.sigla+'</em>';b.onclick=()=>openUF(u.sigla);list.appendChild(b)})}
-  else{list.innerHTML='';if(!t){list.innerHTML='<p class="g-note">Digite o nome de um município para encontrá-lo.</p>';return}
+  view(bboxB(all,100),.02);stats([[27,'Estados'],[fmt(5570),'Municípios'],[5,'Regiões']]);renderList()}
+function renderList(){const t=q.value.trim().toLowerCase();list.innerHTML='';
+  if(lvl==='world'){W.slice().sort((a,b)=>(!!PI[b.id]-!!PI[a.id])||a.pt.localeCompare(b.pt,'pt-BR')).filter(c=>!t||c.pt.toLowerCase().includes(t)).slice(0,t?40:80).forEach(c=>{const b=document.createElement('button');b.className='g-it';b.innerHTML='<i style="background:'+(c.id==='BRA'?'#c9a45c':PI[c.id]?'#2f6fb5':'#6b7f99')+'"></i>'+c.pt+'<em>'+(c.id==='BRA'?'ativo':'')+'</em>';b.onclick=()=>pickCountry(c);list.appendChild(b)})}
+  else if(lvl==='br'){UF.slice().sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).filter(u=>!t||u.nome.toLowerCase().includes(t)||u.sigla.toLowerCase()===t).forEach(u=>{const b=document.createElement('button');b.className='g-it';b.innerHTML='<i style="background:'+PAL[u.col]+'"></i>'+u.nome+'<em>'+u.sigla+'</em>';b.onclick=()=>openUF(u.sigla);list.appendChild(b)})}
+  else if(lvl==='uf'){if(!t){list.innerHTML='<p class="g-note">Digite o nome de um município para encontrá-lo.</p>';return}
     munData.filter(m=>m.n.toLowerCase().includes(t)).slice(0,30).forEach(m=>{const b=document.createElement('button');b.className='g-it';b.innerHTML=m.n+'<em>'+(m.rgi||'')+'</em>';b.onclick=()=>pick(m);list.appendChild(b)})}}
 function pick(m){svg.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel'));if(m.el){m.el.classList.add('sel');m.el.parentNode.appendChild(m.el)}
   card.hidden=false;card.innerHTML='<b>'+m.n+'</b><br>'+cur.nome+' · '+cur.sigla+'<br>Área: '+fmt(Math.round(m.a))+' km²'+(m.rgi?'<br>Região geográfica imediata: '+m.rgi:'')+'<br>Código IBGE: '+m.id+
     (cur.sigla==='SC'?'<br><a href="../beta/">Abrir ADHONEP-SC →</a>':'')}
 async function openUF(s){
-  const u=UF.find(x=>x.sigla===s);cur=u;hide();svg.innerHTML='';map.classList.add('zm');card.hidden=true;q.value='';
-  $('gTitle').textContent=u.nome;$('gSub').textContent='Carregando municípios…';$('gSideT').textContent='Municípios';q.placeholder='Buscar município…';
-  view(bbox(u.p,100),.04);mk(d(u.p,100),PAL[u.col],'dim').style.opacity=.5;
-  try{munData=munCache[s]||(munCache[s]=await (await fetch('data/mun/'+s+'.json')).json())}catch(e){$('gSub').textContent='Não foi possível carregar os municípios (abra via servidor local/HTTP).';return}
+  const u=UF.find(x=>x.sigla===s);cur=u;lvl='uf';svg.innerHTML='';crumbs();
+  head(u.nome,'Carregando municípios…','Municípios','Buscar município…');
+  view(bboxB(u.p,100),.04);mk(dB(u.p,100),PAL[u.col],'dim').style.opacity=.5;
+  try{munData=munCache[s]||(munCache[s]=await (await fetch('data/mun/'+s+'.json')).json())}catch(e){$('gSub').textContent='Não foi possível carregar os municípios.';return}
   if(cur!==u)return;svg.innerHTML='';const base=PAL[u.col],all=[];
-  munData.forEach((m,i)=>{const p=mk(d(m.p,1000),base,'mu');p.style.opacity=.78+((i*37)%5)*.055;m.el=p;all.push.apply(all,m.p);
+  munData.forEach((m,i)=>{const p=mk(dB(m.p,1000),base,'mu');p.style.opacity=.78+((i*37)%5)*.055;m.el=p;all.push.apply(all,m.p);
     p.addEventListener('mousemove',e=>showTip(e,'<b>'+m.n+'</b><small>'+fmt(Math.round(m.a))+' km²</small>'));p.addEventListener('mouseleave',hide);p.addEventListener('click',()=>pick(m))});
-  view(bbox(all,1000),.03);$('gSub').textContent=munData.length+' municípios · passe o mouse ou busque pelo nome.';
+  view(bboxB(all,1000),.03);$('gSub').textContent=munData.length+' municípios · passe o mouse ou busque pelo nome.';
   stats([[munData.length,'Municípios'],[fmt(Math.round(u.area)),'km²'],[u.reg,'Região']]);renderList()}
-q.addEventListener('input',renderList);$('gBack').onclick=()=>{drawBR()};
+q.addEventListener('input',renderList);back.onclick=()=>{lvl==='uf'?drawBR():drawWorld()};
 $('gTheme').onclick=()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('adh-tema',n)}catch(e){}};
 $('gIntro').onclick=()=>{document.documentElement.classList.remove('app-on');$('stage').classList.remove('gone');window.__play&&window.__play()};
 $('enter').onclick=()=>{document.documentElement.classList.add('app-on');$('stage').classList.add('gone');scrollTo(0,0)};
-fetch('data/uf.json').then(r=>r.json()).then(j=>{UF=j;drawBR()}).catch(()=>{$('gSub').textContent='Abra por um servidor HTTP local (ex.: python3 -m http.server).'});
+const J=u=>fetch(u).then(r=>r.json());
+Promise.all([J('data/world.json'),J('data/paises.json'),J('data/uf.json')]).then(r=>{W=r[0];PI=r[1];UF=r[2];drawWorld()}).catch(()=>{$('gSub').textContent='Abra por um servidor HTTP (não direto pelo arquivo).'});
 })();
 
 </script>
