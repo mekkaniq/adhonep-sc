@@ -1,0 +1,6 @@
+ADHONEP beta-global (teste local)
+Abrir: nesta pasta rode  python3 -m http.server 8000  e acesse http://localhost:8000/
+(precisa de servidor HTTP: estados e municipios sao carregados por fetch)
+- index.html: abertura + mapa Brasil por estados + municipios ao clicar
+- data/uf.json e data/mun/XX.json (um por estado, carregado so ao abrir)
+Fonte: IBGE 2025, simplificado. Para publicar: pasta /beta-global/ no GitHub Pages.
