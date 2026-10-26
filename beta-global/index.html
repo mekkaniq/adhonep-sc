@@ -27,6 +27,7 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 .sky{position:absolute;inset:-4%;background:var(--night) url("assets/g/sky.jpg") center 55%/cover no-repeat;transform:scale(1.14);transition:transform 5.5s cubic-bezier(.2,.7,.2,1),filter 2s ease;filter:brightness(.55) saturate(1.05)}
 .shade{position:absolute;inset:0;background:radial-gradient(70% 60% at 50% 45%,rgba(5,12,24,.15),rgba(5,12,24,.8))}
 .revealed .sky{transform:scale(1.02);filter:brightness(.72) saturate(1.05)}
+.pc{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;opacity:0;transition:opacity 1.4s ease}.stage.revealed .pc{opacity:1}
 .brandwrap{position:relative;display:grid;justify-items:center;gap:clamp(18px,3vh,30px);text-align:center;max-width:100%}
 .brand{display:flex;align-items:center;justify-content:center;gap:0;min-width:0}
 .sym{height:clamp(120px,22vh,230px);width:auto;opacity:0;transform:scale(.86);transition:opacity 1s ease,transform 1.4s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 26px rgba(230,207,156,.35))}
@@ -149,6 +150,7 @@ html.app-on .stage{pointer-events:none}
 <div class="stage" id="stage">
   <section class="scene" aria-label="ADHONEP Global">
     <div class="sky" aria-hidden="true"></div><div class="shade" aria-hidden="true"></div>
+    <canvas class="pc" id="pc" aria-hidden="true"></canvas>
     <div class="brandwrap">
       <div class="brand">
         <img class="sym" src="assets/g/sym.png" alt="Símbolo da ADHONEP" width="430" height="440">
@@ -509,4 +511,46 @@ Promise.all([J('data/regioes.json').catch(()=>null),J('data/capitulos.json').cat
 
 </script>
 
+
+<script>
+/* Partículas da abertura (código próprio, claude global v2): pontos se reúnem num globo, orbitam o símbolo e se afastam do ponteiro. */
+(function(){
+  var cv=document.getElementById('pc'),st=document.getElementById('stage');if(!cv||!st)return;
+  var cx=cv.getContext('2d'),reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var W=0,H=0,DPR=1,P=[],N=0,mx=-9999,my=-9999,ang=0,t0=performance.now(),lastMode='';
+  function size(){DPR=Math.min(2,window.devicePixelRatio||1);W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;cx.setTransform(DPR,0,0,DPR,0,0)}
+  function build(){
+    N=W<700?650:1500;P=[];var ga=Math.PI*(3-Math.sqrt(5));
+    for(var i=0;i<N;i++){var y=1-2*(i+.5)/N,r=Math.sqrt(1-y*y),th=ga*i;
+      P.push({u:[Math.cos(th)*r,y,Math.sin(th)*r],x:Math.random()*W,y:Math.random()*H,z:0,vx:0,vy:0,k:Math.random(),g:Math.random()<.34})}
+  }
+  function mode(){var c=st.classList;if(!c.contains('revealed'))return'scatter';if(c.contains('s3'))return'ambient';return'gather'}
+  function frame(now){
+    requestAnimationFrame(frame);
+    if(st.classList.contains('gone')||document.hidden)return;
+    var m=mode();
+    if(m==='scatter'&&lastMode!=='scatter'){P.forEach(function(p){p.x=Math.random()*W;p.y=Math.random()*H;p.vx=p.vy=0})}
+    lastMode=m;
+    var dt=Math.min(.05,(now-t0)/1000);t0=now;ang+=dt*(m==='ambient'?.12:.28);
+    var base=Math.min(W,H),R=base*(m==='ambient'?.46:.27),ccx=W/2,ccy=H*(m==='ambient'?.5:.42);
+    cx.clearRect(0,0,W,H);
+    var ca=Math.cos(ang),sa=Math.sin(ang),tilt=.38,ct=Math.cos(tilt),stt=Math.sin(tilt);
+    for(var i=0;i<N;i++){var p=P[i],tx,ty,tz=0,sc=1;
+      if(m==='scatter'){tx=p.x;ty=p.y}
+      else{var x=p.u[0]*ca+p.u[2]*sa,z=-p.u[0]*sa+p.u[2]*ca,y=p.u[1];var y2=y*ct-z*stt,z2=y*stt+z*ct;sc=1/(1-z2*.22);tx=ccx+x*R*sc;ty=ccy+y2*R*sc;tz=z2}
+      var kf=m==='scatter'?0:(.055+p.k*.05);
+      p.vx=(p.vx+(tx-p.x)*kf)*.82;p.vy=(p.vy+(ty-p.y)*kf)*.82;
+      var dx=p.x-mx,dy=p.y-my,d2=dx*dx+dy*dy;if(d2<10000&&d2>1){var f=(1-d2/10000)*5/Math.sqrt(d2);p.vx+=dx*f;p.vy+=dy*f}
+      p.x+=p.vx;p.y+=p.vy;
+      var a=m==='scatter'?.0:(m==='ambient'?.24+.4*(tz+1)/2:.28+.62*(tz+1)/2);
+      cx.globalAlpha=a;cx.fillStyle=p.g?'#e0bf78':'#bcd3f2';
+      var s=(m==='ambient'?1.1:1.5)*(.7+.5*(tz+1)/2)*(p.g?1.25:1);cx.fillRect(p.x-s/2,p.y-s/2,s,s)}
+    cx.globalAlpha=1;
+  }
+  function init(){size();build();if(reduce){/* sem movimento: um quadro estático do globo */lastMode='';}requestAnimationFrame(function(n){t0=n;frame(n)})}
+  window.addEventListener('resize',function(){size();build()});
+  window.addEventListener('pointermove',function(e){mx=e.clientX;my=e.clientY},{passive:true});window.addEventListener('pointerleave',function(){mx=my=-9999});
+  init();
+})();
+</script>
 </body></html>
