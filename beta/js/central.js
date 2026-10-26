@@ -170,7 +170,7 @@ function cmdRender() {
   const crit = rows.filter(x => x.h.score < 40).length;
   const sts = { a: all.filter(c => c.status === 'Ativo').length, i: all.filter(c => c.status === 'Inativo').length, n: all.filter(c => c.status === 'Em ativação').length, r: all.filter(c => c.status === 'Em reativação').length };
 
-  const scopeName = CMD.scope === 'region' && CMD.regionId ? ('Região ' + ((cmdRegions().find(r => String(r.id) === String(CMD.regionId)) || {}).name || '')) : 'Santa Catarina';
+  const scopeName = CMD.scope === 'region' && CMD.regionId ? ('Região ' + ((cmdRegions().find(r => String(r.id) === String(CMD.regionId)) || {}).name || '')) : ADH_UF_NAME;
   cmdEl('cmdScopeTitle').textContent = scopeName;
   cmdEl('cmdNote').textContent = (CMD.at ? 'Atualizado às ' + CMD.at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' · ' : '') + 'mês de referência: ' + mrLabel(CMD.month) + ' (relatório e atividade); reuniões e mandatos de hoje.';
 

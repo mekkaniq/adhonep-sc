@@ -425,7 +425,7 @@ function gxAttentionExtra() {
       n++;
       const ph = ((typeof adhChapterContacts !== 'undefined' && adhChapterContacts || {})[String(x.c.id)] || {}).president_phone || '';
       const nome = String(x.c.president || '').trim().split(/\s+/)[0];
-      const msg = 'Olá' + (nome ? ', ' + nome : '') + '! Tudo bem? Aqui é da ADHONEP-SC. Vimos que o capítulo ' + x.c.name + ' não registrou reunião nos últimos ' + x.i.days + ' dias. Aconteceu alguma coisa? Se precisar de apoio, é só chamar. Um abraço!';
+      const msg = 'Olá' + (nome ? ', ' + nome : '') + '! Tudo bem? Aqui é da ' + ADH_BRAND + '. Vimos que o capítulo ' + x.c.name + ' não registrou reunião nos últimos ' + x.i.days + ' dias. Aconteceu alguma coisa? Se precisar de apoio, é só chamar. Um abraço!';
       const wa = /^55\d{10,11}$/.test(ph) ? 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg) : '';
       h += '<div class="detail gx-att"><span>📉 <strong>' + E(x.c.name) + '</strong> — sem reunião registrada há ' + x.i.days + ' dias (limite: ' + x.i.limit + ')</span>' + (wa ? '<a class="btn small" target="_blank" rel="noopener" href="' + E(wa) + '">Falar com o presidente</a>' : '<button class="btn small" onclick="gxMeetDetail(' + Number(x.c.id) + ')">Ver reuniões</button>') + '</div>';
     });
@@ -440,7 +440,7 @@ function gxAttentionExtra() {
       const ph = ((typeof adhChapterContacts !== 'undefined' && adhChapterContacts || {})[String(x.c.id)] || {}).president_phone || '';
       const nome = String(x.c.president || '').trim().split(/\s+/)[0];
       const fracos = x.h.parts.filter(p => p[1] < p[2] * 0.5).map(p => p[0].toLowerCase());
-      const msg = 'Olá' + (nome ? ', ' + nome : '') + '! Tudo bem? Aqui é da ADHONEP-SC. Estamos acompanhando os capítulos e o ' + x.c.name + ' está precisando de atenção em: ' + (fracos.join(', ') || 'alguns pontos') + '. Posso ajudar em alguma coisa? Conte com a gente.';
+      const msg = 'Olá' + (nome ? ', ' + nome : '') + '! Tudo bem? Aqui é da ' + ADH_BRAND + '. Estamos acompanhando os capítulos e o ' + x.c.name + ' está precisando de atenção em: ' + (fracos.join(', ') || 'alguns pontos') + '. Posso ajudar em alguma coisa? Conte com a gente.';
       const wa = /^55\d{10,11}$/.test(ph) ? 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg) : '';
       h += '<div class="detail gx-att"><span>' + (x.h.score < 40 ? '🔴' : '🟠') + ' <strong>' + E(x.c.name) + '</strong> — nota de saúde ' + x.h.score + '/100 (' + x.h.band.label.toLowerCase() + ')' + (fracos.length ? ', fraco em ' + E(fracos.join(', ')) : '') + (x.h.incomplete.length ? ' · dados incompletos' : '') + '</span>' + (wa ? '<a class="btn small" target="_blank" rel="noopener" href="' + wa + '">WhatsApp</a>' : '') + '</div>';
     });
@@ -713,7 +713,7 @@ function gxQuickRender() {
     box.innerHTML = '<div class="gx-quick"><div class="eyebrow">Cobrança gentil</div><h3>Capítulos para lembrar (' + late.length + ')</h3><p class="sub" style="margin:0 0 8px">Um toque abre o WhatsApp do presidente com a mensagem pronta.</p>'
       + late.map(x => {
         const nome = String(x.c.president || '').trim().split(/\s+/)[0];
-        const msg = 'Olá' + (nome ? ', ' + nome : '') + '! Tudo bem? Aqui é da ADHONEP-SC. Notamos que o capítulo ' + x.c.name + ' ainda não registrou a reunião' + (x.i.days != null ? ' (última há ' + x.i.days + ' dias)' : '') + '. Leva menos de 1 minuto pelo site, na área Reuniões. Se precisar de ajuda, estamos à disposição!';
+        const msg = 'Olá' + (nome ? ', ' + nome : '') + '! Tudo bem? Aqui é da ' + ADH_BRAND + '. Notamos que o capítulo ' + x.c.name + ' ainda não registrou a reunião' + (x.i.days != null ? ' (última há ' + x.i.days + ' dias)' : '') + '. Leva menos de 1 minuto pelo site, na área Reuniões. Se precisar de ajuda, estamos à disposição!';
         const wa = gxWa(x.c, msg);
         return '<div class="detail gx-att"><span><strong>' + E(x.c.name) + '</strong> — ' + (x.i.days != null ? x.i.days + ' dias sem reunião' : 'sem registro ainda') + '</span>' + (wa ? '<a class="btn small" target="_blank" rel="noopener" href="' + wa + '">WhatsApp</a>' : '<span class="sub">sem telefone</span>') + '</div>';
       }).join('') + '</div>';

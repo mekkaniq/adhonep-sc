@@ -204,7 +204,19 @@
   function idbSet(k, v) { return idbOpen().then(function (db) { return new Promise(function (res) { var t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = res; }); }).catch(function () { }); }
   function idbDel(k) { return idbOpen().then(function (db) { return new Promise(function (res) { var t = db.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = res; t.onerror = res; }); }).catch(function () { }); }
 
+  async function downloadGeoStatic(progress) {
+    var ms = await adhFetch('/rest/v1/municipalities?select=id,ibge_code,name&order=id.asc&limit=1000');
+    var r = await fetch('data/mun/' + ADH_UF + '.json'); if (!r.ok) throw new Error('Limites municipais de ' + ADH_UF_NAME + ' indisponíveis.');
+    var st = await r.json(), byCode = {}; st.forEach(function (x) { byCode[x.id] = x; });
+    var rows = (Array.isArray(ms) ? ms : []).map(function (m) {
+      var x = byCode[m.ibge_code]; if (!x) return null;
+      return { id: m.id, ibge_code: m.ibge_code, name: m.name, boundary_geojson: { type: 'MultiPolygon', coordinates: x.p.map(function (ring) { return [ring.map(function (p) { return [p[0] / 1000, p[1] / 1000]; })]; }) } };
+    }).filter(Boolean);
+    if (progress) progress(1, 1);
+    return buildGeo(rows);
+  }
   async function downloadGeo(progress) {
+    if (ADH_UF !== 'SC') return downloadGeoStatic(progress);
     var PAGE = 60, N = 6, done = 0;
     var pages = await Promise.all(Array.from({ length: N }, function (_, i) {
       return adhFetch('/rest/v1/municipalities?select=id,ibge_code,name,boundary_geojson&order=id.asc&limit=' + PAGE + '&offset=' + (i * PAGE))
@@ -223,10 +235,10 @@
     if (geoPromise) return geoPromise;
     geoPromise = (async function () {
       if (!force) {
-        var c = await idbGet('geo');
-        if (c && c.v === CACHE_V && Array.isArray(c.munis) && c.munis.length >= 100 && Date.now() - c.savedAt < CACHE_TTL) { geoMem = c; return c; }
+        var c = await idbGet(ADH_UF === 'SC' ? 'geo' : 'geo-' + ADH_UF);
+        if (c && c.v === CACHE_V && Array.isArray(c.munis) && c.munis.length >= (ADH_UF === 'SC' ? 100 : 1) && Date.now() - c.savedAt < CACHE_TTL) { geoMem = c; return c; }
       }
-      var g = await downloadGeo(progress); geoMem = g; idbSet('geo', g); return g;
+      var g = await downloadGeo(progress); geoMem = g; idbSet(ADH_UF === 'SC' ? 'geo' : 'geo-' + ADH_UF, g); return g;
     })().finally(function () { geoPromise = null; });
     return geoPromise;
   }
@@ -336,8 +348,8 @@
       S.loading = (async function () {
         try {
           var cached = !opts.geo && geoMem;
-          if (!S.loaded || opts.geo) setLoading(cached ? 'Montando o mapa…' : 'Preparando o mapa de Santa Catarina…', cached ? '' : 'Na primeira visita os limites dos municípios são baixados e guardados neste aparelho. Nas próximas, o mapa abre na hora.');
-          var geoP = getGeo(!!opts.geo, function (d, n) { if (!cached) setLoading('Preparando o mapa de Santa Catarina…', 'Baixando limites municipais (' + d + ' de ' + n + ')'); });
+          if (!S.loaded || opts.geo) setLoading(cached ? 'Montando o mapa…' : 'Preparando o mapa de '+ADH_UF_NAME+'…', cached ? '' : 'Na primeira visita os limites dos municípios são baixados e guardados neste aparelho. Nas próximas, o mapa abre na hora.');
+          var geoP = getGeo(!!opts.geo, function (d, n) { if (!cached) setLoading('Preparando o mapa de '+ADH_UF_NAME+'…', 'Baixando limites municipais (' + d + ' de ' + n + ')'); });
           var reqs = [adhFetch('/rest/v1/regions?select=id,name&limit=500'), adhFetch('/rest/v1/region_municipalities?select=municipality_id,region_id&valid_until=is.null&limit=1000')];
           if (!pub) reqs.push(adhFetch('/rest/v1/chapters?select=id,name,chapter_number,municipality_id,region_id,status,is_public,president_name&order=name.asc&limit=2000'));
           var res = await Promise.all([geoP].concat(reqs));
@@ -363,7 +375,7 @@
       var b = box(); if (!b) return;
       b.innerHTML = '<div class="amap amap-' + mode + '"><div class="amap-stage"><div class="amap-crumbs" role="navigation" aria-label="Navegação do mapa"></div><div class="amap-tip" hidden></div><div class="amap-compass" aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="none" stroke="rgba(255,255,255,.35)"/><path d="M32 6l6 26-6 6-6-6z" fill="#e8c46b"/><path d="M32 58l-6-26 6-6 6 6z" fill="rgba(255,255,255,.55)"/><text x="32" y="5" font-size="8" text-anchor="middle" fill="#fff" font-family="Inter,sans-serif" font-weight="700">N</text></svg></div><div class="amap-scale" aria-hidden="true"><i></i><span></span></div></div><div class="amap-stats"></div><div class="amap-legend"></div><div class="amap-regions"></div></div>';
       var stage = b.querySelector('.amap-stage');
-      var svg = el('svg', { class: 'amap-svg', role: 'group', 'aria-label': 'Mapa dos municípios de Santa Catarina', preserveAspectRatio: 'xMidYMid meet' });
+      var svg = el('svg', { class: 'amap-svg', role: 'group', 'aria-label': 'Mapa dos municípios de '+ADH_UF_NAME, preserveAspectRatio: 'xMidYMid meet' });
       stage.insertBefore(svg, stage.firstChild);
       var defs = el('defs', {}, svg);
       var gold = el('linearGradient', { id: 'g-gold-' + tag, x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
@@ -450,11 +462,11 @@
     function renderExtras() {
       var st = S.els.stats; if (st) {
         var nr = 0; S.regions.forEach(function (r) { if (r.num) nr++; });
-        st.innerHTML = '<div><b>' + nr + '</b><span>Regiões</span></div><div><b>' + S.munis.length + '</b><span>Municípios em SC</span></div><div><b>' + S.chapters.length + '</b><span>' + (pub ? 'Capítulos ativos' : 'Capítulos') + '</span></div>';
+        st.innerHTML = '<div><b>' + nr + '</b><span>Regiões</span></div><div><b>' + S.munis.length + '</b><span>Municípios em '+ADH_UF+'</span></div><div><b>' + S.chapters.length + '</b><span>' + (pub ? 'Capítulos ativos' : 'Capítulos') + '</span></div>';
       }
       var rg = S.els.regs; if (rg) {
         var cnt = new Map(); S.chapters.forEach(function (c) { var mm = S.byId.get(String(c.muni)); if (mm) cnt.set(mm.regionId, (cnt.get(mm.regionId) || 0) + 1); });
-        rg.innerHTML = '<div class="rg-title">Regiões da ADHONEP-SC</div><div class="rg-grid">' + Array.from(S.regions.values()).filter(function (r) { return r.num; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (r) {
+        rg.innerHTML = '<div class="rg-title">Regiões da '+ADH_BRAND+'</div><div class="rg-grid">' + Array.from(S.regions.values()).filter(function (r) { return r.num; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (r) {
           return '<button type="button" class="rg" data-r="' + esc(r.id) + '"><i style="background:' + r.color + '"></i><span>' + esc(r.name) + '</span><b>' + (cnt.get(r.id) || 0) + '</b></button>'; }).join('') + '</div>';
         rg.querySelectorAll('.rg').forEach(function (b) {
           b.onclick = function () { go(1, b.getAttribute('data-r')); };
@@ -605,7 +617,7 @@
 
     function renderCrumbs() {
       var c = S.els.crumbs; if (!c) return; var L = S.st.level, r = S.regions.get(S.st.region), m = S.byId.get(S.st.muni || '');
-      var h = '<button type="button" data-g="0"' + (L === 0 ? ' class="cur" aria-current="true"' : '') + '>Santa Catarina</button>';
+      var h = '<button type="button" data-g="0"' + (L === 0 ? ' class="cur" aria-current="true"' : '') + '>'+ADH_UF_NAME+'</button>';
       if (L >= 1 && r) h += '<span aria-hidden="true">›</span><button type="button" data-g="1"' + (L === 1 ? ' class="cur" aria-current="true"' : '') + '>' + esc(r.name) + '</button>';
       if (L === 2 && m) h += '<span aria-hidden="true">›</span><button type="button" class="cur" aria-current="true">' + esc(m.name) + '</button>';
       if (L > 0) h += '<button type="button" class="back" data-g="b">← Voltar</button>';
@@ -614,7 +626,7 @@
     }
     function syncExternal() {
       var r = S.regions.get(S.st.region), m = S.byId.get(S.st.muni || ''), L = S.st.level;
-      var txt = L === 0 ? 'Visão geral de Santa Catarina' : L === 1 ? 'Região: ' + (r ? r.name : '') : 'Município: ' + (m ? m.name : '') + (r ? ' · ' + r.name : '');
+      var txt = L === 0 ? 'Visão geral de '+ADH_UF_NAME : L === 1 ? 'Região: ' + (r ? r.name : '') : 'Município: ' + (m ? m.name : '') + (r ? ' · ' + r.name : '');
       var lab = $(ids.label); if (lab) lab.textContent = txt;
       if (pub) {
         root.adhMapFilter = { region: L >= 1 && r ? r.name : '', city: L === 2 && m ? m.name : '' };
@@ -657,11 +669,11 @@
         if (pub) {
           var nm = 0; S.chBy.forEach(function () { nm++; }); var rc = new Map();
           S.chapters.forEach(function (c) { var mm = S.byId.get(String(c.muni)); if (mm) rc.set(mm.regionId, (rc.get(mm.regionId) || 0) + 1); });
-          html = head('Santa Catarina', '<b>' + S.chapters.length + '</b> capítulos ativos em <b>' + nm + '</b> municípios. Clique numa região do mapa para explorar.') +
+          html = head(ADH_UF_NAME, '<b>' + S.chapters.length + '</b> capítulos ativos em <b>' + nm + '</b> municípios. Clique numa região do mapa para explorar.') +
             '<div class="chips">' + Array.from(S.regions.values()).filter(function (x) { return x.id !== '0'; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (x) { return chip(x.name, rc.get(x.id) || 0, "AdhMap.goRegion('" + esc(x.id) + "','" + tag + "')"); }).join('') + '</div>';
         } else {
           var cnt = { active: 0, activation: 0, reactivation: 0, inactive: 0 }; S.chapters.forEach(function (c) { cnt[c.status]++; });
-          html = head('Santa Catarina', S.chapters.length + ' capítulos cadastrados em ' + S.regions.size + ' regiões.') + '<div class="detail"><div class="statline">' + ST_ORDER.map(function (k) { return '<span><i class="sw" style="background:' + ST[k].color + '"></i>' + ST[k].label + ': <b>' + cnt[k] + '</b></span>'; }).join('') + '</div></div><p class="sub" style="margin-top:12px">Clique numa região para isolá-la. Use a legenda para destacar uma situação.</p><div class="chips">' + Array.from(S.regions.values()).filter(function (x) { return x.id !== '0'; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (x) { return chip(x.name, null, "AdhMap.goRegion('" + esc(x.id) + "','" + tag + "')"); }).join('') + '</div>';
+          html = head(ADH_UF_NAME, S.chapters.length + ' capítulos cadastrados em ' + S.regions.size + ' regiões.') + '<div class="detail"><div class="statline">' + ST_ORDER.map(function (k) { return '<span><i class="sw" style="background:' + ST[k].color + '"></i>' + ST[k].label + ': <b>' + cnt[k] + '</b></span>'; }).join('') + '</div></div><p class="sub" style="margin-top:12px">Clique numa região para isolá-la. Use a legenda para destacar uma situação.</p><div class="chips">' + Array.from(S.regions.values()).filter(function (x) { return x.id !== '0'; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (x) { return chip(x.name, null, "AdhMap.goRegion('" + esc(x.id) + "','" + tag + "')"); }).join('') + '</div>';
         }
       } else if (L === 1 && r) {
         var cs = []; r.munis.forEach(function (mm) { (S.chBy.get(mm.id) || []).forEach(function (c) { cs.push({ c: c, m: mm }); }); });
@@ -717,7 +729,7 @@
   AdhMap.reset = function () { if (AdhMap.pub) AdhMap.pub.reset(); };
   AdhMap.back = function (mode) { var m = mode === 'admin' ? AdhMap.adm : (mode === 'cmd' ? AdhMap.cmd : AdhMap.pub); if (m) m.back(); };
   AdhMap.emptyHtml = function (q) { return AdhMap.pub ? AdhMap.pub.emptyHtml(q) : ''; };
-  AdhMap.clearCache = function () { geoMem = null; return idbDel('geo'); };
+  AdhMap.clearCache = function () { geoMem = null; return idbDel(ADH_UF === 'SC' ? 'geo' : 'geo-' + ADH_UF); };
   root.AdhMap = AdhMap;
   root.loadOfficialMap = function () { return AdhMap.initPublic(); };
   root.loadAdminMap = function () { return AdhMap.initAdmin(); };
