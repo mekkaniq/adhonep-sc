@@ -322,7 +322,7 @@ Europe:'ALB AUT BEL BGR BIH BLR CHE CYP CZE DEU DNK ESP EST FIN FRA GBR GRC HRV 
 Africa:'AGO BDI BEN BFA BWA CAF CIV CMR COD COG DJI DZA EGY ERI ESH ETH GAB GHA GIN GMB GNB GNQ KEN LBR LBY LSO MAR MDG MLI MOZ MRT MWI NAM NER NGA RWA SDN SEN SLE SOM SSD SWZ TCD TGO TUN TZA UGA ZAF ZMB ZWE ATF',
 Oceania:'AUS FJI NCL NZL PNG SLB VUT'},CM={};Object.keys(CL).forEach(k=>CL[k].split(' ').forEach(i=>CM[i]=k));
 const contOf=c=>CM[c.id]||(/Cyprus/.test(c.n)?'Europe':/Somaliland/.test(c.n)?'Africa':'Asia');
-const CF={Americas:[-70,5,1.5],Europe:[22,50,2.7],Africa:[20,2,1.7],Asia:[88,34,1.6],Oceania:[140,-22,2.3]};
+const CF={Americas:[-70,5,1.5],Europe:[18,48,2.1],Africa:[20,2,1.7],Asia:[88,34,1.6],Oceania:[140,-22,2.3]};
 const CN={pt:{all:'Todos',Americas:'Américas',Europe:'Europa',Africa:'África',Asia:'Ásia',Oceania:'Oceania'},en:{all:'All',Americas:'Americas',Europe:'Europe',Africa:'Africa',Asia:'Asia',Oceania:'Oceania'},es:{all:'Todos',Americas:'América',Europe:'Europa',Africa:'África',Asia:'Asia',Oceania:'Oceanía'},fr:{all:'Tous',Americas:'Amériques',Europe:'Europe',Africa:'Afrique',Asia:'Asie',Oceania:'Océanie'}};
 const TZ='AFG:Asia/Kabul AGO:Africa/Luanda ALB:Europe/Tirane ARE:Asia/Dubai ARG:America/Argentina/Buenos_Aires ARM:Asia/Yerevan AUS:Australia/Sydney AUT:Europe/Vienna AZE:Asia/Baku BDI:Africa/Bujumbura BEL:Europe/Brussels BEN:Africa/Porto-Novo BFA:Africa/Ouagadougou BGD:Asia/Dhaka BGR:Europe/Sofia BHS:America/Nassau BIH:Europe/Sarajevo BLR:Europe/Minsk BLZ:America/Belize BOL:America/La_Paz BRA:America/Sao_Paulo BRN:Asia/Brunei BTN:Asia/Thimphu BWA:Africa/Gaborone CAF:Africa/Bangui CAN:America/Toronto CHE:Europe/Zurich CHL:America/Santiago CHN:Asia/Shanghai CIV:Africa/Abidjan CMR:Africa/Douala COD:Africa/Kinshasa COG:Africa/Brazzaville COL:America/Bogota CRI:America/Costa_Rica CUB:America/Havana CYP:Asia/Nicosia CZE:Europe/Prague DEU:Europe/Berlin DJI:Africa/Djibouti DNK:Europe/Copenhagen DOM:America/Santo_Domingo DZA:Africa/Algiers ECU:America/Guayaquil EGY:Africa/Cairo ERI:Africa/Asmara ESP:Europe/Madrid EST:Europe/Tallinn ETH:Africa/Addis_Ababa FIN:Europe/Helsinki FJI:Pacific/Fiji FRA:Europe/Paris GAB:Africa/Libreville GBR:Europe/London GEO:Asia/Tbilisi GHA:Africa/Accra GIN:Africa/Conakry GMB:Africa/Banjul GNB:Africa/Bissau GNQ:Africa/Malabo GRC:Europe/Athens GRL:America/Nuuk GTM:America/Guatemala GUY:America/Guyana HND:America/Tegucigalpa HRV:Europe/Zagreb HTI:America/Port-au-Prince HUN:Europe/Budapest IDN:Asia/Jakarta IND:Asia/Kolkata IRL:Europe/Dublin IRN:Asia/Tehran IRQ:Asia/Baghdad ISL:Atlantic/Reykjavik ISR:Asia/Jerusalem ITA:Europe/Rome JAM:America/Jamaica JOR:Asia/Amman JPN:Asia/Tokyo KAZ:Asia/Almaty KEN:Africa/Nairobi KGZ:Asia/Bishkek KHM:Asia/Phnom_Penh KOR:Asia/Seoul KWT:Asia/Kuwait LAO:Asia/Vientiane LBN:Asia/Beirut LBR:Africa/Monrovia LBY:Africa/Tripoli LKA:Asia/Colombo LSO:Africa/Maseru LTU:Europe/Vilnius LUX:Europe/Luxembourg LVA:Europe/Riga MAR:Africa/Casablanca MDA:Europe/Chisinau MDG:Indian/Antananarivo MEX:America/Mexico_City MKD:Europe/Skopje MLI:Africa/Bamako MLT:Europe/Malta MMR:Asia/Yangon MNE:Europe/Podgorica MNG:Asia/Ulaanbaatar MOZ:Africa/Maputo MRT:Africa/Nouakchott MWI:Africa/Blantyre MYS:Asia/Kuala_Lumpur NAM:Africa/Windhoek NER:Africa/Niamey NGA:Africa/Lagos NIC:America/Managua NLD:Europe/Amsterdam NOR:Europe/Oslo NPL:Asia/Kathmandu NZL:Pacific/Auckland OMN:Asia/Muscat PAK:Asia/Karachi PAN:America/Panama PER:America/Lima PHL:Asia/Manila PNG:Pacific/Port_Moresby POL:Europe/Warsaw PRI:America/Puerto_Rico PRK:Asia/Pyongyang PRT:Europe/Lisbon PRY:America/Asuncion QAT:Asia/Qatar ROU:Europe/Bucharest RUS:Europe/Moscow RWA:Africa/Kigali SAU:Asia/Riyadh SDN:Africa/Khartoum SEN:Africa/Dakar SLE:Africa/Freetown SLV:America/El_Salvador SOM:Africa/Mogadishu SRB:Europe/Belgrade SSD:Africa/Juba SUR:America/Paramaribo SVK:Europe/Bratislava SVN:Europe/Ljubljana SWE:Europe/Stockholm SWZ:Africa/Mbabane SYR:Asia/Damascus TCD:Africa/Ndjamena TGO:Africa/Lome THA:Asia/Bangkok TJK:Asia/Dushanbe TKM:Asia/Ashgabat TLS:Asia/Dili TTO:America/Port_of_Spain TUN:Africa/Tunis TUR:Europe/Istanbul TWN:Asia/Taipei TZA:Africa/Dar_es_Salaam UGA:Africa/Kampala UKR:Europe/Kyiv URY:America/Montevideo USA:America/New_York UZB:Asia/Tashkent VEN:America/Caracas VNM:Asia/Ho_Chi_Minh VUT:Pacific/Efate YEM:Asia/Aden ZAF:Africa/Johannesburg ZMB:Africa/Lusaka ZWE:Africa/Harare'.split(' ').reduce((a,s)=>{const i=s.indexOf(':');a[s.slice(0,i)]=s.slice(i+1);return a},{});
 const MULTI=new Set('USA CAN RUS BRA MEX AUS IDN CHL ECU COD KAZ MNG GRL ESP PRT FRA NZL'.split(' '));
@@ -337,7 +337,7 @@ function clockOn(id){clearInterval(clk);const el=$('gClock'),z=TZ[id];if(!z){el.
 function clockOff(){clearInterval(clk);$('gClock').hidden=true}
 let TO=null;
 function tourList(){const L=W.filter(c=>ADH.has(c.id)&&c.id!=='BRA').sort((a,b)=>cInfo(a).lon-cInfo(b).lon),br=W.find(c=>c.id==='BRA');return br?[br].concat(L):L}
-function tourShow(){const L=TO.list,c=L[TO.i];clearTimeout(TO.tm);pickCountry(c,true);$('tInfo').textContent=(TO.i+1)+'/'+L.length+' · '+cname(c);$('gTour').hidden=false}
+function tourShow(){const L=TO.list,c=L[TO.i];clearTimeout(TO.tm);TO.arc=!!TO.fl;pickCountry(c,true);TO.fl=true;$('tInfo').textContent=(TO.i+1)+'/'+L.length+' · '+cname(c);$('gTour').hidden=false}
 function tourArrive(){if(!TO||TO.paused)return;clearTimeout(TO.tm);TO.tm=setTimeout(()=>{if(!TO||TO.paused)return;TO.i=(TO.i+1)%TO.list.length;tourShow()},4500)}
 function tourStart(){TO={list:tourList(),i:0,paused:false,tm:0};$('tPlay').textContent='⏸';tourShow()}
 function tourOff(){if(TO){clearTimeout(TO.tm);TO=null}$('gTour').hidden=true}
@@ -366,7 +366,13 @@ function ringPath(ring,path,R,cxp,cyp){
   if(!any)return;if(pend!==null&&exitA!==null)arc(exitA,pend);
   if(out.length<3)return;path.moveTo(out[0][0],out[0][1]);for(let i=1;i<out.length;i++)path.lineTo(out[i][0],out[i][1]);path.closePath()}
 let ROUTES=null;
-function buildRoutes(){ROUTES=[];const br=W.find(c=>c.id==='BRA');if(!br)return;const a=cInfo(br),A=[a.lon,a.lat];W.filter(c=>ADH.has(c.id)&&c.id!=='BRA').forEach(c=>{const i=cInfo(c),r=[];for(let k=0;k<=48;k++)r.push(gcp(A,[i.lon,i.lat],k/48));ROUTES.push(r)})}
+function buildRoutes(){ROUTES=[];const L=W.filter(c=>ADH.has(c.id)).map(c=>{const i=cInfo(c);return{id:c.id,p:[i.lon,i.lat]}});
+  const dist=(a,b)=>{const v=p=>[Math.cos(p[1]*RAD)*Math.cos(p[0]*RAD),Math.cos(p[1]*RAD)*Math.sin(p[0]*RAD),Math.sin(p[1]*RAD)],A=v(a),B=v(b);return Math.acos(Math.max(-1,Math.min(1,A[0]*B[0]+A[1]*B[1]+A[2]*B[2])))};
+  const E=new Set(),add=(i,j)=>{if(i!==j)E.add(i<j?i+'-'+j:j+'-'+i)};
+  // cada país liga-se aos 2 mais próximos + árvore geradora mínima (rede sempre conectada)
+  L.forEach((a,i)=>{L.map((b,j)=>[dist(a.p,b.p),j]).filter(x=>x[1]!==i).sort((x,y)=>x[0]-y[0]).slice(0,2).forEach(x=>add(i,x[1]))});
+  const inT=new Set([0]);while(inT.size<L.length){let best=null;inT.forEach(i=>L.forEach((b,j)=>{if(inT.has(j))return;const d=dist(L[i].p,b.p);if(!best||d<best[0])best=[d,i,j]}));add(best[1],best[2]);inT.add(best[2])}
+  E.forEach(k=>{const [i,j]=k.split('-').map(Number),r=[];for(let t=0;t<=48;t++)r.push(gcp(L[i].p,L[j].p,t/48));ROUTES.push(r)})}
 let DOTS=null;
 function buildDots(){const C=[];W.forEach(c=>{const g=ADH.has(c.id);c.p.forEach(r=>{let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;r.forEach(q=>{if(q[0]<x0)x0=q[0];if(q[0]>x1)x1=q[0];if(q[1]<y0)y0=q[1];if(q[1]>y1)y1=q[1]});C.push({r:r,b:[x0,y0,x1,y1],g:g})})});
   const inR=(r,x,y)=>{let ins=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const xi=r[i][0],yi=r[i][1],xj=r[j][0],yj=r[j][1];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)ins=!ins}return ins};
@@ -381,14 +387,14 @@ function drawGlobe(){
   cx.save();cx.beginPath();cx.arc(cxp,cyp,R,0,7);cx.clip();
   // países: terra em pontos (estilo globo pontilhado); preenchimento só em destaque
   if(!DOTS)buildDots();
-  {const ds=Math.max(.7,R*.0036),cs=Math.cos(G.lat*RAD),sn=Math.sin(G.lat*RAD),lo0=G.lon;
+  {const ds=Math.max(.7,Math.min(R*.0036,1.9)),cs=Math.cos(G.lat*RAD),sn=Math.sin(G.lat*RAD),lo0=G.lon;
    for(let pass=0;pass<2;pass++){cx.fillStyle=pass?'rgba(212,176,104,.95)':'rgba(150,178,215,.5)';cx.beginPath();
     for(let k=0;k<DOTS.length;k++){const d=DOTS[k];if((pass===1)!==d.g)continue;const l=(d.lo-lo0)*RAD,cl=Math.cos(l),Z=sn*d.sf+cs*d.cf*cl;if(Z<=0)continue;
      const X=d.cf*Math.sin(l),Y=cs*d.sf-sn*d.cf*cl,x=cxp+X*R,y=cyp-Y*R;cx.moveTo(x+ds,y);cx.arc(x,y,ds,0,6.2832)}
     cx.fill()}}
   // rotas discretas a partir do Brasil
   if(!ROUTES)buildRoutes();
-  cx.lineWidth=.8;cx.strokeStyle='rgba(212,176,104,.2)';ROUTES.forEach(rt=>{cx.beginPath();let on=false;for(let i=0;i<rt.length;i++){const q=prj(rt[i][0],rt[i][1]);if(q.Z<=0){on=false;continue}const x=cxp+q.X*R,y=cyp-q.Y*R;on?cx.lineTo(x,y):cx.moveTo(x,y);on=true}cx.stroke()});
+  cx.lineWidth=1;cx.strokeStyle='rgba(212,176,104,.3)';ROUTES.forEach(rt=>{cx.beginPath();let on=false;for(let i=0;i<rt.length;i++){const q=prj(rt[i][0],rt[i][1]);if(q.Z<=0){on=false;continue}const x=cxp+q.X*R,y=cyp-q.Y*R;on?cx.lineTo(x,y):cx.moveTo(x,y);on=true}cx.stroke()});
   W.forEach(c=>{const hov=G.hov===c.id,sel=ctry&&ctry.id===c.id,on=ADH.has(c.id);const p=new Path2D();c.p.forEach(r=>ringPath(r,p,R,cxp,cyp));
     if(hov||sel){cx.fillStyle=on?(sel?'rgba(243,227,184,.55)':'rgba(236,217,168,.45)'):(sel?'rgba(120,160,220,.45)':'rgba(120,160,220,.32)');cx.fill(p,'evenodd')}
     cx.strokeStyle=on?'rgba(201,164,92,.35)':'rgba(150,180,220,.16)';cx.lineWidth=.6;cx.stroke(p)});
@@ -455,7 +461,7 @@ function pickCountry(c,tour){hide();const ci=cInfo(c);clockOn(c.id);
   if(c.id==='BRA'&&!tour){lvl='country';ctry=c;crumbs();map.classList.remove('zm');fly(-52,-14,2.3,()=>{globeOff();BRON=false;drawBR()});return}
   lvl='country';ctry=c;crumbs();map.classList.remove('zm');globeOn();const on=PI[c.id];
   head(cname(c),ADH.has(c.id)?(c.id==='BRA'?T('docum'):T('informed')):T('none'),T('country'),T('searchC'));
-  fly(ci.lon,ci.lat,ci.k,tour?tourArrive:null,!!tour);stats([[ADH.has(c.id)?(c.id==='BRA'?Object.values(CAP).reduce((a,v)=>a+v.length,0)+'+':T('confirm')):'—',ADH.has(c.id)&&c.id==='BRA'?T('chap'):T('presence')],[on?on.split(/[;,]| e /)[0]:'—',T('mainLang')]]);
+  fly(ci.lon,ci.lat,ci.k,tour?tourArrive:null,!!(tour&&TO&&TO.arc));stats([[ADH.has(c.id)?(c.id==='BRA'?Object.values(CAP).reduce((a,v)=>a+v.length,0)+'+':T('confirm')):'—',ADH.has(c.id)&&c.id==='BRA'?T('chap'):T('presence')],[on?on.split(/[;,]| e /)[0]:'—',T('mainLang')]]);
   list.innerHTML='<p class="g-note">'+T('nextLvl')+'</p>';
   card.hidden=false;card.innerHTML='<b>'+cname(c)+'</b><br>'+(ADH.has(c.id)?(c.id==='BRA'?T('docum'):T('informed'))+'<br>':'')+(on?T('langs')+': '+on+'<br>':'')+'<span class="g-note">'+(ADH.has(c.id)?T('pres2')+' ':'')+T('noLvl')+'</span>'+infoHtml(c.id);setUrl({pais:c.id})}
 const tc=s=>s.toLowerCase().replace(/(^|[\s–|(-])(\p{L})/gu,(m,a,z)=>a+z.toUpperCase()).replace(/ (De|Do|Da|Dos|Das|E) /g,x=>x.toLowerCase());
