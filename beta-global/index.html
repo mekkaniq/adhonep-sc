@@ -107,6 +107,8 @@ html.app-on #app{display:block}
 .g-map path{stroke:var(--g-bg);stroke-width:.35;vector-effect:non-scaling-stroke;stroke-width:1;cursor:pointer;transition:filter .15s,opacity .2s}
 html[data-theme=dark] .g-map path{stroke:#07101f}
 .g-map path:hover{filter:brightness(1.18) saturate(1.1)}
+.g-map path.uf:hover{fill:#c9a45c;filter:none}
+#gPriv,.g-side a{color:var(--g-gold)}
 .g-map.zm path.dim{opacity:.35}.g-map path.hc{stroke:#fff;stroke-width:1.4}
 #gGlobe{display:none;width:100%;height:min(74vh,720px);cursor:grab;touch-action:none}#gGlobe:active{cursor:grabbing}
 .g-map.gl{background:radial-gradient(80% 90% at 50% 45%,#0d1e38,#060d1a 62%,#03070f);border-color:#1d3150}.g-map.gl #gGlobe{display:block}.g-map.gl svg{display:none}
@@ -287,7 +289,7 @@ if (document.readyState === "complete") setTimeout(play, 150);
 </script>
 <script>
 (function(){
-const PAL=['#2f6fb5','#c9a45c','#2fa39b','#7a6bc4','#58a468','#6fa8dc','#b89a4e','#3d4fa8'];
+const PAL=['#2e5f9c','#4f82bd','#1f4a80','#6f99c9','#3b6dab','#5c8bc2','#27508b','#82a8d2'];
 const $=id=>document.getElementById(id),NS='http://www.w3.org/2000/svg',K=Math.cos(14*Math.PI/180);
 let UF=[],W=[],PI={},ADH=new Set(),CAP={},RG=null,BRON=false,RM=null,REGON=false,RSEL=-1,CT={paises:{},historias:[],agenda:[]},lvl='world',cur=null,ctry=null,munCache={},munData=[];
 const svg=$('gSvg'),tip=$('gTip'),map=$('gMap'),list=$('gList'),q=$('gQ'),card=$('gCard'),back=$('gBack');
@@ -473,8 +475,9 @@ function drawBR(){
     p.addEventListener('mousemove',e=>showTip(e,'<b>'+u.nome+'</b><small>'+u.sigla+' · '+u.reg+(CAP[u.sigla]?' · '+CAP[u.sigla].length+' '+T('chap').toLowerCase():'')+'</small>'));p.addEventListener('mouseleave',hide);p.addEventListener('click',()=>openUF(u.sigla))});
   card.hidden=false;card.innerHTML='<b>'+T('inst')+'</b>'+infoHtml('BRA');view(bboxB(all,100),.02);stats([[27,T('states')],[fmt(5570),T('muni')],[5,T('regions')]]);renderList();brBtn()}
 
-const regCol=i=>'hsl('+((i*137.5)%360).toFixed(0)+',48%,'+(i%2?50:58)+'%)';
-const gcol=(u,k)=>{let n=0;for(const x of UF){if(x.sigla===u)break;n+=RG[x.sigla]?RG[x.sigla].r.length:0}return regCol(n+k)};
+const regCol=i=>'hsl('+(208+(i*7)%14)+','+(42+(i*11)%16)+'%,'+(36+(i*13)%26)+'%)';
+const goldCol=i=>'hsl(41,'+(48+(i*9)%14)+'%,'+(52+(i*11)%16)+'%)';
+const gcol=(u,k)=>{if(u==='SC')return goldCol(k);let n=0;for(const x of UF){if(x.sigla===u)break;n+=RG[x.sigla]?RG[x.sigla].r.length:0}return regCol(n+k)};
 function brBtn(){const el=$('gRg');if(lvl!=='br'||!RG){return}el.style.display='flex';el.innerHTML='';const b=document.createElement('button');b.textContent=T('rgBtn');b.className=BRON?'on':'';b.onclick=async()=>{BRON=!BRON;if(BRON&&!RM){try{RM=await (await fetch('data/regioes_mapa.json')).json()}catch(e){BRON=false;return}}drawBR()};el.appendChild(b)}
 function drawBRR(){
   setUrl({pais:'BRA'});globeOff();tourOff();clockOn('BRA');lvl='br';cur=ctry=null;munData=[];svg.innerHTML='';crumbs();
