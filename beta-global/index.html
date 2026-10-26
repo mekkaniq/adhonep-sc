@@ -365,6 +365,12 @@ function ringPath(ring,path,R,cxp,cyp){
       if(a.Z>=0){add(hx,hy);exitA=ang}else{if(exitA!==null)arc(exitA,ang);else pend=ang;add(hx,hy)}}}
   if(!any)return;if(pend!==null&&exitA!==null)arc(exitA,pend);
   if(out.length<3)return;path.moveTo(out[0][0],out[0][1]);for(let i=1;i<out.length;i++)path.lineTo(out[i][0],out[i][1]);path.closePath()}
+let DOTS=null;
+function buildDots(){const C=[];W.forEach(c=>{const g=ADH.has(c.id);c.p.forEach(r=>{let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;r.forEach(q=>{if(q[0]<x0)x0=q[0];if(q[0]>x1)x1=q[0];if(q[1]<y0)y0=q[1];if(q[1]>y1)y1=q[1]});C.push({r:r,b:[x0,y0,x1,y1],g:g})})});
+  const inR=(r,x,y)=>{let ins=false;for(let i=0,j=r.length-1;i<r.length;j=i++){const xi=r[i][0],yi=r[i][1],xj=r[j][0],yj=r[j][1];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)ins=!ins}return ins};
+  DOTS=[];const st=1.3;for(let la=-84;la<=84;la+=st){const n=Math.max(1,Math.round(360*Math.cos(la*RAD)/st));for(let k=0;k<n;k++){const lo=-180+(k+.5)*360/n,X=lo*100,Y=la*100;let hit=null;
+    for(let i=0;i<C.length;i++){const c=C[i],b=c.b;if(X<b[0]||X>b[2]||Y<b[1]||Y>b[3])continue;if(inR(c.r,X,Y)){hit=c;break}}
+    if(hit)DOTS.push({lo:lo,sf:Math.sin(la*RAD),cf:Math.cos(la*RAD),g:hit.g})}}}
 function drawGlobe(){
   const s=size(),w=s[0],h=s[1],d=s[2];cx.setTransform(d,0,0,d,0,0);cx.clearRect(0,0,w,h);
   const R=Math.min(w,h)*.44*G.k,cxp=w/2,cyp=h/2;
@@ -376,11 +382,16 @@ function drawGlobe(){
   cx.strokeStyle='rgba(150,180,220,.10)';cx.lineWidth=1;
   for(let la=-60;la<=60;la+=30){const p=new Path2D();let f=true;for(let lo=-180;lo<=180;lo+=4){const q=prj(lo,la);if(q.Z<0){f=true;continue}const x=cxp+q.X*R,y=cyp-q.Y*R;f?p.moveTo(x,y):p.lineTo(x,y);f=false}cx.stroke(p)}
   for(let lo=-180;lo<180;lo+=30){const p=new Path2D();let f=true;for(let la=-90;la<=90;la+=4){const q=prj(lo,la);if(q.Z<0){f=true;continue}const x=cxp+q.X*R,y=cyp-q.Y*R;f?p.moveTo(x,y):p.lineTo(x,y);f=false}cx.stroke(p)}
-  // países
-  W.forEach(c=>{const p=new Path2D();c.p.forEach(r=>ringPath(r,p,R,cxp,cyp));const on=ADH.has(c.id);
-    cx.fillStyle=on?col.br:col.off;if(G.hov===c.id){cx.fillStyle=on?'#ecd9a8':'#2c4a74'}
-    if(ctry&&ctry.id===c.id)cx.fillStyle=on?'#f3e3b8':'#3b5f93';
-    cx.fill(p,'evenodd');cx.strokeStyle=col.ln;cx.lineWidth=.6;cx.stroke(p)});
+  // países: terra em pontos (estilo globo pontilhado); preenchimento só em destaque
+  if(!DOTS)buildDots();
+  {const ds=Math.max(1.3,R*.0078),cs=Math.cos(G.lat*RAD),sn=Math.sin(G.lat*RAD),lo0=G.lon;
+   for(let pass=0;pass<2;pass++){cx.fillStyle=pass?col.br:'rgba(150,178,215,.62)';
+    for(let k=0;k<DOTS.length;k++){const d=DOTS[k];if((pass===1)!==d.g)continue;const l=(d.lo-lo0)*RAD,cl=Math.cos(l),Z=sn*d.sf+cs*d.cf*cl;if(Z<=.02)continue;
+     const X=d.cf*Math.sin(l),Y=cs*d.sf-sn*d.cf*cl;cx.globalAlpha=.35+.65*Z;const z=ds*(.75+.5*Z);cx.fillRect(cxp+X*R-z/2,cyp-Y*R-z/2,z,z)}}
+   cx.globalAlpha=1}
+  W.forEach(c=>{const hov=G.hov===c.id,sel=ctry&&ctry.id===c.id,on=ADH.has(c.id);const p=new Path2D();c.p.forEach(r=>ringPath(r,p,R,cxp,cyp));
+    if(hov||sel){cx.fillStyle=on?(sel?'rgba(243,227,184,.55)':'rgba(236,217,168,.45)'):(sel?'rgba(120,160,220,.45)':'rgba(120,160,220,.32)');cx.fill(p,'evenodd')}
+    cx.strokeStyle=on?'rgba(201,164,92,.35)':'rgba(150,180,220,.16)';cx.lineWidth=.6;cx.stroke(p)});
   if(G.arc){const A=G.arc.a,B=G.arc.b,pt=u=>{const g=gcp(A,B,u),q=prj(g[0],g[1]);return{x:cxp+q.X*R,y:cyp-q.Y*R,z:q.Z}};
     cx.lineWidth=2;for(let i=0;i<60;i++){const u0=i/60,u1=(i+1)/60,p0=pt(u0),p1=pt(u1);if(p0.z<0||p1.z<0)continue;const done=u1<=G.pu;cx.strokeStyle=done?'rgba(230,207,156,.95)':'rgba(230,207,156,.35)';cx.setLineDash(done?[]:[4,6]);cx.beginPath();cx.moveTo(p0.x,p0.y);cx.lineTo(p1.x,p1.y);cx.stroke()}cx.setLineDash([]);
     const p=pt(G.pu),p2=pt(Math.min(1,G.pu+.01)),p1=pt(Math.max(0,G.pu-.01));if(p.z>0){const ang=Math.atan2(p2.y-p1.y,p2.x-p1.x),s=1.25;cx.save();cx.translate(p.x,p.y);cx.rotate(ang);cx.scale(s,s);cx.shadowColor='rgba(0,0,0,.6)';cx.shadowBlur=8;cx.fillStyle='#fff';cx.strokeStyle='#c9a45c';cx.lineWidth=1.4;cx.beginPath();[[12,0],[4,-2],[-2,-10],[-5,-10],[-3,-2],[-9,-2],[-11,-5],[-13,-5],[-11,0],[-13,5],[-11,5],[-9,2],[-3,2],[-5,10],[-2,10],[4,2]].forEach((q,i)=>i?cx.lineTo(q[0],q[1]):cx.moveTo(q[0],q[1]));cx.closePath();cx.fill();cx.stroke();cx.restore()}}
@@ -524,6 +535,22 @@ Promise.all([J('data/regioes.json').catch(()=>null),J('data/capitulos.json').cat
     for(var i=0;i<N;i++){var y=1-2*(i+.5)/N,r=Math.sqrt(1-y*y),th=ga*i;
       P.push({u:[Math.cos(th)*r,y,Math.sin(th)*r],x:Math.random()*W,y:Math.random()*H,z:0,vx:0,vy:0,k:Math.random(),g:Math.random()<.34})}
   }
+  /* Globo pontilhado: pontos só sobre a terra, em ouro nos países com ADHONEP (dados do próprio site) */
+  function loadLand(){
+    Promise.all([fetch('data/world.json').then(function(r){return r.json()}),fetch('data/adhonep.json').then(function(r){return r.json()})]).then(function(a){
+      var world=a[0],adh=new Set(a[1]),C=[];
+      world.forEach(function(c){var g=adh.has(c.id);c.p.forEach(function(r){var x0=1e9,x1=-1e9,y0=1e9,y1=-1e9;r.forEach(function(q){if(q[0]<x0)x0=q[0];if(q[0]>x1)x1=q[0];if(q[1]<y0)y0=q[1];if(q[1]>y1)y1=q[1]});C.push({r:r,b:[x0,y0,x1,y1],g:g})})});
+      function inR(r,x,y){var ins=false;for(var i=0,j=r.length-1;i<r.length;j=i++){var xi=r[i][0],yi=r[i][1],xj=r[j][0],yj=r[j][1];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)ins=!ins}return ins}
+      var pts=[],step=2.4;
+      for(var lat=-84;lat<=84;lat+=step){var n=Math.max(1,Math.round(360*Math.cos(lat*Math.PI/180)/step));
+        for(var k=0;k<n;k++){var lon=-180+(k+.5)*360/n,X=lon*100,Y=lat*100,hit=null;
+          for(var i=0;i<C.length;i++){var c=C[i],b=c.b;if(X<b[0]||X>b[2]||Y<b[1]||Y>b[3])continue;if(inR(c.r,X,Y)){hit=c;break}}
+          var f=lat*Math.PI/180,l=lon*Math.PI/180;
+          if(hit)pts.push({u:[Math.cos(f)*Math.sin(l),-Math.sin(f),Math.cos(f)*Math.cos(l)],g:hit.g,o:0});
+          else if(((k+Math.round((lat+90)/step))%4)===0)pts.push({u:[Math.cos(f)*Math.sin(l),-Math.sin(f),Math.cos(f)*Math.cos(l)],g:false,o:1})}}
+      var old=P;P=pts.map(function(q,i){var o=old[i%old.length];return{u:q.u,g:q.g,o:q.o,x:o?o.x:Math.random()*W,y:o?o.y:Math.random()*H,z:0,vx:0,vy:0,k:Math.random()}});N=P.length;
+    }).catch(function(){})
+  }
   function mode(){var c=st.classList;if(!c.contains('revealed'))return'scatter';if(c.contains('s3'))return'ambient';return'gather'}
   function frame(now){
     requestAnimationFrame(frame);
@@ -542,15 +569,15 @@ Promise.all([J('data/regioes.json').catch(()=>null),J('data/capitulos.json').cat
       p.vx=(p.vx+(tx-p.x)*kf)*.82;p.vy=(p.vy+(ty-p.y)*kf)*.82;
       var dx=p.x-mx,dy=p.y-my,d2=dx*dx+dy*dy;if(d2<10000&&d2>1){var f=(1-d2/10000)*5/Math.sqrt(d2);p.vx+=dx*f;p.vy+=dy*f}
       p.x+=p.vx;p.y+=p.vy;
-      var a=m==='scatter'?.0:(m==='ambient'?.24+.4*(tz+1)/2:.28+.62*(tz+1)/2);
+      var a=m==='scatter'?.0:(m==='ambient'?.24+.4*(tz+1)/2:.28+.62*(tz+1)/2);if(p.o)a*=.35;
       cx.globalAlpha=a;cx.fillStyle=p.g?'#e0bf78':'#bcd3f2';
-      var s=(m==='ambient'?1.1:1.5)*(.7+.5*(tz+1)/2)*(p.g?1.25:1);cx.fillRect(p.x-s/2,p.y-s/2,s,s)}
+      var s=(m==='ambient'?1.1:1.5)*(.7+.5*(tz+1)/2)*(p.g?1.35:1)*(p.o?.7:1);cx.fillRect(p.x-s/2,p.y-s/2,s,s)}
     cx.globalAlpha=1;
   }
   function init(){size();build();if(reduce){/* sem movimento: um quadro estático do globo */lastMode='';}requestAnimationFrame(function(n){t0=n;frame(n)})}
   window.addEventListener('resize',function(){size();build()});
   window.addEventListener('pointermove',function(e){mx=e.clientX;my=e.clientY},{passive:true});window.addEventListener('pointerleave',function(){mx=my=-9999});
-  init();
+  init();loadLand();
 })();
 </script>
 </body></html>
