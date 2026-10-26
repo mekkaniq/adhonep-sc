@@ -115,6 +115,7 @@ html.wv .g-map.gl{background:none;border:0;border-radius:0;overflow:visible}
 html.wv .g-map.gl #gGlobe{height:min(62vh,640px)}
 html.wv .g-h{position:relative;z-index:2}
 @media(min-width:901px){html.wv .g-map.gl{margin-top:-20px}html.wv .g-map.gl #gGlobe{height:min(80vh,820px)}}
+@media(max-width:900px){.g-map.zm svg{height:min(62vh,560px)}}
 @media(max-width:900px){html.wv .g-map.gl #gGlobe{-webkit-mask-image:radial-gradient(ellipse 78% 74% at 50% 50%,#000 62%,transparent 100%);mask-image:radial-gradient(ellipse 78% 74% at 50% 50%,#000 62%,transparent 100%)}}
 @media(max-width:640px){.g-top{flex-wrap:wrap;gap:8px}.g-top b{font-size:11px;letter-spacing:.12em}.g-btn{padding:6px 10px;font-size:12px}}
 @media(min-width:901px){html.wv .g-grid{position:relative}html.wv .g-map.gl{grid-column:1/-1;grid-row:1}html.wv .g-side{grid-column:2;grid-row:1;z-index:2;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}}
@@ -323,6 +324,10 @@ function dW(rings){return rings.map(r=>'M'+r.map(p=>{const z=ne(p[0]/100,p[1]/10
 function mk(dd,fill,cls){const p=document.createElementNS(NS,'path');p.setAttribute('d',dd);if(fill)p.setAttribute('fill',fill);if(cls)p.setAttribute('class',cls);svg.appendChild(p);return p}
 function bboxB(rs,dv){let a=1e9,b=1e9,c=-1e9,e=-1e9;rs.forEach(r=>r.forEach(p=>{const x=px(p[0],dv),y=py(p[1],dv);a=Math.min(a,x);c=Math.max(c,x);b=Math.min(b,y);e=Math.max(e,y)}));return[a,b,c,e]}
 function bboxW(rs){let a=1e9,b=1e9,c=-1e9,e=-1e9;rs.forEach(r=>r.forEach(p=>{const z=ne(p[0]/100,p[1]/100);a=Math.min(a,z[0]);c=Math.max(c,z[0]);b=Math.min(b,z[1]);e=Math.max(e,z[1])}));return[a,b,c,e]}
+function mainBB(rs,dv){const C=rs.map(r=>{let a=1e9,b=1e9,c=-1e9,e=-1e9;r.forEach(p=>{const x=px(p[0],dv),y=py(p[1],dv);a=Math.min(a,x);c=Math.max(c,x);b=Math.min(b,y);e=Math.max(e,y)});return{r:r,a:a,b:b,c:c,e:e,x:(a+c)/2,y:(b+e)/2}});if(C.length<2)return bboxB(rs,dv);
+  let keep;if(C.length>=50){const q=(k,f)=>{const v=C.map(o=>o[k]).sort((m,n)=>m-n);return v[Math.floor(f*(v.length-1))]};const x0=q('x',.05),x1=q('x',.95),y0=q('y',.05),y1=q('y',.95),sx=x1-x0,sy=y1-y0;keep=C.filter(o=>o.x>=x0-.25*sx&&o.x<=x1+.25*sx&&o.y>=y0-.25*sy&&o.y<=y1+.25*sy)}
+  else{const L=C.reduce((m,o)=>o.r.length>m.r.length?o:m,C[0]),w=Math.max(L.c-L.a,L.e-L.b);keep=C.filter(o=>Math.abs(o.x-L.x)<=w*1.2&&Math.abs(o.y-L.y)<=w*1.2)}
+  return bboxB(keep.map(o=>o.r),dv)}
 function view(bb,pad){const w=bb[2]-bb[0],h=bb[3]-bb[1],p=Math.max(w,h)*pad;svg.setAttribute('viewBox',[bb[0]-p,bb[1]-p,w+2*p,h+2*p].join(' '))}
 function showTip(e,h){const r=map.getBoundingClientRect();tip.innerHTML=h;tip.style.left=(e.clientX-r.left)+'px';tip.style.top=(e.clientY-r.top)+'px';tip.style.opacity=1}
 const hide=()=>tip.style.opacity=0;
@@ -522,12 +527,12 @@ function pick(m){svg.querySelectorAll('.sel').forEach(x=>x.classList.remove('sel
 async function openUF(s){
   const u=UF.find(x=>x.sigla===s);setUrl({pais:'BRA',uf:s});globeOff();cur=u;lvl='uf';svg.innerHTML='';crumbs();
   head(u.nome,T('loading'),T('muni'),T('searchM'));
-  view(bboxB(u.p,100),.04);mk(dB(u.p,100),PAL[u.col],'dim').style.opacity=.5;
+  view(mainBB(u.p,100),.04);mk(dB(u.p,100),PAL[u.col],'dim').style.opacity=.5;
   try{munData=munCache[s]||(munCache[s]=await (await fetch('data/mun/'+s+'.json')).json())}catch(e){$('gSub').textContent='Não foi possível carregar os municípios.';return}
   if(cur!==u)return;svg.innerHTML='';const base=PAL[u.col],all=[];
   munData.forEach((m,i)=>{const mc=(CAP[s]||[]).filter(c=>c.m.includes(m.id));if(mc.length)m.cap=mc;const p=mk(dB(m.p,1000),mc.length?'#c9a45c':CAP[s]?'#6f89ad':base,'mu'+(mc.length?' hc':''));p.style.opacity=mc.length?1:(CAP[s]?.38:.78+((i*37)%5)*.055);m.el=p;m.f0=p.getAttribute('fill');m.o0=p.style.opacity;all.push.apply(all,m.p);
     p.addEventListener('mousemove',e=>showTip(e,'<b>'+m.n+'</b><small>'+fmt(Math.round(m.a))+' km²'+(REGON&&RG&&RG[s]&&RG[s].m[m.id]!==undefined?' · '+esc(RG[s].r[RG[s].m[m.id]]):'')+'</small>'));p.addEventListener('mouseleave',hide);p.addEventListener('click',()=>pick(m))});
-  view(bboxB(all,1000),.03);$('gSub').textContent=munData.length+' '+T('mSub');
+  view(mainBB(all,1000),.03);$('gSub').textContent=munData.length+' '+T('mSub');
   applyReg();stats(CAP[s]?[[munData.length,T('muni')],[CAP[s].length,T('chap')],[u.reg,T('region')]]:[[munData.length,T('muni')],[fmt(Math.round(u.area)),'km²'],[u.reg,T('region')]]);renderList()}
 q.addEventListener('input',renderList);back.onclick=()=>{if(lvl==='world'&&CONT){setCont('');return}if(lvl==='uf')drawBR();else{if(lvl==='br'){G.lon=-52;G.lat=-14;G.k=2.3}drawWorld()}};
 $('gTheme').onclick=()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('adh-tema',n)}catch(e){}};
