@@ -111,7 +111,7 @@ async function loadPublicChapters(){
    const [rows,munis,regs,pcs]=await Promise.all([
      adhFetch('/rest/v1/chapters?select=*&order=name.asc&limit=1000'),
      adhFetch('/rest/v1/municipalities?select=id,name,ibge_code&limit=1000'),
-     adhFetch('/rest/v1/regions?select=*&limit=500'),
+     adhFetch('/rest/v1/regions?select='+(adhSession?'*':'id,name,description,is_active,created_at,updated_at,director_name,field_representatives,state_code')+'&limit=500'),
      adhFetch('/rest/v1/public_chapter_contacts?select=chapter_id,president_phone&limit=1000').catch(()=>[])
    ]);
    if(!Array.isArray(rows)||!Array.isArray(munis)||!Array.isArray(regs))throw new Error('O Supabase retornou um formato inesperado.');

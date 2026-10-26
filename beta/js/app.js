@@ -266,7 +266,7 @@ async function loadTerritoryFromSupabase(){
  const status=document.getElementById('territoryLoadStatus');if(status)status.textContent='Consultando regiões, municípios e vínculos no Supabase…';
  try{
   const [rr,mm,links]=await Promise.all([
-   adhFetch('/rest/v1/regions?select=*&limit=1000',{headers:{Authorization:'Bearer '+ADH_SUPABASE_KEY}}),
+   adhFetch('/rest/v1/regions?select=id,name,description,is_active,created_at,updated_at,director_name,field_representatives,state_code&limit=1000',{headers:{Authorization:'Bearer '+ADH_SUPABASE_KEY}}),
    adhFetch('/rest/v1/municipalities?select=*&limit=1000',{headers:{Authorization:'Bearer '+ADH_SUPABASE_KEY}}),
    adhFetch('/rest/v1/region_municipalities?select=id,municipality_id,region_id,valid_from,valid_until&valid_until=is.null&limit=1000',{headers:{Authorization:'Bearer '+ADH_SUPABASE_KEY}})
   ]);
