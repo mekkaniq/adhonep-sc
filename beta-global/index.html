@@ -108,6 +108,19 @@ html.app-on #app{display:block}
 html[data-theme=dark] .g-map path{stroke:#07101f}
 .g-map path:hover{filter:brightness(1.18) saturate(1.1)}
 .g-map path.uf:hover{fill:#c9a45c;filter:none}
+/* seletor de países (janela com busca) */
+.g-pick{display:inline-flex;align-items:center;gap:8px;max-width:46vw}.g-pick span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.g-pick .pd{width:9px;height:9px;border-radius:50%;background:#6b7f99;flex:none}.g-pick.on .pd{background:#c9a45c}
+.pk{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:8vh 16px 16px}.pk[hidden]{display:none}
+.pk-b{position:absolute;inset:0;background:rgba(2,6,14,.62);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.pk-p{position:relative;width:min(520px,100%);max-height:min(78vh,640px);display:flex;flex-direction:column;gap:12px;background:#0b1a31;border:1px solid rgba(201,164,92,.28);border-radius:18px;padding:14px;box-shadow:0 24px 60px rgba(0,0,0,.5);color:#e7eef8}
+.pk-h{display:flex;gap:8px}.pk-h input{flex:1;font:500 16px var(--body);color:#e7eef8;background:#07101f;border:1px solid #1d3150;border-radius:12px;padding:12px 14px;outline:none}.pk-h input:focus{border-color:#c9a45c}
+.pk-x{font:600 14px var(--body);color:#9fb2c8;background:transparent;border:1px solid #1d3150;border-radius:12px;width:44px;cursor:pointer}
+.pk-l{overflow:auto;display:flex;flex-direction:column;gap:2px;-webkit-overflow-scrolling:touch}
+.pk-i{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:500 15px var(--body);color:#e7eef8;background:transparent;border:0;border-radius:10px;padding:11px 10px;cursor:pointer}.pk-i:hover,.pk-i:focus-visible,.pk-i.on{background:rgba(201,164,92,.16);outline:none}
+.pk-i i{width:10px;height:10px;border-radius:3px;flex:none}.pk-i em{margin-left:auto;font-style:normal;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#9fb2c8}.pk-i em.g{color:#c9a45c}
+.pk .g-ch button{background:#07101f;color:#e7eef8;border-color:#1d3150}.pk .g-ch button.on{background:#c9a45c;color:#0b1a31;border-color:#c9a45c}
+.pk-s{font:600 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:#7f93ac;padding:10px 10px 4px}
+@media(max-width:640px){.pk{padding:0;align-items:flex-end}.pk-p{border-radius:18px 18px 0 0;max-height:86vh;width:100%}}
 /* globo integrado ao site: sem cartão, sem borda, sobre o fundo da página */
 html.wv{--g-bg:#07101f;--g-card:rgba(10,22,42,.58);--g-ink:#e7eef8;--g-mute:#9fb2c8;--g-line:rgba(255,255,255,.08);--g-sea:transparent;color-scheme:dark}
 html.wv body{background:radial-gradient(60% 75% at 38% 52%,#0e2243 0%,#08132a 50%,#030812 100%) fixed}
@@ -185,7 +198,8 @@ html.app-on .stage{pointer-events:none}
 </div>
 
 <main id="app" aria-label="Plataforma ADHONEP Global">
-  <header class="g-top"><img src="assets/logo-branca.png" alt="ADHONEP"><b>ADHONEP <i>·</i> BUSINESSMAN NETWORK</b><span class="sp"></span><button class="g-btn" id="gTheme" type="button" title="Alternar claro/escuro">◐ Tema</button><button class="g-btn" id="gIntro" type="button">↻ Abertura</button></header>
+  <header class="g-top"><img src="assets/logo-branca.png" alt="ADHONEP"><b>ADHONEP <i>·</i> BUSINESSMAN NETWORK</b><span class="sp"></span><button class="g-btn g-pick" id="gPick" type="button" aria-haspopup="dialog"><i class="pd"></i><span id="gPickT">Mundo</span><svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button><button class="g-btn" id="gTheme" type="button" title="Alternar claro/escuro">◐ Tema</button><button class="g-btn" id="gIntro" type="button">↻ Abertura</button></header>
+  <div class="pk" id="pk" hidden role="dialog" aria-modal="true" aria-label="Países"><div class="pk-b" id="pkB"></div><div class="pk-p"><div class="pk-h"><input id="pkQ" type="search" autocomplete="off" placeholder="Buscar país…"><button type="button" class="pk-x" id="pkX" aria-label="Fechar">✕</button></div><div class="g-ch" id="pkC"></div><div class="pk-l" id="pkL" role="listbox"></div></div></div>
   <div class="g-wrap">
     <div class="g-h"><div><h1 id="gTitle">Mundo</h1><p id="gSub"></p><p class="g-clock" id="gClock" hidden></p></div><div class="g-st" id="gStats"></div></div>
     <div class="g-grid">
@@ -333,7 +347,7 @@ function showTip(e,h){const r=map.getBoundingClientRect();tip.innerHTML=h;tip.st
 const hide=()=>tip.style.opacity=0;
 function stats(a){$('gStats').innerHTML=a.map(x=>'<div><b>'+x[0]+'</b><span>'+x[1]+'</span></div>').join('')}
 function head(t,s,side,ph){$('gTitle').textContent=t;$('gSub').textContent=s;$('gSideT').textContent=side;q.placeholder=ph;q.value='';card.hidden=true;hide()}
-function crumbs(){const _g=$('gRg');if(_g&&lvl!=='uf')_g.style.display='none';const _a=$('gAc');if(_a)_a.style.display=lvl==='world'?'flex':'none';const _c=$('gCh');if(_c)_c.style.display=lvl==='world'?'flex':'none';back.textContent=lvl==='uf'?T('toBR'):T('toWorld');map.classList.toggle('zm',lvl==='br'||lvl==='uf');map.classList.toggle('zc',lvl==='country')}
+function crumbs(){setTimeout(()=>window.updPick&&updPick(),0);const _g=$('gRg');if(_g&&lvl!=='uf')_g.style.display='none';const _a=$('gAc');if(_a)_a.style.display=lvl==='world'?'flex':'none';const _c=$('gCh');if(_c)_c.style.display=lvl==='world'?'flex':'none';back.textContent=lvl==='uf'?T('toBR'):T('toWorld');map.classList.toggle('zm',lvl==='br'||lvl==='uf');map.classList.toggle('zc',lvl==='country')}
 
 const CL={Americas:'ARG BHS BLZ BMU BOL BRA CAN CHL COL CRI CUB DOM ECU FLK GRL GTM GUF GUY HND HTI JAM MEX NIC PAN PER PRI PRY SLV SUR TTO URY USA VEN',
 Europe:'ALB AUT BEL BGR BIH BLR CHE CYP CZE DEU DNK ESP EST FIN FRA GBR GRC HRV HUN IRL ISL ITA LTU LUX LVA MDA MKD MLT MNE NLD NOR POL PRT ROU RUS SRB SVK SVN SWE UKR TUR ARM GEO AZE CS-KM',
@@ -535,6 +549,19 @@ async function openUF(s){
   view(mainBB(all,1000),.03);$('gSub').textContent=munData.length+' '+T('mSub');
   applyReg();stats(CAP[s]?[[munData.length,T('muni')],[CAP[s].length,T('chap')],[u.reg,T('region')]]:[[munData.length,T('muni')],[fmt(Math.round(u.area)),'km²'],[u.reg,T('region')]]);renderList()}
 q.addEventListener('input',renderList);back.onclick=()=>{if(lvl==='world'&&CONT){setCont('');return}if(lvl==='uf')drawBR();else{if(lvl==='br'){G.lon=-52;G.lat=-14;G.k=2.3}drawWorld()}};
+/* seletor de países */
+(function(){const pk=$('pk'),pq=$('pkQ'),pl=$('pkL'),pc=$('pkC');let pcont='';
+  function pRender(){const t=pq.value.trim().toLowerCase();pc.innerHTML='';['all','Americas','Europe','Africa','Asia','Oceania'].forEach(k=>{const b=document.createElement('button');b.type='button';b.textContent=CN[LANG][k];b.className=(k==='all'?!pcont:pcont===k)?'on':'';b.onclick=()=>{pcont=k==='all'?'':k;pRender()};pc.appendChild(b)});
+    const L=W.filter(c=>(!pcont||contOf(c)===pcont)&&(!t||cname(c).toLowerCase().includes(t)||(c.n||'').toLowerCase().includes(t)||(c.id||'').toLowerCase()===t)).sort((a,b)=>(ADH.has(b.id)-ADH.has(a.id))||cname(a).localeCompare(cname(b),LANG));
+    pl.innerHTML='';if(!L.length){pl.innerHTML='<p class="g-note" style="padding:10px">—</p>';return}
+    let last=null;L.forEach(c=>{const on=ADH.has(c.id),sec=on?'ADHONEP':'';if(sec!==last){if(on||last!==null){const h=document.createElement('div');h.className='pk-s';h.textContent=on?(T('has')||'ADHONEP'):(CN[LANG].all+' · '+L.filter(x=>!ADH.has(x.id)).length);pl.appendChild(h)}last=sec}
+      const b=document.createElement('button');b.type='button';b.className='pk-i'+((ctry&&ctry.id===c.id)?' on':'');b.setAttribute('role','option');b.innerHTML='<i style="background:'+(on?'#c9a45c':'#2c64ae')+'"></i>'+esc(cname(c))+'<em'+(on?' class="g"':'')+'>'+esc(CN[LANG][contOf(c)]||'')+'</em>';b.onclick=()=>{pClose();pickCountry(c)};pl.appendChild(b)})}
+  function pOpen(){pk.hidden=false;pq.placeholder=T('searchC');pq.value='';pRender();setTimeout(()=>pq.focus(),30)}
+  function pClose(){pk.hidden=true;$('gPick').focus()}
+  $('gPick').onclick=pOpen;$('pkX').onclick=pClose;$('pkB').onclick=pClose;pq.addEventListener('input',pRender);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!pk.hidden)pClose();if(e.key==='Enter'&&!pk.hidden&&document.activeElement===pq){e.preventDefault();const f=pl.querySelector('.pk-i');f&&f.click()}});
+  window.updPick=function(){const c=ctry||(lvl==='br'||lvl==='uf'?W.find(x=>x.id==='BRA'):null);$('gPickT').textContent=c?cname(c):T('world');$('gPick').classList.toggle('on',!!c&&ADH.has(c.id))};
+})();
 $('gTheme').onclick=()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('adh-tema',n)}catch(e){}};
 $('gIntro').onclick=()=>{document.documentElement.classList.remove('app-on');$('stage').classList.remove('gone');window.__play&&window.__play()};
 
