@@ -514,7 +514,8 @@ function infoHtml(id){const p=(CT.paises||{})[id];if(!p&&!(CT.historias||[]).len
   h+='<b>'+T('tests')+'</b><br>'+(ts.length?ts.map(x=>'<blockquote class="g-q">“'+esc(x.texto)+'”<br><span class="g-note">— '+esc(x.nome)+(x.cidade?', '+esc(x.cidade):'')+'</span></blockquote>').join(''):'<span class="g-note">'+T('noT')+'</span><br>');
   if(st.length)h+='<b>'+T('stor')+'</b>'+st.map(s=>'<blockquote class="g-q"><b>'+esc(s.titulo)+'</b><br>'+esc(s.texto)+'<br>'+(s.paises||[]).filter(x=>x!==id).map(x=>{const c=W.find(w=>w.id===x);return c?'<a href="?pais='+x+'" data-go="'+x+'">'+T('with')+' '+esc(cname(c))+'</a>':''}).join(' · ')+(s.fonte?'<br><span class="g-note">'+esc(s.fonte)+'</span>':'')+'</blockquote>').join('');
   h+='<button class="g-share" data-share="1">'+T('share')+'</button>';return h}
-function setUrl(o){try{const u=new URL(location.href);['pais','uf'].forEach(k=>u.searchParams.delete(k));Object.keys(o||{}).forEach(k=>u.searchParams.set(k,o[k]));history.replaceState(null,'',u)}catch(e){}}
+function setUrl(o){try{const u=new URL(location.href);if(u.searchParams.has('pais')||u.searchParams.has('uf')){['pais','uf'].forEach(k=>u.searchParams.delete(k));history.replaceState(null,'',u)}}catch(e){}}
+addEventListener('pageshow',e=>{if(e.persisted)location.replace(location.pathname)});
 card.addEventListener('click',e=>{const a=e.target.closest('[data-go]');if(a){e.preventDefault();const c=W.find(w=>w.id===a.dataset.go);c&&pickCountry(c,true)}
   if(e.target.closest('[data-share]')){const b=e.target.closest('[data-share]');(navigator.clipboard?navigator.clipboard.writeText(location.href):Promise.reject()).then(()=>{b.textContent=T('copied')},()=>{b.textContent=location.href})}});
 function agendaView(){lvl='world';hide();const today=new Date().toISOString().slice(0,10),L=(CT.agenda||[]).filter(e=>e.data>=today).sort((a,b)=>a.data.localeCompare(b.data));
