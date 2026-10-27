@@ -897,3 +897,9 @@ html[data-theme="dark"] [style*="background:#fff3df"],html[data-theme="dark"] [s
  .cmd:is(.cmd-reg,.cmd-st) .cmd-compare>#cmdCompare>.cmd-foot{flex:none;margin:6px 0 0}
 }
 @media(min-width:1100px){.cmd:is(.cmd-reg,.cmd-st) .cmd-grid>.cmd-health{overflow:auto}}
+
+/* níveis global/brasil: menu enxuto, sem páginas de estado */
+html.lvl-global .nav:not([data-page="global"]):not([data-page="nacional"]):not([data-page="estados"]):not([data-page="exterior"]):not([data-page="users"]):not([data-page="audit"]):not([data-page="lgpd"]),
+html.lvl-brasil .nav:not([data-page="nacional"]):not([data-page="audit"]),
+html.lvl-global #publicBtn,html.lvl-brasil #publicBtn{display:none!important}
+html.lvl-global .rolebar,html.lvl-brasil .rolebar{display:none!important}

@@ -611,18 +611,18 @@ async function rq(path,tok,opt){const r=await fetch(SB+path,Object.assign({heade
 function msg(t,er){const m=$('lgM');m.textContent=t||'';m.className='lg-m'+(er?' er':'')}
 function labels(){$('lgT').textContent=X('t');$('lgE').placeholder=X('em');$('lgP').placeholder=X('pw');$('lgS').textContent=X('go');$('lgO').textContent=X('out');$('gLogin').textContent=sess()?X('open'):X('in')}
 async function levels(se){const tok=se.access_token,uid=se.user.id,out=[];
-  const [sr,ur]=await Promise.all([rq('/rest/v1/scope_roles?select=role,state_code,country_iso3&is_active=eq.true&user_id=eq.'+uid,tok).catch(()=>[]),rq('/rest/v1/user_roles?select=role&is_active=eq.true&user_id=eq.'+uid,tok).catch(()=>[])]);
-  let sts=null;const allS=async()=>sts||(sts=await rq('/rest/v1/states?select=code,name,country_iso3&order=name.asc',tok).catch(()=>[]));
+  const [sr,ur]=await Promise.all([rq('/rest/v1/rpc/adh_my_scope_roles',tok,{method:'POST',body:'{}'}).catch(()=>[]),rq('/rest/v1/user_roles?select=role&is_active=eq.true&user_id=eq.'+uid,tok).catch(()=>[])]);
+  let sts=null;const allS=async()=>sts||(sts=await rq('/rest/v1/rpc/adh_states_list',tok,{method:'POST',body:'{}'}).catch(()=>[]));
   for(const r of (sr||[])){
-    if(r.role==='global_board')out.push({lv:'g',st:(await allS()),home:'../beta/?uf=SC#global'});
-    else if(r.role==='country_director')out.push({lv:'n',st:(await allS()).filter(x=>x.country_iso3===r.country_iso3)});
+    if(r.role==='global_board')out.push({lv:'g',st:(await allS()),home:'../beta/?nivel=global#global'});
+    else if(r.role==='country_director')out.push({lv:'n',st:(await allS()).filter(x=>x.country_iso3===r.country_iso3),home:r.country_iso3==='BRA'?'../beta/?nivel=brasil#nacional':''});
     else if(r.role==='state_director'&&r.state_code){const a=(await allS()).find(x=>x.code===r.state_code);out.push({lv:'s',st:[a||{code:r.state_code,name:r.state_code}]})}}
   if((ur||[]).length&&!out.some(o=>o.st.some(x=>x.code==='SC'))){const a=(await allS()).find(x=>x.code==='SC');out.push({lv:'s',st:[a||{code:'SC',name:'Santa Catarina'}]})}
   const rank={g:0,n:1,s:2};out.sort((a,b)=>rank[a.lv]-rank[b.lv]);return out}
 function show(lv,se){const f=$('lgF'),l=$('lgL');f.hidden=true;$('lgO').hidden=false;l.innerHTML='';
   if(!lv.length){msg(X('none'),1);return}
   msg(X('hi')+', '+((se.user&&se.user.email)||'')+' · '+X(lv[0].lv));
-  const seen=new Set();lv.forEach(o=>{const h=document.createElement('div');h.className='lg-lv';h.textContent=X(o.lv)+(o.st.length>1?' · '+X('pick'):'');l.appendChild(h);if(o.home){const a=document.createElement('a');a.className='pk-i';a.href=o.home;a.innerHTML='<i style="background:#c9a45c"></i>'+X('g')+'<em class="g">★</em>';l.appendChild(a)}
+  const seen=new Set();lv.forEach(o=>{const h=document.createElement('div');h.className='lg-lv';h.textContent=X(o.lv)+(o.st.length>1?' · '+X('pick'):'');l.appendChild(h);if(o.home){const a=document.createElement('a');a.className='pk-i';a.href=o.home;a.innerHTML='<i style="background:#c9a45c"></i>'+X(o.lv==='g'?'g':'n')+'<em class="g">★</em>';l.appendChild(a)}
     o.st.filter(x=>!seen.has(x.code)||o.lv==='g').forEach(x=>{seen.add(x.code);const a=document.createElement('a');a.className='pk-i';a.href='../beta/?uf='+encodeURIComponent(x.code)+'#gestao';a.innerHTML='<i style="background:#c9a45c"></i>'+esc(x.name)+'<em class="g">'+esc(x.code)+'</em>';l.appendChild(a)})});
   const as=l.querySelectorAll('a');if(as.length===1)location.href=as[0].href}
 async function open_(){lg.hidden=false;labels();$('lgL').innerHTML='';const se=sess();
