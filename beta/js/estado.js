@@ -10,10 +10,11 @@
       if(/(^|&)(id|municipality_id|chapter_id)=eq\./.test(m[2])&&m[1]!=='municipalities')return p;
       if(/(^|&)id=eq\./.test(m[2]))return p;
       if(/(^|&)state_code=/.test(m[2]))return p;
+      if(/(^|&)country_iso3=/.test(m[2]))return p;
       return p+'&state_code=eq.'+uf}catch(e){return p}};
   window.adhScopeBody=function(p,opt){
     try{if(uf==='SC'||!opt||opt.method!=='POST'||!/^\/rest\/v1\/(regions|statewide_announcements)(\?|$)/.test(p)||typeof opt.body!=='string')return opt;
-      var b=JSON.parse(opt.body);var f=function(o){if(o&&typeof o==='object'&&!o.state_code)o.state_code=uf;return o};
+      var b=JSON.parse(opt.body);var f=function(o){if(o&&typeof o==='object'&&o.state_code===undefined)o.state_code=uf;return o};
       b=Array.isArray(b)?b.map(f):f(b);return Object.assign({},opt,{body:JSON.stringify(b)})}catch(e){return opt}};
   /* Troca o nome do estado nos textos fixos da página (SC permanece igual) */
   function swap(s){return s.replace(/Santa Catarina/gi,function(m){return m===m.toUpperCase()?N[uf].toUpperCase():N[uf]}).replace(/ADHONEP-SC/gi,function(m){return m===m.toUpperCase()?'ADHONEP-'+uf:'ADHONEP-'+uf})}
