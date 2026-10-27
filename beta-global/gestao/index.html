@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>ADHONEP Global · Gestão</title>
+<meta name="theme-color" content="#0b1a31">
+<link rel="icon" href="../assets/favicon-48.png">
+<style>
+:root{--navy:#0b1a31;--navy2:#102b4e;--gold:#c9a45c;--gold2:#e6c98a;--bg:#f3f6fa;--card:#fff;--ink:#19283a;--mute:#5d6e82;--line:#dfe6ee;--ok:#1f6f43;--bad:#a83c42;--r:14px;font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink)}body{min-height:100vh}
+a{color:inherit}button{font:inherit}
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--navy);color:#e7eef8;border-bottom:1px solid rgba(201,164,92,.35)}
+.top img{height:38px}.top .t{font:700 14px/1.1 inherit;letter-spacing:.14em;text-transform:uppercase}.top .t i{display:block;font-style:normal;font-weight:500;font-size:11px;color:var(--gold);letter-spacing:.2em;margin-top:3px}
+.top .sp{flex:1}.who{font-size:13px;color:#b9c8dc;text-align:right}.who b{color:#fff;display:block;font-size:13px}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:10px;padding:9px 14px;font-weight:600;font-size:13.5px;cursor:pointer;text-decoration:none}.btn:hover{border-color:var(--gold)}
+.btn.gold{background:linear-gradient(135deg,var(--gold2),var(--gold));border-color:var(--gold);color:var(--navy)}.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:8px}.btn[disabled]{opacity:.45;cursor:not-allowed}
+.top .btn{background:transparent;color:#e7eef8;border-color:rgba(255,255,255,.22)}
+.shell{display:grid;grid-template-columns:230px 1fr;min-height:calc(100vh - 59px)}
+.side{background:var(--navy2);color:#c9d6e8;padding:16px 12px;display:flex;flex-direction:column;gap:4px}
+.side .lb{font:700 11px inherit;letter-spacing:.16em;color:var(--gold);padding:6px 10px}
+.nav{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;color:inherit;padding:11px 12px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px}.nav:hover{background:rgba(255,255,255,.07)}.nav.on{background:rgba(201,164,92,.2);color:#fff;box-shadow:inset 3px 0 0 var(--gold)}
+.side .foot{margin-top:auto;font-size:11px;color:#7f93ac;padding:10px}
+main{padding:26px clamp(16px,3vw,38px) 60px;max-width:1280px;width:100%}
+.pg{display:none}.pg.on{display:block}
+.eyebrow{font:700 11px inherit;letter-spacing:.18em;text-transform:uppercase;color:var(--gold)}
+h1{margin:4px 0 6px;font-size:clamp(24px,3vw,32px);letter-spacing:-.01em}.lead{margin:0 0 20px;color:var(--mute);max-width:820px;line-height:1.5}
+.head{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:0 0 18px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;border-top:3px solid var(--gold)}.kpi b{display:block;font-size:28px;letter-spacing:-.02em}.kpi span{font-size:13px;color:var(--mute)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px}.panel h3{margin:0 0 4px;font-size:17px}.panel .sub{margin:0 0 12px;color:var(--mute);font-size:13.5px}
+.tw{overflow:auto;-webkit-overflow-scrolling:touch}table{width:100%;border-collapse:collapse;font-size:14px}th{text-align:left;font:700 11px inherit;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}td{padding:10px;border-bottom:1px solid #eef2f6;vertical-align:middle}tr:last-child td{border-bottom:0}small{color:var(--mute)}
+.ok{color:var(--ok);font-weight:700}.no{color:var(--bad);font-weight:600}.empty{color:var(--mute);text-align:center;padding:22px}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;padding:3px 8px;border-radius:999px;background:#e8eef6;color:var(--navy2)}.tag.g{background:rgba(201,164,92,.22);color:#6a5220}
+form.g{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));align-items:end}form.g .w{grid-column:1/-1}
+label{display:grid;gap:5px;font-size:12.5px;font-weight:600;color:var(--mute)}input,select,textarea{font:inherit;font-weight:500;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;outline:none;width:100%}input:focus,select:focus,textarea:focus{border-color:var(--gold)}textarea{min-height:90px;resize:vertical}
+label.ck{display:flex;align-items:center;gap:8px;font-weight:600}label.ck input{width:auto}
+.msg{min-height:1.2em;font-size:13.5px;margin:8px 0 0}.msg.ok{color:var(--ok)}.msg.er{color:var(--bad)}
+.login{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:radial-gradient(circle at 30% 20%,#14305a,#07101f)}
+.login form{width:min(400px,100%);background:#0b1a31;border:1px solid rgba(201,164,92,.35);border-radius:20px;padding:26px;display:grid;gap:12px;color:#e7eef8;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.login img{height:54px;justify-self:center}.login h2{margin:0;text-align:center;font-size:18px}.login p{margin:0;text-align:center;color:#9fb2c8;font-size:13px}
+.login input{background:#07101f;border-color:#1d3150;color:#fff}.login label{color:#9fb2c8}.login .btn{justify-content:center;padding:12px}
+[hidden]{display:none!important}
+@media(max-width:820px){.shell{grid-template-columns:1fr}.side{flex-direction:row;overflow:auto;padding:8px;gap:6px}.side .lb,.side .foot{display:none}.nav{width:auto;white-space:nowrap;padding:9px 12px}.nav.on{box-shadow:inset 0 -3px 0 var(--gold)}.who{display:none}}
+</style>
+</head>
+<body>
+<div class="login" id="lg"><form id="lgF"><img src="../assets/logo-branca.png" alt="ADHONEP"><h2>Gestão global</h2><p>Acesso da diretoria global e dos diretores nacionais.</p><label>E-mail<input id="lgE" type="email" autocomplete="username" required></label><label>Senha<input id="lgP" type="password" autocomplete="current-password" required></label><button class="btn gold" id="lgS" type="submit">Entrar</button><p id="lgM" role="status"></p><a class="btn" href="../" style="border-color:#1d3150;color:#9fb2c8;background:transparent">← Site global</a></form></div>
+
+<header class="top" id="app" hidden><img src="../assets/logo-branca.png" alt="ADHONEP"><div class="t">ADHONEP Global<i>Gestão unificada</i></div><span class="sp"></span><div class="who"><b id="whoN">—</b><span id="whoR"></span></div><a class="btn" href="../">Site global</a><button class="btn" id="out" type="button">Sair</button></header>
+
+<div class="shell" id="shell" hidden>
+<aside class="side" id="side">
+<div class="lb">GESTÃO GLOBAL</div>
+<button class="nav" data-p="visao" data-g="1">🌐 Visão global</button>
+<button class="nav" data-p="brasil">🇧🇷 Brasil</button>
+<button class="nav" data-p="exterior" data-g="1">🌍 Exterior</button>
+<button class="nav" data-p="comunicados">✦ Comunicados</button>
+<button class="nav" data-p="acessos" data-g="1">♧ Acessos</button>
+<button class="nav" data-p="seguranca" data-g="1">⛨ Segurança</button>
+<div class="foot">ADHONEP Global · beta<br>Cada estado abre a sua própria plataforma.</div>
+</aside>
+<main>
+
+<section class="pg" id="p-visao">
+<div class="head"><div><div class="eyebrow">Mundo</div><h1>Visão global</h1><p class="lead">Os países com a ADHONEP, os capítulos de cada um e quem dirige. O Brasil abre a gestão dos estados; os demais, os capítulos no exterior.</p></div><button class="btn" data-r="visao">Atualizar</button></div>
+<div class="kpis" id="vK"></div>
+<div class="panel"><div class="tw"><table><thead><tr><th>País</th><th>Capítulos ativos</th><th>Públicos</th><th>Estados</th><th>Diretor nacional</th><th>Comunicados</th><th></th></tr></thead><tbody id="vR"><tr><td colspan="7" class="empty">Carregando…</td></tr></tbody></table></div><p class="sub" style="margin:10px 0 0">Fora do Brasil, os capítulos de exemplo são fictícios (marcados DADO FICTÍCIO) até a lista real chegar.</p></div>
+</section>
+
+<section class="pg" id="p-brasil">
+<div class="head"><div><div class="eyebrow">Brasil</div><h1>Estados</h1><p class="lead">Cada estado tem a sua plataforma (réplica do modelo de SC). Aqui você acompanha a cobertura e abre novos estados.</p></div><button class="btn" data-r="brasil">Atualizar</button></div>
+<div class="kpis" id="bK"></div>
+<div class="panel"><p class="msg" id="bM" role="status"></p><div class="tw"><table><thead><tr><th>Estado</th><th>Capítulos</th><th>Públicos</th><th>Municípios atendidos</th><th>Regiões</th><th>Diretor</th><th></th></tr></thead><tbody id="bR"><tr><td colspan="7" class="empty">Carregando…</td></tr></tbody></table></div><p class="sub" style="margin:10px 0 0">Regiões fora de SC são hipótese (microrregiões IBGE 2000) até o diretor estadual confirmar. "Abrir estado" carrega os municípios, importa os capítulos da lista oficial (entram ocultos) e sugere as regiões.</p></div>
+</section>
+
+<section class="pg" id="p-exterior">
+<div class="head"><div><div class="eyebrow">Fora do Brasil</div><h1>Capítulos no exterior</h1><p class="lead">Informação bruta por país: nome, cidade e situação. Sem regiões por enquanto. Os ativos e públicos aparecem no site global.</p></div></div>
+<div class="panel"><form class="g" id="xF"><label>País<select name="country" required></select></label><label>Nome do capítulo<input name="name" required maxlength="120" placeholder="Ex.: Moscou Central"></label><label>Cidade<input name="city" maxlength="120"></label><label>Situação<select name="status"><option value="in_activation">Em ativação</option><option value="active">Ativo</option><option value="reactivation">Em reativação</option><option value="inactive">Inativo</option></select></label><label class="ck"><input type="checkbox" name="isPublic"> Público no site global</label><button class="btn gold" type="submit">Adicionar capítulo</button></form><p class="msg" id="xM" role="status"></p>
+<label style="max-width:260px;margin:6px 0 10px">Filtrar por país<select id="xFil"><option value="">Todos</option></select></label>
+<div class="tw"><table><thead><tr><th>País</th><th>Capítulo</th><th>Cidade</th><th>Situação</th><th>Público</th><th></th></tr></thead><tbody id="xR"></tbody></table></div></div>
+</section>
+
+<section class="pg" id="p-comunicados">
+<div class="head"><div><div class="eyebrow">Mensagens</div><h1>Comunicados</h1><p class="lead">Globais chegam a todos; nacionais, aos de um país. Os comunicados de estado e de região são publicados na plataforma de cada estado.</p></div></div>
+<div class="panel"><form class="g" id="cF"><label>Alcance<select name="scope" id="cSc"><option value="global">Global (todos os países)</option><option value="country">Nacional (um país)</option></select></label><label id="cCw" hidden>País<select name="country"></select></label><label class="w">Título<input name="title" required minlength="3" maxlength="180"></label><label>Categoria<select name="category"><option>Comunicado oficial</option><option>Evento</option><option>Prazo importante</option><option>Orientação aos capítulos</option><option>Urgente</option></select></label><label>Prioridade<select name="priority"><option value="normal">Normal</option><option value="important">Importante</option><option value="urgent">Urgente</option></select></label><label class="w">Resumo<input name="summary" required maxlength="300"></label><label class="w">Texto<textarea name="body" required></textarea></label><label>Início<input type="datetime-local" name="startsAt" required></label><label>Fim (opcional)<input type="datetime-local" name="endsAt"></label><label>Texto do botão (opcional)<input name="actionLabel" maxlength="60"></label><label>Link do botão (https://)<input name="actionUrl" type="url"></label><label class="ck"><input type="checkbox" name="isPublic"> Visível no site público</label><label class="ck"><input type="checkbox" name="publishNow" checked> Publicar agora</label><button class="btn gold" type="submit">Salvar comunicado</button></form><p class="msg" id="cM" role="status"></p></div>
+<div class="panel"><h3>Comunicados globais e nacionais</h3><div class="tw"><table><thead><tr><th>Título</th><th>Alcance</th><th>Situação</th><th>Início</th><th></th></tr></thead><tbody id="cR"></tbody></table></div></div>
+</section>
+
+<section class="pg" id="p-acessos">
+<div class="head"><div><div class="eyebrow">Governança</div><h1>Acessos</h1><p class="lead">Quem dirige cada nível. A pessoa precisa já ter conta (pedido de acesso aprovado); aqui você define o estado ou o país que ela dirige.</p></div></div>
+<div class="panel"><form class="g" id="aF"><label>E-mail<input type="email" name="email" required></label><label>Diretoria<select name="kind" id="aK"><option value="state_director">Diretor estadual</option><option value="country_director">Diretor nacional</option></select></label><label id="aSw">Estado<select name="state"></select></label><label id="aCw" hidden>País<select name="country"></select></label><button class="btn gold" type="submit">Conceder acesso</button></form><p class="msg" id="aM" role="status"></p>
+<div class="tw"><table><thead><tr><th>E-mail</th><th>Função</th><th>Escopo</th><th>Situação</th><th></th></tr></thead><tbody id="aR"></tbody></table></div></div>
+</section>
+
+<section class="pg" id="p-seguranca">
+<div class="head"><div><div class="eyebrow">Segurança</div><h1>Backup provisório</h1><p class="lead">O sistema guarda uma cópia interna toda semana (domingo, 3h de Brasília; últimas 8) e você pode baixar uma cópia completa em JSON. A cópia interna fica no mesmo banco: protege contra erro de edição, não contra perda do banco; por isso baixe e guarde o arquivo fora daqui. O arquivo contém dados pessoais.</p></div></div>
+<div class="panel"><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn gold" id="sD" type="button">Baixar backup completo (JSON)</button><button class="btn" id="sN" type="button">Criar cópia interna agora</button></div><p class="msg" id="sM" role="status"></p><div class="tw"><table><thead><tr><th>Data/hora</th><th>Tipo</th><th>Registros</th></tr></thead><tbody id="sR"></tbody></table></div></div>
+</section>
+
+</main></div>
+
+<script>
+(function(){
+'use strict';
+const SB='https://ayrdfetnscrfrlcssiua.supabase.co',SK='sb_publishable_4q2FsB0DhzqgdR91JM0FDA_DMyuWNxs',KEY='adhonep_admin_session_3v2';
+const $=id=>document.getElementById(id),esc=s=>String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+let S=null,LV='',ME={},SHOWN={};
+function load(){try{const v=JSON.parse(sessionStorage.getItem(KEY)||'null');return v&&v.access_token?v:null}catch(e){return null}}
+function save(v){S=v;try{v?sessionStorage.setItem(KEY,JSON.stringify(v)):sessionStorage.removeItem(KEY)}catch(e){}}
+async function raw(path,opt,tok){const o=Object.assign({},opt||{});o.headers=Object.assign({apikey:SK,Authorization:'Bearer '+(tok||(S&&S.access_token)||SK),'Content-Type':'application/json'},o.headers||{});const r=await fetch(SB+path,o);const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch(e){}return{r,d,t}}
+async function api(path,opt){let x=await raw(path,opt);if(x.r.status===401&&S&&S.refresh_token){const rf=await raw('/auth/v1/token?grant_type=refresh_token',{method:'POST',body:JSON.stringify({refresh_token:S.refresh_token})},SK);if(rf.r.ok&&rf.d&&rf.d.access_token){save(Object.assign({},S,rf.d));x=await raw(path,opt)}}
+  if(!x.r.ok)throw new Error((x.d&&(x.d.message||x.d.msg||x.d.error_description))||('HTTP '+x.r.status));return x.d}
+const rpc=(n,b)=>api('/rest/v1/rpc/'+n,{method:'POST',body:JSON.stringify(b||{})});
+function msg(id,t,ok){const e=$(id);e.textContent=t||'';e.className='msg '+(ok?'ok':'er')}
+const tc=s=>String(s||'').toLowerCase().replace(/(^|[\s–|(-])(\p{L})/gu,(m,a,z)=>a+z.toUpperCase()).replace(/ (De|Do|Da|Dos|Das|E) /g,x=>x.toLowerCase());
+const J=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u);return r.json()});
+
+/* ---------- entrada ---------- */
+async function levelOf(){const u=await api('/auth/v1/user');ME=u;const [sr,ur]=await Promise.all([rpc('adh_my_scope_roles').catch(()=>[]),api('/rest/v1/user_roles?select=role&is_active=eq.true&user_id=eq.'+u.id).catch(()=>[])]);
+  if((sr||[]).some(r=>r.role==='global_board')||(ur||[]).some(r=>r.role==='state_admin'))return'g';
+  if((sr||[]).some(r=>r.role==='country_director'&&r.country_iso3==='BRA'))return'n';return''}
+async function enter(){try{LV=await levelOf()}catch(e){save(null);$('lg').hidden=false;return}
+  if(!LV){save(null);$('lg').hidden=false;msg('lgM','Esta conta não tem acesso à gestão global ou nacional.');$('lgM').className='';$('lgM').style.color='#e8a0a0';return}
+  $('lg').hidden=true;$('app').hidden=false;$('shell').hidden=false;$('whoN').textContent=ME.email||'';$('whoR').textContent=LV==='g'?'Diretoria global':'Diretor nacional · Brasil';
+  document.querySelectorAll('.nav[data-g]').forEach(b=>b.hidden=LV!=='g');go((location.hash||'').slice(1)||(LV==='g'?'visao':'brasil'))}
+$('lgF').onsubmit=async e=>{e.preventDefault();const b=$('lgS');b.disabled=true;$('lgM').style.color='#9fb2c8';$('lgM').textContent='Verificando…';
+  try{const x=await raw('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email:$('lgE').value.trim(),password:$('lgP').value})},SK);if(!x.r.ok||!x.d||!x.d.access_token)throw new Error('x');save(x.d);$('lgP').value='';await enter()}
+  catch(er){$('lgM').style.color='#e8a0a0';$('lgM').textContent='E-mail ou senha incorretos.'}finally{b.disabled=false}};
+$('out').onclick=()=>{save(null);location.reload()};
+
+/* ---------- navegação ---------- */
+const PG={visao:visao,brasil:brasil,exterior:exterior,comunicados:comunicados,acessos:acessos,seguranca:seguranca};
+function go(p){if(!PG[p]||(LV!=='g'&&document.querySelector('.nav[data-p="'+p+'"]').hasAttribute('data-g')))p=LV==='g'?'visao':'brasil';
+  document.querySelectorAll('.pg').forEach(e=>e.classList.toggle('on',e.id==='p-'+p));document.querySelectorAll('.nav').forEach(e=>e.classList.toggle('on',e.dataset.p===p));
+  try{history.replaceState(null,'','#'+p)}catch(e){}PG[p]()}
+document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>go(b.dataset.p));
+document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>PG[b.dataset.r]());
+const kp=(a)=>a.map(x=>'<div class="kpi"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>').join('');
+const z=n=>n>0?'<b class="ok">'+n+'</b>':'<span class="no">0</span>';
+
+/* ---------- visão global ---------- */
+async function visao(){try{const d=await rpc('adh_global_overview')||[];const sum=f=>d.reduce((a,s)=>a+(s[f]||0),0);
+  $('vK').innerHTML=kp([[d.length,'países com a ADHONEP'],[sum('chapters'),'capítulos ativos'],[sum('chapters_public'),'públicos no site'],[d.filter(s=>s.directors>0).length,'países com diretor nacional']]);
+  $('vR').innerHTML=d.map(s=>{const br=s.iso3==='BRA';return'<tr><td><b>'+esc(s.name)+'</b> <small>'+s.iso3+'</small></td><td>'+z(s.chapters)+'</td><td>'+s.chapters_public+'</td><td>'+(s.states||'—')+'</td><td>'+(s.directors>0?'<span class="ok">✓</span>':'<span class="no">sem acesso</span>')+'</td><td>'+s.announcements+'</td><td><button class="btn sm gold" data-go="'+(br?'brasil':'exterior')+'" data-c="'+s.iso3+'">'+(br?'Estados':'Capítulos')+'</button></td></tr>'}).join('');
+  $('vR').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{if(b.dataset.go==='exterior')SHOWN.fil=b.dataset.c;go(b.dataset.go)})}catch(e){$('vR').innerHTML='<tr><td colspan="7" class="empty">Não foi possível carregar: '+esc(e.message)+'</td></tr>'}}
+
+/* ---------- Brasil ---------- */
+async function brasil(){try{const d=await rpc('adh_national_overview')||[];const sum=f=>d.reduce((a,s)=>a+(s[f]||0),0);
+  $('bK').innerHTML=kp([[sum('chapters'),'capítulos ativos'],[sum('chapters_public'),'públicos no site'],[d.filter(s=>s.chapters>0).length+' de '+d.length,'estados com capítulo'],[sum('municipalities_with_chapter'),'municípios atendidos'],[d.filter(s=>s.directors>0).length,'estados com diretor']]);
+  $('bR').innerHTML=d.map(s=>{const open=s.municipalities>0&&s.regions>0;const act=LV==='g'&&s.code!=='SC'&&!open?'<button class="btn sm" data-open="'+s.code+'">Abrir estado</button> ':'';
+   return'<tr><td><b>'+esc(s.name)+'</b> <small>'+s.code+'</small></td><td>'+z(s.chapters)+'</td><td>'+s.chapters_public+'</td><td>'+s.municipalities_with_chapter+' <small>de '+s.municipalities+'</small></td><td>'+z(s.regions)+(s.code==='SC'||!s.regions?'':' <small>hipótese</small>')+'</td><td>'+(s.directors>0?'<span class="ok">✓</span>':'<span class="no">sem acesso</span>')+'</td><td>'+act+'<a class="btn sm gold" href="../estado/?uf='+s.code+'#gestao">Abrir plataforma</a></td></tr>'}).join('');
+  $('bR').querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openState(b.dataset.open))}catch(e){$('bR').innerHTML='<tr><td colspan="7" class="empty">Não foi possível carregar: '+esc(e.message)+'</td></tr>'}}
+async function openState(uf){if(!confirm('Abrir '+uf+': carregar municípios, importar capítulos da lista oficial (ocultos) e sugerir regiões (rascunho IBGE 2000)?'))return;
+  try{msg('bM','Carregando municípios de '+uf+'…',1);const g=await J('../data/mun/'+uf+'.json');const rows=(Array.isArray(g)?g:[]).map(f=>({c:String(f.id||''),n:f.n||''})).filter(x=>/^\d{7}$/.test(x.c)&&x.n);if(!rows.length)throw new Error('arquivo de municípios sem dados');
+   await rpc('adh_seed_state_municipalities',{p_uf:uf,p_rows:rows});
+   msg('bM','Sugerindo regiões…',1);const rg=(await J('../data/regioes.json'))[uf];if(rg){try{await rpc('adh_suggest_regions',{p_uf:uf,p_names:rg.r,p_map:rg.m})}catch(e){if(!/já tem regiões/.test(e.message))throw e}}
+   msg('bM','Importando capítulos…',1);const cp=(await J('../data/capitulos.json'))[uf]||[];let n=0;if(cp.length)n=await rpc('adh_seed_state_chapters',{p_uf:uf,p_rows:cp.map(c=>({n:tc(c.n),c:c.c,p:c.p?tc(c.p):'',m:c.m||[]}))});
+   msg('bM','✓ '+uf+' aberto: municípios, regiões (rascunho) e '+n+' capítulos novos (ocultos até o diretor confirmar).',1);brasil()}catch(e){msg('bM','Não foi possível abrir '+uf+': '+e.message,0)}}
+
+/* ---------- exterior ---------- */
+const XS={active:'Ativo',inactive:'Inativo',in_activation:'Em ativação',reactivation:'Em reativação'};let XC=null;
+async function exterior(){try{if(!XC){XC=(await api('/rest/v1/countries?select=iso3,name&iso3=neq.BRA&order=name.asc&limit=300'))||[];$('xF').elements.country.innerHTML=XC.map(c=>'<option value="'+c.iso3+'">'+esc(c.name)+'</option>').join('');$('xFil').innerHTML='<option value="">Todos</option>'+XC.map(c=>'<option value="'+c.iso3+'">'+esc(c.name)+'</option>').join('');$('xFil').onchange=exterior}
+  if(SHOWN.fil){$('xFil').value=SHOWN.fil;SHOWN.fil=''}
+  const f=$('xFil').value;const r=await api('/rest/v1/chapters?select=id,name,city,status,is_public,country_iso3&country_iso3=neq.BRA'+(f?'&country_iso3=eq.'+f:'')+'&order=country_iso3.asc,name.asc&limit=1000')||[];const nm={};XC.forEach(c=>nm[c.iso3]=c.name);
+  $('xR').innerHTML=r.length?r.map(x=>'<tr><td>'+esc(nm[x.country_iso3]||x.country_iso3)+'</td><td>'+esc(x.name)+'</td><td>'+esc(x.city||'')+'</td><td><span class="tag">'+(XS[x.status]||x.status)+'</span></td><td>'+(x.is_public?'Sim':'Não')+'</td><td><button class="btn sm" data-t="'+x.id+'" data-v="'+(x.is_public?0:1)+'">'+(x.is_public?'Ocultar':'Publicar')+'</button> <button class="btn sm" data-s="'+x.id+'" data-v="'+(x.status==='active'?'inactive':'active')+'">'+(x.status==='active'?'Desativar':'Ativar')+'</button></td></tr>').join(''):'<tr><td colspan="6" class="empty">Nenhum capítulo.</td></tr>';
+  $('xR').querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>patchCh(b.dataset.t,{is_public:b.dataset.v==='1'}));$('xR').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>patchCh(b.dataset.s,{status:b.dataset.v}))}catch(e){msg('xM','Não foi possível carregar: '+e.message,0)}}
+async function patchCh(id,b){try{await api('/rest/v1/chapters?id=eq.'+id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(b)});exterior()}catch(e){msg('xM','Erro: '+e.message,0)}}
+$('xF').onsubmit=async e=>{e.preventDefault();const f=e.target,d=new FormData(f);try{await api('/rest/v1/chapters',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({name:String(d.get('name')).trim(),city:String(d.get('city')||'').trim()||null,country_iso3:d.get('country'),status:d.get('status'),is_public:d.get('isPublic')==='on'})});f.reset();msg('xM','✓ Capítulo adicionado.',1);exterior()}catch(er){msg('xM','Não foi possível salvar: '+er.message,0)}};
+
+/* ---------- comunicados ---------- */
+let CC=null;
+function cSc(){const c=$('cSc').value==='country';$('cCw').hidden=!c}
+$('cSc').onchange=cSc;
+async function comunicados(){try{if(!CC){CC=(await api('/rest/v1/countries?select=iso3,name&adhonep_present=eq.true&order=name.asc&limit=100'))||[];$('cF').elements.country.innerHTML=CC.map(c=>'<option value="'+c.iso3+'"'+(c.iso3==='BRA'?' selected':'')+'>'+esc(c.name)+'</option>').join('')}
+  if(LV==='n'){$('cSc').value='country';$('cSc').disabled=true;$('cF').elements.country.value='BRA';$('cF').elements.country.disabled=true;$('cF').elements.isPublic.checked=false}else{$('cSc').disabled=false;$('cF').elements.country.disabled=false}cSc();
+  const st=new Date();st.setMinutes(st.getMinutes()-st.getTimezoneOffset());if(!$('cF').elements.startsAt.value)$('cF').elements.startsAt.value=st.toISOString().slice(0,16);
+  const r=await api('/rest/v1/statewide_announcements?select=id,title,scope,country_iso3,status,starts_at,is_public&scope=in.(global,country)&order=created_at.desc&limit=100')||[];
+  $('cR').innerHTML=r.length?r.map(a=>'<tr><td><b>'+esc(a.title)+'</b></td><td>'+(a.scope==='global'?'<span class="tag g">Global</span>':'<span class="tag">Nacional · '+esc(a.country_iso3)+'</span>')+(a.is_public?' <small>público</small>':'')+'</td><td>'+({published:'Publicado',draft:'Rascunho',archived:'Arquivado'}[a.status]||a.status)+'</td><td>'+new Date(a.starts_at).toLocaleDateString('pt-BR')+'</td><td>'+(a.status==='published'?'<button class="btn sm" data-a="'+a.id+'" data-st="archived">Arquivar</button>':'<button class="btn sm" data-a="'+a.id+'" data-st="published">Publicar</button>')+'</td></tr>').join(''):'<tr><td colspan="5" class="empty">Nenhum comunicado global ou nacional.</td></tr>';
+  $('cR').querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{try{await api('/rest/v1/statewide_announcements?id=eq.'+b.dataset.a,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({status:b.dataset.st})});comunicados()}catch(e){msg('cM','Erro: '+e.message,0)}})}catch(e){msg('cM','Não foi possível carregar: '+e.message,0)}}
+$('cF').onsubmit=async e=>{e.preventDefault();const f=e.target,d=new FormData(f);try{const scope=LV==='n'?'country':String(d.get('scope')),end=d.get('endsAt'),start=d.get('startsAt');if(end&&new Date(end)<new Date(start))throw new Error('A data final deve ser posterior à inicial.');
+  const body={scope,state_code:null,region_id:null,country_iso3:scope==='country'?(LV==='n'?'BRA':d.get('country')):null,is_public:d.get('isPublic')==='on',title:String(d.get('title')).trim(),category:d.get('category'),priority:d.get('priority'),summary:String(d.get('summary')).trim(),body:String(d.get('body')).trim(),starts_at:new Date(start).toISOString(),ends_at:end?new Date(end).toISOString():null,action_label:String(d.get('actionLabel')).trim()||null,action_url:String(d.get('actionUrl')).trim()||null,show_popup:false,status:d.get('publishNow')==='on'?'published':'draft'};
+  const rows=await api('/rest/v1/statewide_announcements',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(body)});if(!Array.isArray(rows)||!rows.length)throw new Error('o banco não confirmou a gravação');f.reset();msg('cM',body.status==='published'?'✓ Comunicado publicado.':'✓ Rascunho salvo.',1);comunicados()}catch(er){msg('cM','Não foi possível salvar: '+er.message,0)}};
+
+/* ---------- acessos ---------- */
+const RL={state_director:'Diretor estadual',country_director:'Diretor nacional',global_board:'Diretoria global'};let AS=null;
+$('aK').onchange=()=>{const s=$('aK').value==='state_director';$('aSw').hidden=!s;$('aCw').hidden=s};
+async function acessos(){try{if(!AS){AS=(await rpc('adh_states_list'))||[];$('aF').elements.state.innerHTML=AS.map(s=>'<option value="'+s.code+'">'+esc(s.name)+' ('+s.code+')</option>').join('');const cs=(await api('/rest/v1/countries?select=iso3,name&adhonep_present=eq.true&order=name.asc&limit=100'))||[];$('aF').elements.country.innerHTML=cs.map(c=>'<option value="'+c.iso3+'">'+esc(c.name)+'</option>').join('')}
+  const r=await rpc('adh_list_scope_roles')||[];$('aR').innerHTML=r.length?r.map(x=>'<tr><td>'+esc(x.email)+'</td><td>'+(RL[x.role]||x.role)+'</td><td>'+esc(x.state_code||x.country_iso3||'Global')+'</td><td>'+(x.is_active?'<span class="ok">Ativo</span>':'Revogado')+'</td><td>'+(x.is_active?'<button class="btn sm" data-x="'+x.id+'">Revogar</button>':'')+'</td></tr>').join(''):'<tr><td colspan="5" class="empty">Nenhum acesso concedido ainda.</td></tr>';
+  $('aR').querySelectorAll('[data-x]').forEach(b=>b.onclick=async()=>{if(!confirm('Revogar este acesso?'))return;try{await rpc('adh_revoke_scope_role',{p_id:Number(b.dataset.x)});acessos()}catch(e){msg('aM','Erro: '+e.message,0)}})}catch(e){msg('aM','Não foi possível carregar: '+e.message,0)}}
+$('aF').onsubmit=async e=>{e.preventDefault();const f=e.target,k=f.elements.kind.value;try{await rpc('adh_grant_scope_role',{p_email:f.elements.email.value.trim(),p_role:k,p_state:k==='state_director'?f.elements.state.value:null,p_country:k==='country_director'?f.elements.country.value:null});f.reset();$('aK').onchange();msg('aM','✓ Acesso concedido.',1);acessos()}catch(er){msg('aM','Não foi possível: '+er.message,0)}};
+
+/* ---------- segurança ---------- */
+async function seguranca(){try{const r=await rpc('adh_backup_list')||[];$('sR').innerHTML=r.length?r.map(x=>{const t=Object.values(x.row_counts||{}).reduce((a,b)=>a+b,0);return'<tr><td>'+new Date(x.taken_at).toLocaleString('pt-BR')+'</td><td>'+(x.kind==='auto'?'Automática':'Manual')+'</td><td>'+t+'</td></tr>'}).join(''):'<tr><td colspan="3" class="empty">Nenhuma cópia ainda.</td></tr>'}catch(e){msg('sM','Não foi possível listar: '+e.message,0)}}
+$('sD').onclick=async()=>{msg('sM','Gerando backup…',1);try{const r=await rpc('adh_backup_export');const b=new Blob([JSON.stringify(r)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='adhonep-backup-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();msg('sM','✓ Backup baixado. Guarde o arquivo com segurança (contém dados pessoais).',1)}catch(e){msg('sM','Não foi possível: '+e.message,0)}};
+$('sN').onclick=async()=>{try{await rpc('adh_backup_snapshot_now');msg('sM','✓ Cópia interna criada.',1);seguranca()}catch(e){msg('sM','Não foi possível: '+e.message,0)}};
+
+window.addEventListener('hashchange',()=>{if(S&&LV)go((location.hash||'').slice(1))});
+S=load();if(S)enter();else $('lg').hidden=false;
+})();
+</script>
+</body>
+</html>
