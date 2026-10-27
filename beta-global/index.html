@@ -386,7 +386,7 @@ function chips(){const el=$('gCh');el.style.display=lvl==='world'?'flex':'none';
 const cv=$('gGlobe'),cx=cv.getContext('2d');
 let G={lon:-45,lat:12,k:1,tl:null,spin:true,idle:0,hov:null,run:false,drag:null,last:0};
 const RAD=Math.PI/180,col={br:'#c9a45c',on:'#2f6fb5',off:'#1b2f4d',ln:'rgba(8,18,34,.9)'};
-function size(){const r=map.getBoundingClientRect(),d=devicePixelRatio||1,w=Math.max(200,r.width),h=cv.clientHeight||500;if(cv.width!==Math.round(w*d)||cv.height!==Math.round(h*d)){cv.width=Math.round(w*d);cv.height=Math.round(h*d)}return[w,h,d]}
+function size(){const r=map.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,innerWidth<700?1.5:2),w=Math.max(200,r.width),h=cv.clientHeight||500;if(cv.width!==Math.round(w*d)||cv.height!==Math.round(h*d)){cv.width=Math.round(w*d);cv.height=Math.round(h*d)}return[w,h,d]}
 function prj(lonD,latD,R,cxp,cyp){const l=(lonD-G.lon)*RAD,f=latD*RAD,p0=G.lat*RAD,cl=Math.cos(l),X=Math.cos(f)*Math.sin(l),Y=Math.cos(p0)*Math.sin(f)-Math.sin(p0)*Math.cos(f)*cl,Z=Math.sin(p0)*Math.sin(f)+Math.cos(p0)*Math.cos(f)*cl;return{X:X,Y:Y,Z:Z}}
 function ringPath(ring,path,R,cxp,cyp){
   const n=ring.length,P=ring.map(p=>prj(p[0]/100,p[1]/100)),out=[];let exitA=null,pend=null,any=false;
@@ -425,7 +425,7 @@ function drawGlobe(){
   if(da>.01||CONT){const ds=Math.max(.7,Math.min(R*.0036,1.9)),cs=Math.cos(G.lat*RAD),sn=Math.sin(G.lat*RAD),lo0=G.lon;
    for(let pass=0;pass<2;pass++){cx.fillStyle=pass?'rgba(212,176,104,'+(CONT?.22:.95*da)+')':'rgba(150,178,215,'+(CONT?.14:.5*da)+')';cx.beginPath();
     for(let k=0;k<DOTS.length;k++){const d=DOTS[k];if((pass===1)!==d.g)continue;if(CONT&&d.ct===CONT)continue;const l=(d.lo-lo0)*RAD,cl=Math.cos(l),Z=sn*d.sf+cs*d.cf*cl;if(Z<=0)continue;
-     const X=d.cf*Math.sin(l),Y=cs*d.sf-sn*d.cf*cl,x=cxp+X*R,y=cyp-Y*R;cx.moveTo(x+ds,y);cx.arc(x,y,ds,0,6.2832)}
+     const X=d.cf*Math.sin(l),Y=cs*d.sf-sn*d.cf*cl,x=cxp+X*R,y=cyp-Y*R;cx.rect(x-ds,y-ds,ds*2,ds*2)}
     cx.fill()}}
   // rotas discretas a partir do Brasil
   if(!ROUTES)buildRoutes();
@@ -445,25 +445,25 @@ function hit(ev){const r=cv.getBoundingClientRect(),w=r.width,h=r.height,R=Math.
   const c=Math.asin(rho),p0=G.lat*RAD;let f=rho===0?p0:Math.asin(Math.cos(c)*Math.sin(p0)+y*Math.sin(c)*Math.cos(p0)/rho),l=G.lon*RAD+Math.atan2(x*Math.sin(c),rho*Math.cos(p0)*Math.cos(c)-y*Math.sin(p0)*Math.sin(c));
   let lo=((l/RAD+540)%360)-180,la=f/RAD;
   for(const c2 of W){for(const r2 of c2.p){let ins=false,n=r2.length;if(n<4)continue;for(let i=0,j=n-1;i<n;j=i++){const xi=r2[i][0]/100,yi=r2[i][1]/100,xj=r2[j][0]/100,yj=r2[j][1]/100;if((yi>la)!==(yj>la)&&lo<(xj-xi)*(la-yi)/(yj-yi)+xi)ins=!ins}if(ins)return c2}}return null}
-function frame(ts){if(!G.run)return;const dt=Math.min(50,ts-(G.last||ts));G.last=ts;
+function frame(ts){if(!G.run)return;const dt=Math.min(50,ts-(G.last||ts));G.last=ts;let spun=false;const had=!!(G.tl||G.inertia||G.arc);
   if(G.tl){const T=G.tl,u=Math.min(1,(ts-T.t0)/T.d),e=u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;if(T.arc){const q=gcp(T.arc.a,T.arc.b,e);G.lon=q[0];G.lat=q[1];G.pu=e;G.k=Math.max(.9,T.k0+(T.k1-T.k0)*e-Math.sin(Math.PI*e)*.45*Math.min(T.k0,T.k1,1.6))}else{G.lon=T.l0+T.dl*e;G.lat=T.f0+(T.f1-T.f0)*e;G.k=T.k0+(T.k1-T.k0)*e}if(u>=1){const cb=T.cb;G.tl=null;G.arc=null;cb&&cb()}}
-  else if(G.spin&&!CONT&&!G.drag&&lvl==='world'&&ts>G.idle){G.lon+=dt*.012}
+  else if(G.spin&&!CONT&&!G.drag&&lvl==='world'&&ts>G.idle){G.lon+=dt*.012;spun=true}
   if(G.inertia&&!G.drag){G.lon+=G.inertia.x;G.lat=Math.max(-70,Math.min(70,G.lat+G.inertia.y));G.inertia.x*=.94;G.inertia.y*=.94;if(Math.abs(G.inertia.x)<.01&&Math.abs(G.inertia.y)<.01)G.inertia=null}
-  G.lon=((G.lon+540)%360)-180;drawGlobe();requestAnimationFrame(frame)}
+  G.lon=((G.lon+540)%360)-180;const act=had||G.tl||G.drag||G.inertia||G.me||G.arc||G.dirty||G.sz!==cv.clientWidth+'x'+cv.clientHeight;if(act||(spun&&(G.sk=!G.sk))){G.sz=cv.clientWidth+'x'+cv.clientHeight;G.dirty=false;drawGlobe()}requestAnimationFrame(frame)}
 function gcp(a,b,u){const v=p=>[Math.cos(p[1]*RAD)*Math.cos(p[0]*RAD),Math.cos(p[1]*RAD)*Math.sin(p[0]*RAD),Math.sin(p[1]*RAD)],A=v(a),B=v(b),d=Math.acos(Math.max(-1,Math.min(1,A[0]*B[0]+A[1]*B[1]+A[2]*B[2])))||1e-6,s=Math.sin(d),x=Math.sin((1-u)*d)/s,y=Math.sin(u*d)/s,P=[x*A[0]+y*B[0],x*A[1]+y*B[1],x*A[2]+y*B[2]];return[Math.atan2(P[1],P[0])/RAD,Math.asin(Math.max(-1,Math.min(1,P[2])))/RAD]}
 function fly(lon,lat,k,cb,arc){let dl=lon-G.lon;while(dl>180)dl-=360;while(dl<-180)dl+=360;G.tl={t0:performance.now(),d:arc?3000:1100,l0:G.lon,dl:dl,f0:G.lat,f1:lat,k0:G.k,k1:k,cb:cb,arc:arc?{a:[G.lon,G.lat],b:[lon,lat]}:null};G.arc=G.tl.arc;G.pu=0;G.inertia=null}
-function globeOn(){map.classList.add('gl');document.documentElement.classList.add('wv');if(!G.run){G.run=true;G.last=0;requestAnimationFrame(frame)}}
+function globeOn(){G.dirty=true;map.classList.add('gl');document.documentElement.classList.add('wv');if(!G.run){G.run=true;G.last=0;requestAnimationFrame(frame)}}
 function globeOff(){map.classList.remove('gl');document.documentElement.classList.remove('wv');G.run=false}
 function cInfo(c){let best=c.p[0];c.p.forEach(r=>{if(r.length>best.length)best=r});let a=1e9,b=-1e9,e=1e9,f=-1e9;best.forEach(p=>{a=Math.min(a,p[0]);b=Math.max(b,p[0]);e=Math.min(e,p[1]);f=Math.max(f,p[1])});
   const lo=(a+b)/200,la=(e+f)/200,sp=Math.max((b-a)/100*Math.cos(la*RAD),(f-e)/100);return{lon:lo,lat:Math.max(-60,Math.min(60,la)),k:Math.max(1.4,Math.min(4,32/Math.max(sp,8)))}}
 let dn=null,moved=0;
 cv.addEventListener('pointerdown',e=>{cv.setPointerCapture(e.pointerId);G.drag={x:e.clientX,y:e.clientY};moved=0;G.tl=null;G.inertia=null});
 cv.addEventListener('pointermove',e=>{if(G.drag){const dx=e.clientX-G.drag.x,dy=e.clientY-G.drag.y;moved+=Math.abs(dx)+Math.abs(dy);const s=.35/G.k;G.lon-=dx*s;G.lat=Math.max(-70,Math.min(70,G.lat+dy*s));G.inertia={x:-dx*s*.6,y:dy*s*.6};G.drag={x:e.clientX,y:e.clientY};hide();return}
-  const c=hit(e);G.hov=c?c.id:null;cv.style.cursor=c?'pointer':'grab';if(c)showTip(e,'<b>'+cname(c)+'</b><small>'+(c.id==='BRA'?T('active'):ADH.has(c.id)?T('has'):T('none'))+'</small>');else hide()});
+  const c=hit(e);if((c?c.id:null)!==G.hov)G.dirty=true;G.hov=c?c.id:null;cv.style.cursor=c?'pointer':'grab';if(c)showTip(e,'<b>'+cname(c)+'</b><small>'+(c.id==='BRA'?T('active'):ADH.has(c.id)?T('has'):T('none'))+'</small>');else hide()});
 cv.addEventListener('pointerup',e=>{G.drag=null;G.idle=performance.now()+4000;if(moved<6){const c=hit(e);if(c){if(!CONT&&lvl==='world')setCont(contOf(c));else pickCountry(c)}}});
-cv.addEventListener('pointerleave',()=>{G.hov=null;hide()});
-cv.addEventListener('wheel',e=>{e.preventDefault();G.tl=null;G.k=Math.max(.8,Math.min(6,G.k*(e.deltaY<0?1.12:.89)));G.idle=performance.now()+4000},{passive:false});
-let pin=null;cv.addEventListener('touchmove',e=>{if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pin)G.k=Math.max(.8,Math.min(6,G.k*d/pin));pin=d}},{passive:true});cv.addEventListener('touchend',()=>pin=null);
+cv.addEventListener('pointerleave',()=>{G.hov=null;G.dirty=true;hide()});
+cv.addEventListener('wheel',e=>{e.preventDefault();G.tl=null;G.k=Math.max(.8,Math.min(6,G.k*(e.deltaY<0?1.12:.89)));G.dirty=true;G.idle=performance.now()+4000},{passive:false});
+let pin=null;cv.addEventListener('touchmove',e=>{if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(pin){G.k=Math.max(.8,Math.min(6,G.k*d/pin));G.dirty=true}pin=d}},{passive:true});cv.addEventListener('touchend',()=>pin=null);
 
 const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 const okU=u=>/^https:\/\//.test(u||'');
