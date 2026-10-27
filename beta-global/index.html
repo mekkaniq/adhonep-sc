@@ -159,6 +159,12 @@ html.wv .g-st div,html.wv .g-side{background:var(--g-card);border-color:var(--g-
 .enter{margin-top:6px;font:600 14px var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--navy);background:linear-gradient(135deg,var(--gold-soft),var(--gold));border:0;border-radius:999px;padding:14px 30px;cursor:pointer;opacity:0;transform:translateY(10px);transition:opacity .9s ease .45s,transform .9s ease .45s,filter .2s;pointer-events:none}
 .s3 .enter{opacity:1;transform:none;pointer-events:auto}.enter:hover{filter:brightness(1.08)}
 .flags{display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(12px,2.4vw,26px);opacity:0;transform:translateY(10px);transition:opacity .9s ease .45s,transform .9s ease .45s;pointer-events:none}
+.wc{margin-top:clamp(18px,3.4vh,34px);display:grid;justify-items:center;gap:12px;opacity:0;transition:opacity 1s ease 1.1s;pointer-events:none}.s3 .wc{opacity:1}
+.wc p{margin:0;font:500 12px var(--body);letter-spacing:.2em;text-transform:uppercase;color:rgba(231,238,248,.7)}.wc p b{color:var(--gold);font-weight:600;font-size:15px;letter-spacing:.08em}
+.wcf{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 12px;max-width:min(640px,92vw)}.wcf img{width:34px;height:auto;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.45));opacity:0;transform:translateY(14px) scale(.7)}
+.s3 .wcf img{animation:wcIn .7s cubic-bezier(.2,.8,.2,1) forwards,wcBob 3.6s ease-in-out infinite;animation-delay:calc(1.2s + var(--i)*.07s),calc(2.6s + var(--i)*.16s)}
+@keyframes wcIn{to{opacity:1;transform:none}}@keyframes wcBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@media(max-width:640px){.wcf img{width:26px}.wcf{gap:8px 8px}.wc{margin-top:14px;gap:9px}.flags{gap:6px;flex-wrap:nowrap}.flags .fl{padding:3px}.flags .fl svg{width:60px;height:42px}.flags .fl span{font-size:11.5px}}@media(prefers-reduced-motion:reduce){.s3 .wcf img{animation:none;opacity:1;transform:none}}
 .s3 .flags{opacity:1;transform:none;pointer-events:auto}
 .fl{display:grid;justify-items:center;gap:9px;background:none;border:0;cursor:pointer;color:var(--ink);font:500 13px var(--body);letter-spacing:.04em;padding:6px;border-radius:12px}
 .fl svg{width:72px;height:50px;border-radius:7px;box-shadow:0 0 0 1px rgba(255,255,255,.18),0 8px 22px rgba(0,0,0,.45);transition:transform .25s,box-shadow .25s}
@@ -189,6 +195,7 @@ html.app-on .stage{pointer-events:none}
       <div class="rule" aria-hidden="true"></div>
       <p class="tag" id="tag" lang="en">Choose your language</p>
       <div class="flags" id="flags" role="group" aria-label="Choose your language"></div>
+      <div class="wc" id="wc" aria-label="Present in 19 countries"><p lang="en"><b>19</b> countries · one network</p><div class="wcf" id="wcf"></div></div>
     </div>
     <div class="foot"><span></span><button class="replay" id="replay" type="button">↻ Ver a abertura de novo</button></div>
   </section>
@@ -631,6 +638,7 @@ en:['English','<svg viewBox="0 0 72 50"><rect width="72" height="50" fill="#fff"
 fr:['Français','<svg viewBox="0 0 72 50"><rect width="24" height="50" fill="#0055a4"/><rect x="24" width="24" height="50" fill="#fff"/><rect x="48" width="24" height="50" fill="#ef4135"/></svg>']};
 (function(){const fl=$('flags');Object.keys(FLAGS).forEach(k=>{const b=document.createElement('button');b.type='button';b.className='fl';b.lang=k;b.setAttribute('aria-label',FLAGS[k][0]);b.innerHTML=FLAGS[k][1]+'<span>'+FLAGS[k][0]+'</span>';b.onclick=()=>{setLang(k);document.documentElement.classList.add('app-on');$('stage').classList.add('gone');scrollTo(0,0)};fl.appendChild(b)})})();
 
+(function(){const w=$('wcf');['br','de','ar','az','kz','cn','cy','co','sv','es','us','mx','pt','ru','tr','uy','ae','za','by'].forEach((c,i)=>{const m=document.createElement('img');m.src='assets/flags/'+c+'.png';m.alt=c.toUpperCase();m.width=34;m.style.setProperty('--i',i);w.appendChild(m)})})();
 const J=u=>fetch(u).then(r=>r.json());
 Promise.all([J('data/regioes.json').catch(()=>null),J('data/capitulos.json').catch(()=>({})),J('data/conteudo.json').catch(()=>CT),J('data/world.json'),J('data/paises.json'),J('data/uf.json'),J('data/adhonep.json')]).then(r=>{RG=r[0];CAP=r[1];CT=r[2];W=r[3];PI=r[4];UF=r[5];ADH=new Set(r[6]);applyStatic();drawWorld();deepLink();loadLive()}).catch(()=>{$('gSub').textContent='Abra por um servidor HTTP (não direto pelo arquivo).'});
 })();
