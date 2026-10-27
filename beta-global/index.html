@@ -120,6 +120,9 @@ html[data-theme=dark] .g-map path{stroke:#07101f}
 .pk-i i{width:10px;height:10px;border-radius:3px;flex:none}.pk-i em{margin-left:auto;font-style:normal;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#9fb2c8}.pk-i em.g{color:#c9a45c}
 .pk .g-ch button{background:#07101f;color:#e7eef8;border-color:#1d3150}.pk .g-ch button.on{background:#c9a45c;color:#0b1a31;border-color:#c9a45c}
 .pk-s{font:600 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:#7f93ac;padding:10px 10px 4px}
+.lg-f[hidden],.lg-out[hidden]{display:none}.pk-i{box-sizing:border-box;text-decoration:none}.lg-t{flex:1;font:600 17px var(--body);align-self:center;padding-left:4px}.lg-f{display:flex;flex-direction:column;gap:10px}.lg-f input{font:500 16px var(--body);color:#e7eef8;background:#07101f;border:1px solid #1d3150;border-radius:12px;padding:12px 14px;outline:none}.lg-f input:focus{border-color:#c9a45c}
+.lg-go{font:600 15px var(--body);background:#c9a45c;color:#0b1a31;border:0;border-radius:12px;padding:12px;cursor:pointer}.lg-go:disabled{opacity:.6}.lg-m{margin:0;font-size:13px;color:#9fb2c8;min-height:1em}.lg-m.er{color:#e8a0a0}
+.lg-out{font:500 13px var(--body);color:#9fb2c8;background:transparent;border:1px solid #1d3150;border-radius:10px;padding:8px;cursor:pointer}.lg-lv{font:600 11px var(--body);letter-spacing:.1em;text-transform:uppercase;color:#c9a45c;padding:4px 10px}.g-login{background:#c9a45c!important;color:#0b1a31!important;border-color:#c9a45c!important}
 @media(max-width:640px){.pk{padding:0;align-items:flex-end}.pk-p{border-radius:18px 18px 0 0;max-height:86vh;width:100%}}
 /* globo integrado ao site: sem cartão, sem borda, sobre o fundo da página */
 html.wv{--g-bg:#07101f;--g-card:rgba(10,22,42,.58);--g-ink:#e7eef8;--g-mute:#9fb2c8;--g-line:rgba(255,255,255,.08);--g-sea:transparent;color-scheme:dark}
@@ -198,7 +201,8 @@ html.app-on .stage{pointer-events:none}
 </div>
 
 <main id="app" aria-label="Plataforma ADHONEP Global">
-  <header class="g-top"><img src="assets/logo-branca.png" alt="ADHONEP"><b>ADHONEP <i>·</i> BUSINESSMAN NETWORK</b><span class="sp"></span><button class="g-btn g-pick" id="gPick" type="button" aria-haspopup="dialog"><i class="pd"></i><span id="gPickT">Mundo</span><svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button><button class="g-btn" id="gTheme" type="button" title="Alternar claro/escuro">◐ Tema</button><button class="g-btn" id="gIntro" type="button">↻ Abertura</button></header>
+  <header class="g-top"><img src="assets/logo-branca.png" alt="ADHONEP"><b>ADHONEP <i>·</i> BUSINESSMAN NETWORK</b><span class="sp"></span><button class="g-btn g-pick" id="gPick" type="button" aria-haspopup="dialog"><i class="pd"></i><span id="gPickT">Mundo</span><svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button><button class="g-btn g-login" id="gLogin" type="button" aria-haspopup="dialog">Entrar</button><button class="g-btn" id="gTheme" type="button" title="Alternar claro/escuro">◐ Tema</button><button class="g-btn" id="gIntro" type="button">↻ Abertura</button></header>
+<div class="pk" id="lg" hidden role="dialog" aria-modal="true" aria-label="Entrar"><div class="pk-b" id="lgB"></div><div class="pk-p lg-p"><div class="pk-h"><b id="lgT" class="lg-t">Entrar</b><button type="button" class="pk-x" id="lgX" aria-label="Fechar">✕</button></div><form id="lgF" class="lg-f"><input id="lgE" type="email" autocomplete="username" required placeholder="E-mail"><input id="lgP" type="password" autocomplete="current-password" required placeholder="Senha"><button class="lg-go" id="lgS" type="submit">Entrar</button></form><p class="lg-m" id="lgM" role="status"></p><div class="pk-l" id="lgL"></div><button type="button" class="lg-out" id="lgO" hidden>Sair</button></div></div>
   <div class="pk" id="pk" hidden role="dialog" aria-modal="true" aria-label="Países"><div class="pk-b" id="pkB"></div><div class="pk-p"><div class="pk-h"><input id="pkQ" type="search" autocomplete="off" placeholder="Buscar país…"><button type="button" class="pk-x" id="pkX" aria-label="Fechar">✕</button></div><div class="g-ch" id="pkC"></div><div class="pk-l" id="pkL" role="listbox"></div></div></div>
   <div class="g-wrap">
     <div class="g-h"><div><h1 id="gTitle">Mundo</h1><p id="gSub"></p><p class="g-clock" id="gClock" hidden></p></div><div class="g-st" id="gStats"></div></div>
@@ -328,7 +332,7 @@ let LANG='pt';try{LANG=localStorage.getItem('adh-lang')||'pt'}catch(e){}if(!TR[L
 const T=k=>(TR[LANG]||TR.pt)[k]||TR.pt[k]||k;
 const dnames=()=>new Intl.DisplayNames([LANG],{type:'region'});
 let DN=dnames();const cname=c=>{try{return /^X/.test(c.c)?c.n:DN.of(c.c)}catch(e){return c.n}};
-function applyStatic(){document.documentElement.lang=LANG==='pt'?'pt-BR':LANG;$('gTheme').textContent=T('theme');$('gIntro').textContent=T('intro');document.querySelector('.g-hint').textContent=T('hint');$('gNote').textContent=T('note');$('gPriv').textContent=T('priv')}
+function applyStatic(){window.updLogin&&window.updLogin();document.documentElement.lang=LANG==='pt'?'pt-BR':LANG;$('gTheme').textContent=T('theme');$('gIntro').textContent=T('intro');document.querySelector('.g-hint').textContent=T('hint');$('gNote').textContent=T('note');$('gPriv').textContent=T('priv')}
 function setLang(l){LANG=l;try{localStorage.setItem('adh-lang',l)}catch(e){}DN=dnames();applyStatic();({world:drawWorld,country:()=>TO?tourShow():pickCountry(ctry),br:drawBR,uf:()=>openUF(cur.sigla)})[lvl]()}
 const px=(a,d)=>a/d*K, py=(a,d)=>-a/d, fmt=n=>n.toLocaleString('pt-BR');
 function ne(lon,lat){const l=lon*Math.PI/180,f=lat*Math.PI/180,f2=f*f,f4=f2*f2;
@@ -577,6 +581,45 @@ q.addEventListener('input',renderList);back.onclick=()=>{if(lvl==='world'&&CONT)
   $('gPick').onclick=pOpen;$('pkX').onclick=pClose;$('pkB').onclick=pClose;pq.addEventListener('input',pRender);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!pk.hidden)pClose();if(e.key==='Enter'&&!pk.hidden&&document.activeElement===pq){e.preventDefault();const f=pl.querySelector('.pk-i');f&&f.click()}});
   window.updPick=function(){const c=ctry||(lvl==='br'||lvl==='uf'?W.find(x=>x.id==='BRA'):null);$('gPickT').textContent=c?cname(c):T('world');$('gPick').classList.toggle('on',!!c&&ADH.has(c.id))};
+})();
+/* entrada na gestão unificada */
+(function(){const lg=$('lg'),K='adhonep_admin_session_3v2',L={
+pt:{in:'Entrar',t:'Entrar na gestão',em:'E-mail',pw:'Senha',go:'Entrar',chk:'Verificando…',bad:'E-mail ou senha incorretos.',none:'Conta sem acesso de gestão.',out:'Sair',hi:'Olá',g:'Gestão global',n:'Gestão nacional',s:'Gestão estadual',open:'Abrir gestão',pick:'Escolha o estado'},
+en:{in:'Sign in',t:'Sign in to management',em:'E-mail',pw:'Password',go:'Sign in',chk:'Checking…',bad:'Wrong e-mail or password.',none:'This account has no management access.',out:'Sign out',hi:'Hello',g:'Global management',n:'National management',s:'State management',open:'Open management',pick:'Choose a state'},
+es:{in:'Entrar',t:'Entrar en la gestión',em:'Correo',pw:'Contraseña',go:'Entrar',chk:'Verificando…',bad:'Correo o contraseña incorrectos.',none:'Cuenta sin acceso de gestión.',out:'Salir',hi:'Hola',g:'Gestión global',n:'Gestión nacional',s:'Gestión estatal',open:'Abrir gestión',pick:'Elija el estado'},
+fr:{in:'Connexion',t:'Accéder à la gestion',em:'E-mail',pw:'Mot de passe',go:'Connexion',chk:'Vérification…',bad:'E-mail ou mot de passe incorrect.',none:'Ce compte n\'a pas accès à la gestion.',out:'Déconnexion',hi:'Bonjour',g:'Gestion globale',n:'Gestion nationale',s:'Gestion de l\'État',open:'Ouvrir la gestion',pick:'Choisissez l\'État'}};
+const X=k=>(L[LANG]||L.pt)[k];
+function sess(){try{const v=JSON.parse(sessionStorage.getItem(K)||'null');return v&&v.access_token?v:null}catch(e){return null}}
+function put(v){try{v?sessionStorage.setItem(K,JSON.stringify(v)):sessionStorage.removeItem(K)}catch(e){}}
+async function rq(path,tok,opt){const r=await fetch(SB+path,Object.assign({headers:{apikey:SK,Authorization:'Bearer '+(tok||SK),'Content-Type':'application/json'}},opt||{}));const t=await r.text();let d=null;try{d=t?JSON.parse(t):null}catch(e){}if(!r.ok)throw new Error((d&&(d.error_description||d.message||d.msg))||('HTTP '+r.status));return d}
+function msg(t,er){const m=$('lgM');m.textContent=t||'';m.className='lg-m'+(er?' er':'')}
+function labels(){$('lgT').textContent=X('t');$('lgE').placeholder=X('em');$('lgP').placeholder=X('pw');$('lgS').textContent=X('go');$('lgO').textContent=X('out');$('gLogin').textContent=sess()?X('open'):X('in')}
+async function levels(se){const tok=se.access_token,uid=se.user.id,out=[];
+  const [sr,ur]=await Promise.all([rq('/rest/v1/scope_roles?select=role,state_code,country_iso3&is_active=eq.true&user_id=eq.'+uid,tok).catch(()=>[]),rq('/rest/v1/user_roles?select=role&is_active=eq.true&user_id=eq.'+uid,tok).catch(()=>[])]);
+  let sts=null;const allS=async()=>sts||(sts=await rq('/rest/v1/states?select=code,name,country_iso3&order=name.asc',tok).catch(()=>[]));
+  for(const r of (sr||[])){
+    if(r.role==='global_board')out.push({lv:'g',st:(await allS())});
+    else if(r.role==='country_director')out.push({lv:'n',st:(await allS()).filter(x=>x.country_iso3===r.country_iso3)});
+    else if(r.role==='state_director'&&r.state_code){const a=(await allS()).find(x=>x.code===r.state_code);out.push({lv:'s',st:[a||{code:r.state_code,name:r.state_code}]})}}
+  if((ur||[]).length&&!out.some(o=>o.st.some(x=>x.code==='SC'))){const a=(await allS()).find(x=>x.code==='SC');out.push({lv:'s',st:[a||{code:'SC',name:'Santa Catarina'}]})}
+  const rank={g:0,n:1,s:2};out.sort((a,b)=>rank[a.lv]-rank[b.lv]);return out}
+function show(lv,se){const f=$('lgF'),l=$('lgL');f.hidden=true;$('lgO').hidden=false;l.innerHTML='';
+  if(!lv.length){msg(X('none'),1);return}
+  msg(X('hi')+', '+((se.user&&se.user.email)||'')+' · '+X(lv[0].lv));
+  const seen=new Set();lv.forEach(o=>{const h=document.createElement('div');h.className='lg-lv';h.textContent=X(o.lv)+(o.st.length>1?' · '+X('pick'):'');l.appendChild(h);
+    o.st.filter(x=>!seen.has(x.code)||o.lv==='g').forEach(x=>{seen.add(x.code);const a=document.createElement('a');a.className='pk-i';a.href='../beta/?uf='+encodeURIComponent(x.code);a.innerHTML='<i style="background:#c9a45c"></i>'+esc(x.name)+'<em class="g">'+esc(x.code)+'</em>';l.appendChild(a)})});
+  const as=l.querySelectorAll('a');if(as.length===1)location.href=as[0].href}
+async function open_(){lg.hidden=false;labels();$('lgL').innerHTML='';const se=sess();
+  if(se){$('lgF').hidden=true;msg(X('chk'));try{const u=await rq('/auth/v1/user',se.access_token);se.user=se.user||u;show(await levels(se),se)}catch(e){put(null);$('lgF').hidden=false;$('lgO').hidden=true;msg('')}}
+  else{$('lgF').hidden=false;$('lgO').hidden=true;msg('');setTimeout(()=>$('lgE').focus(),30)}}
+function close_(){lg.hidden=true;$('gLogin').focus()}
+$('gLogin').onclick=open_;$('lgX').onclick=close_;$('lgB').onclick=close_;
+$('lgO').onclick=()=>{put(null);$('lgL').innerHTML='';$('lgF').hidden=false;$('lgO').hidden=true;$('lgP').value='';msg('');labels()};
+$('lgF').onsubmit=async e=>{e.preventDefault();const b=$('lgS');b.disabled=true;msg(X('chk'));
+  try{const se=await rq('/auth/v1/token?grant_type=password',null,{method:'POST',body:JSON.stringify({email:$('lgE').value.trim(),password:$('lgP').value})});if(!se||!se.access_token)throw new Error('x');put(se);$('lgP').value='';show(await levels(se),se);labels()}
+  catch(er){msg(X('bad'),1)}finally{b.disabled=false}};
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!lg.hidden)close_()});
+window.updLogin=labels;labels();
 })();
 $('gTheme').onclick=()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('adh-tema',n)}catch(e){}};
 $('gIntro').onclick=()=>{document.documentElement.classList.remove('app-on');$('stage').classList.remove('gone');window.__play&&window.__play()};
