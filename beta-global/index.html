@@ -215,7 +215,7 @@ html.app-on .stage{pointer-events:none}
 </div>
 
 <main id="app" aria-label="Plataforma ADHONEP Global">
-  <header class="g-top"><img src="assets/logo-branca.png" alt="ADHONEP"><b>ADHONEP <i>·</i> BUSINESSMAN NETWORK</b><span class="sp"></span><button class="g-btn g-pick" id="gPick" type="button" aria-haspopup="dialog"><i class="pd"></i><span id="gPickT">Mundo</span><svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button><button class="g-btn g-login" id="gLogin" type="button" aria-haspopup="dialog">Entrar</button><button class="g-btn" id="gTheme" type="button" title="Alternar claro/escuro">◐ Tema</button><button class="g-btn" id="gIntro" type="button">↻ Abertura</button></header>
+  <header class="g-top"><img src="assets/logo-branca.png" alt="ADHONEP"><b>ADHONEP <i>·</i> BUSINESSMAN NETWORK</b><span class="sp"></span><button class="g-btn g-pick" id="gPick" type="button" aria-haspopup="dialog"><i class="pd"></i><span id="gPickT">Mundo</span><svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button><button class="g-btn" id="gLang" type="button" aria-haspopup="dialog" title="Idioma / Language">PT</button><button class="g-btn g-login" id="gLogin" type="button" aria-haspopup="dialog">Entrar</button><button class="g-btn" id="gTheme" type="button" title="Alternar claro/escuro">◐ Tema</button><button class="g-btn" id="gIntro" type="button">↻ Abertura</button></header>
 <div class="pk" id="lg" hidden role="dialog" aria-modal="true" aria-label="Entrar"><div class="pk-b" id="lgB"></div><div class="pk-p lg-p"><div class="pk-h"><b id="lgT" class="lg-t">Entrar</b><button type="button" class="pk-x" id="lgX" aria-label="Fechar">✕</button></div><form id="lgF" class="lg-f"><input id="lgE" type="email" autocomplete="username" required placeholder="E-mail"><input id="lgP" type="password" autocomplete="current-password" required placeholder="Senha"><button class="lg-go" id="lgS" type="submit">Entrar</button></form><p class="lg-m" id="lgM" role="status"></p><div class="pk-l" id="lgL"></div><button type="button" class="lg-out" id="lgO" hidden>Sair</button></div></div>
   <div class="pk" id="pk" hidden role="dialog" aria-modal="true" aria-label="Países"><div class="pk-b" id="pkB"></div><div class="pk-p"><div class="pk-h"><input id="pkQ" type="search" autocomplete="off" placeholder="Buscar país…"><button type="button" class="pk-x" id="pkX" aria-label="Fechar">✕</button></div><div class="g-ch" id="pkC"></div><div class="pk-l" id="pkL" role="listbox"></div></div></div>
   <div class="g-wrap">
@@ -328,8 +328,10 @@ function play(){
 }
 
 $("replay").addEventListener("click", play); window.__play = play;
-window.addEventListener("load", () => setTimeout(play, 150));
-if (document.readyState === "complete") setTimeout(play, 150);
+let SEEN=false;try{SEEN=localStorage.getItem("adh-seen")==="1"}catch(e){}
+if (SEEN){ document.documentElement.classList.add("app-on"); stage.classList.add("gone"); }
+else{ window.addEventListener("load", () => setTimeout(play, 150));
+if (document.readyState === "complete") setTimeout(play, 150); }
 </script>
 <script>
 (function(){
@@ -346,7 +348,7 @@ let LANG='pt';try{LANG=localStorage.getItem('adh-lang')||'pt'}catch(e){}if(!TR[L
 const T=k=>(TR[LANG]||TR.pt)[k]||TR.pt[k]||k;
 const dnames=()=>new Intl.DisplayNames([LANG],{type:'region'});
 let DN=dnames();const cname=c=>{try{return /^X/.test(c.c)?c.n:DN.of(c.c)}catch(e){return c.n}};
-function applyStatic(){window.updLogin&&window.updLogin();document.documentElement.lang=LANG==='pt'?'pt-BR':LANG;$('gTheme').textContent=T('theme');$('gIntro').textContent=T('intro');document.querySelector('.g-hint').textContent=T('hint');$('gNote').textContent=T('note');$('gPriv').textContent=T('priv')}
+function applyStatic(){const gl=document.getElementById('gLang');if(gl)gl.textContent=LANG.toUpperCase();window.updLogin&&window.updLogin();document.documentElement.lang=LANG==='pt'?'pt-BR':LANG;$('gTheme').textContent=T('theme');$('gIntro').textContent=T('intro');document.querySelector('.g-hint').textContent=T('hint');$('gNote').textContent=T('note');$('gPriv').textContent=T('priv')}
 function setLang(l){LANG=l;try{localStorage.setItem('adh-lang',l)}catch(e){}DN=dnames();applyStatic();({world:drawWorld,country:()=>TO?tourShow():pickCountry(ctry),br:drawBR,uf:()=>openUF(cur.sigla)})[lvl]()}
 const px=(a,d)=>a/d*K, py=(a,d)=>-a/d, fmt=n=>n.toLocaleString('pt-BR');
 function ne(lon,lat){const l=lon*Math.PI/180,f=lat*Math.PI/180,f2=f*f,f4=f2*f2;
@@ -638,6 +640,7 @@ $('lgF').onsubmit=async e=>{e.preventDefault();const b=$('lgS');b.disabled=true;
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!lg.hidden)close_()});
 window.updLogin=labels;labels();
 })();
+$('gLang').onclick=()=>window.__openRg&&window.__openRg();
 $('gTheme').onclick=()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('adh-tema',n)}catch(e){}};
 $('gIntro').onclick=()=>{document.documentElement.classList.remove('app-on');$('stage').classList.remove('gone');window.__play&&window.__play()};
 
@@ -652,7 +655,7 @@ fr:['Français','<svg viewBox="0 0 72 50"><rect width="24" height="50" fill="#00
   const fi=c=>'assets/rf/'+String(c).toLowerCase()+'.png';
   fl.innerHTML='<button class="rp" id="rp" type="button" aria-haspopup="dialog" aria-label="Select your region"><img src="'+fi('BR')+'" alt="" width="34" height="34"><svg width="16" height="10" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>';
   $('rgG').innerHTML='<button type="button" data-l="pt">Português</button><button type="button" data-l="es">Español</button><button type="button" data-l="en">English</button><button type="button" data-l="fr">Français</button>';
-  function go(lang,c){close();setLang(lang);document.documentElement.classList.add('app-on');$('stage').classList.add('gone');scrollTo(0,0);if(c)setTimeout(()=>{try{pickCountry(c)}catch(e){}},500)}
+  function go(lang,c){close();try{localStorage.setItem('adh-seen','1')}catch(e){}setLang(lang);document.documentElement.classList.add('app-on');$('stage').classList.add('gone');scrollTo(0,0);if(c)setTimeout(()=>{try{pickCountry(c)}catch(e){}},500)}
   function item(c){const b=document.createElement('button');b.type='button';b.className='rg-i';b.innerHTML='<img loading="lazy" decoding="async" src="'+fi(c.c)+'" alt="" width="40" height="40" onerror="this.style.visibility=\'hidden\'">'+esc(c.n);b.onclick=()=>go(lg2(c.c),c);return b}
   function render(){const t=rq.value.trim().toLowerCase();rl.innerHTML='';if(!W.length){rl.innerHTML='<p style="padding:14px;color:#999">…</p>';return}
     const L=W.filter(c=>!t||c.n.toLowerCase().includes(t)||(c.pt||'').toLowerCase().includes(t)||(c.c||'').toLowerCase()===t||c.id.toLowerCase()===t).sort((a,b)=>a.n.localeCompare(b.n,'en'));
@@ -661,7 +664,7 @@ fr:['Français','<svg viewBox="0 0 72 50"><rect width="24" height="50" fill="#00
     sec('ADHONEP · '+A.length+' countries',A);sec(A.length?'All countries':'',R)}
   function open(){rg.hidden=false;rq.value='';render();setTimeout(()=>rq.focus({preventScroll:true}),40)}
   function close(){rg.hidden=true}
-  $('rp').onclick=open;$('rgX').onclick=close;$('rgB').onclick=close;rq.addEventListener('input',render);
+  $('rp').onclick=open;window.__openRg=open;$('rgX').onclick=close;$('rgB').onclick=close;rq.addEventListener('input',render);
   $('rgG').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.l)};
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!rg.hidden){close();$('rp').focus()}});
 })();
