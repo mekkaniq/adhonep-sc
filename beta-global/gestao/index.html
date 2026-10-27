@@ -119,10 +119,10 @@ const J=u=>fetch(u).then(r=>{if(!r.ok)throw new Error(u);return r.json()});
 
 /* ---------- entrada ---------- */
 async function levelOf(){const u=await api('/auth/v1/user');ME=u;const [sr,ur]=await Promise.all([rpc('adh_my_scope_roles').catch(()=>[]),api('/rest/v1/user_roles?select=role&is_active=eq.true&user_id=eq.'+u.id).catch(()=>[])]);
-  if((sr||[]).some(r=>r.role==='global_board')||(ur||[]).some(r=>r.role==='state_admin'))return'g';
+  if((sr||[]).some(r=>r.role==='global_board'))return'g';
   if((sr||[]).some(r=>r.role==='country_director'&&r.country_iso3==='BRA'))return'n';return''}
 async function enter(){try{LV=await levelOf()}catch(e){save(null);$('lg').hidden=false;return}
-  if(!LV){save(null);$('lg').hidden=false;msg('lgM','Esta conta não tem acesso à gestão global ou nacional.');$('lgM').className='';$('lgM').style.color='#e8a0a0';return}
+  if(!LV){save(null);$('lg').hidden=false;msg('lgM','Esta conta não tem acesso à gestão global. Use o login da plataforma do seu estado em /beta-global/estado/.');$('lgM').className='';$('lgM').style.color='#e8a0a0';return}
   $('lg').hidden=true;$('app').hidden=false;$('shell').hidden=false;$('whoN').textContent=ME.email||'';$('whoR').textContent=LV==='g'?'Diretoria global':'Diretor nacional · Brasil';
   document.querySelectorAll('.nav[data-g]').forEach(b=>b.hidden=LV!=='g');go((location.hash||'').slice(1)||(LV==='g'?'visao':'brasil'))}
 $('lgF').onsubmit=async e=>{e.preventDefault();const b=$('lgS');b.disabled=true;$('lgM').style.color='#9fb2c8';$('lgM').textContent='Verificando…';
