@@ -28,6 +28,7 @@ async function adhRefreshSession(){
  adhStoreSession(data);return data;
 }
 async function adhFetch(path, options={}, retried=false){
+ if((!options.method||options.method==='GET')&&/^\/rest\/v1\/(chapters|regions|municipalities)\?/.test(path)&&!/state_code=/.test(path))path+='&state_code=eq.SC'; /* ADHONEP-SC: só dados de SC */
  if(!retried&&window.adhScopePath){options=window.adhScopeBody(path,options);path=window.adhScopePath(path)}
  const headers=adhHeaders(options.headers||{});
  const res=await fetch(ADH_SUPABASE_URL+path,{...options,headers});

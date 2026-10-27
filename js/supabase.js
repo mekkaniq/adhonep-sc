@@ -1,4 +1,4 @@
-window.ADH_VER_SB='3.19';
+window.ADH_VER_SB='3.20';
 /* Endereço (slug) da Edge Function que cria contas, como o Supabase a publicou: .../functions/v1/rapid-responder */
 const ADH_USER_FN='rapid-responder';
 
@@ -28,6 +28,7 @@ async function adhRefreshSession(){
  adhStoreSession(data);return data;
 }
 async function adhFetch(path, options={}, retried=false){
+ if((!options.method||options.method==='GET')&&/^\/rest\/v1\/(chapters|regions|municipalities)\?/.test(path)&&!/state_code=/.test(path))path+='&state_code=eq.SC'; /* ADHONEP-SC: só dados de SC */
  const headers=adhHeaders(options.headers||{});
  const res=await fetch(ADH_SUPABASE_URL+path,{...options,headers});
  if(res.status===401&&adhSession?.refresh_token&&!retried){
