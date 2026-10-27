@@ -159,12 +159,19 @@ html.wv .g-st div,html.wv .g-side{background:var(--g-card);border-color:var(--g-
 .enter{margin-top:6px;font:600 14px var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--navy);background:linear-gradient(135deg,var(--gold-soft),var(--gold));border:0;border-radius:999px;padding:14px 30px;cursor:pointer;opacity:0;transform:translateY(10px);transition:opacity .9s ease .45s,transform .9s ease .45s,filter .2s;pointer-events:none}
 .s3 .enter{opacity:1;transform:none;pointer-events:auto}.enter:hover{filter:brightness(1.08)}
 .flags{display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(12px,2.4vw,26px);opacity:0;transform:translateY(10px);transition:opacity .9s ease .45s,transform .9s ease .45s;pointer-events:none}
-.wc{margin-top:clamp(18px,3.4vh,34px);display:grid;justify-items:center;gap:12px;opacity:0;transition:opacity 1s ease 1.1s;pointer-events:none}.s3 .wc{opacity:1}
-.wc p{margin:0;font:500 12px var(--body);letter-spacing:.2em;text-transform:uppercase;color:rgba(231,238,248,.7)}.wc p b{color:var(--gold);font-weight:600;font-size:15px;letter-spacing:.08em}
-.wcf{display:flex;flex-wrap:wrap;justify-content:center;gap:10px 12px;max-width:min(640px,92vw)}.wcf img{width:34px;height:auto;display:block;filter:drop-shadow(0 4px 8px rgba(0,0,0,.45));opacity:0;transform:translateY(14px) scale(.7)}
-.s3 .wcf img{animation:wcIn .7s cubic-bezier(.2,.8,.2,1) forwards,wcBob 3.6s ease-in-out infinite;animation-delay:calc(1.2s + var(--i)*.07s),calc(2.6s + var(--i)*.16s)}
-@keyframes wcIn{to{opacity:1;transform:none}}@keyframes wcBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
-@media(max-width:640px){.wcf img{width:26px}.wcf{gap:8px 8px}.wc{margin-top:14px;gap:9px}.flags{gap:6px;flex-wrap:nowrap}.flags .fl{padding:3px}.flags .fl svg{width:60px;height:42px}.flags .fl span{font-size:11.5px}}@media(prefers-reduced-motion:reduce){.s3 .wcf img{animation:none;opacity:1;transform:none}}
+.rp{display:inline-flex;align-items:center;gap:10px;background:#1a1a1a;border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:7px 14px 7px 8px;cursor:pointer;color:#fff;transition:background .2s,transform .25s;box-shadow:0 10px 30px rgba(0,0,0,.45)}.rp:hover,.rp:focus-visible{background:#2c2c2c;outline:none;transform:translateY(-2px)}
+.rp img{width:34px;height:34px;border-radius:50%;display:block}.rp svg{opacity:.85}
+.rg{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px}.rg[hidden]{display:none}.rg-b{position:absolute;inset:0;background:rgba(0,0,0,.62);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.rg-p{position:relative;width:min(560px,100%);max-height:min(88vh,760px);display:flex;flex-direction:column;gap:14px;background:#131313;border:1px solid rgba(255,255,255,.1);border-radius:26px;padding:22px 18px 10px;color:#fff;box-shadow:0 30px 80px rgba(0,0,0,.6);animation:rgIn .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes rgIn{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
+.rg-h{display:flex;justify-content:space-between;align-items:center;padding:0 6px}.rg-h b{font:600 19px var(--body)}.rg-x{background:none;border:0;color:#bbb;font-size:20px;cursor:pointer;width:34px;height:34px;border-radius:50%}.rg-x:hover{background:#2c2c2c;color:#fff}
+.rg-q{display:flex;align-items:center;gap:10px;background:#222;border:1px solid #333;border-radius:14px;padding:0 14px}.rg-q:focus-within{border-color:#c9a45c}.rg-q input{flex:1;background:none;border:0;outline:none;color:#fff;font:500 16px var(--body);padding:13px 0}.rg-q svg{opacity:.55;flex:none}
+.rg-lg{display:flex;gap:8px;flex-wrap:wrap;padding:0 4px}.rg-lg button{font:600 12px var(--body);letter-spacing:.06em;background:#222;color:#ddd;border:1px solid #333;border-radius:999px;padding:7px 13px;cursor:pointer}.rg-lg button:hover{border-color:#c9a45c;color:#fff}
+.rg-l{overflow:auto;display:flex;flex-direction:column;-webkit-overflow-scrolling:touch;margin:0 -6px;padding:0 6px 10px}
+.rg-s{font:600 11px var(--body);letter-spacing:.14em;text-transform:uppercase;color:#c9a45c;padding:14px 10px 6px}
+.rg-i{display:flex;align-items:center;gap:16px;width:100%;text-align:left;background:none;border:0;border-radius:14px;padding:9px 10px;cursor:pointer;color:#fff;font:600 17px var(--body)}.rg-i:hover,.rg-i:focus-visible{background:#262626;outline:none}.rg-i img{width:40px;height:40px;border-radius:50%;flex:none;background:#2c2c2c}
+@media(max-width:640px){.rg{padding:0;align-items:flex-end}.rg-p{border-radius:24px 24px 0 0;max-height:90vh}.rg-i{font-size:16px}}
+@media(prefers-reduced-motion:reduce){.rg-p{animation:none}}
 .s3 .flags{opacity:1;transform:none;pointer-events:auto}
 .fl{display:grid;justify-items:center;gap:9px;background:none;border:0;cursor:pointer;color:var(--ink);font:500 13px var(--body);letter-spacing:.04em;padding:6px;border-radius:12px}
 .fl svg{width:72px;height:50px;border-radius:7px;box-shadow:0 0 0 1px rgba(255,255,255,.18),0 8px 22px rgba(0,0,0,.45);transition:transform .25s,box-shadow .25s}
@@ -183,6 +190,7 @@ html.app-on .stage{pointer-events:none}
 
 </head>
 <body>
+<div class="rg" id="rg" hidden role="dialog" aria-modal="true" aria-label="Select your region"><div class="rg-b" id="rgB"></div><div class="rg-p"><div class="rg-h"><b>Select your region</b><button type="button" class="rg-x" id="rgX" aria-label="Close">✕</button></div><label class="rg-q"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="rgQ" type="search" autocomplete="off" placeholder="Search by country or region"></label><div class="rg-lg" id="rgG" role="group" aria-label="Language"></div><div class="rg-l" id="rgL"></div></div></div>
 <div class="stage" id="stage">
   <section class="scene" aria-label="ADHONEP Global">
     <div class="sky" aria-hidden="true"></div><div class="shade" aria-hidden="true"></div>
@@ -195,7 +203,6 @@ html.app-on .stage{pointer-events:none}
       <div class="rule" aria-hidden="true"></div>
       <p class="tag" id="tag" lang="en">Choose your language</p>
       <div class="flags" id="flags" role="group" aria-label="Choose your language"></div>
-      <div class="wc" id="wc" aria-label="Present in 19 countries"><p lang="en"><b>19</b> countries · one network</p><div class="wcf" id="wcf"></div></div>
     </div>
     <div class="foot"><span></span><button class="replay" id="replay" type="button">↻ Ver a abertura de novo</button></div>
   </section>
@@ -638,9 +645,26 @@ pt:['Português','<svg viewBox="0 0 72 50"><rect width="72" height="50" fill="#2
 es:['Español','<svg viewBox="0 0 72 50"><rect width="72" height="50" fill="#c60b1e"/><rect y="12.5" width="72" height="25" fill="#ffc400"/></svg>'],
 en:['English','<svg viewBox="0 0 72 50"><rect width="72" height="50" fill="#fff"/><g fill="#b22234"><rect width="72" height="3.85"/><rect y="7.7" width="72" height="3.85"/><rect y="15.4" width="72" height="3.85"/><rect y="23.1" width="72" height="3.85"/><rect y="30.8" width="72" height="3.85"/><rect y="38.5" width="72" height="3.85"/><rect y="46.2" width="72" height="3.8"/></g><rect width="32" height="27" fill="#3c3b6e"/><g fill="#fff"><circle cx="6" cy="5" r="1.2"/><circle cx="14" cy="5" r="1.2"/><circle cx="22" cy="5" r="1.2"/><circle cx="10" cy="11" r="1.2"/><circle cx="18" cy="11" r="1.2"/><circle cx="26" cy="11" r="1.2"/><circle cx="6" cy="17" r="1.2"/><circle cx="14" cy="17" r="1.2"/><circle cx="22" cy="17" r="1.2"/><circle cx="10" cy="22.5" r="1.2"/><circle cx="18" cy="22.5" r="1.2"/><circle cx="26" cy="22.5" r="1.2"/></g></svg>'],
 fr:['Français','<svg viewBox="0 0 72 50"><rect width="24" height="50" fill="#0055a4"/><rect x="24" width="24" height="50" fill="#fff"/><rect x="48" width="24" height="50" fill="#ef4135"/></svg>']};
-(function(){const fl=$('flags');Object.keys(FLAGS).forEach(k=>{const b=document.createElement('button');b.type='button';b.className='fl';b.lang=k;b.setAttribute('aria-label',FLAGS[k][0]);b.innerHTML=FLAGS[k][1]+'<span>'+FLAGS[k][0]+'</span>';b.onclick=()=>{setLang(k);document.documentElement.classList.add('app-on');$('stage').classList.add('gone');scrollTo(0,0)};fl.appendChild(b)})})();
+(function(){const fl=$('flags'),rg=$('rg'),rq=$('rgQ'),rl=$('rgL');
+  const PT='BR PT AO MZ CV GW ST TL'.split(' '),ES='ES MX AR CO CL PE VE EC BO PY UY CR PA GT HN SV NI DO CU GQ'.split(' '),FR='FR HT SN CI CM CD CG GA ML BF NE TG BJ GN MG DJ TD CF BI LU MC'.split(' ');
+  const lg2=c=>PT.includes(c)?'pt':ES.includes(c)?'es':FR.includes(c)?'fr':'en';
+  const fi=c=>'assets/rf/'+String(c).toLowerCase()+'.png';
+  fl.innerHTML='<button class="rp" id="rp" type="button" aria-haspopup="dialog" aria-label="Select your region"><img src="'+fi('BR')+'" alt="" width="34" height="34"><svg width="16" height="10" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>';
+  $('rgG').innerHTML='<button type="button" data-l="pt">Português</button><button type="button" data-l="es">Español</button><button type="button" data-l="en">English</button><button type="button" data-l="fr">Français</button>';
+  function go(lang,c){close();setLang(lang);document.documentElement.classList.add('app-on');$('stage').classList.add('gone');scrollTo(0,0);if(c)setTimeout(()=>{try{pickCountry(c)}catch(e){}},500)}
+  function item(c){const b=document.createElement('button');b.type='button';b.className='rg-i';b.innerHTML='<img loading="lazy" decoding="async" src="'+fi(c.c)+'" alt="" width="40" height="40" onerror="this.style.visibility=\'hidden\'">'+esc(c.n);b.onclick=()=>go(lg2(c.c),c);return b}
+  function render(){const t=rq.value.trim().toLowerCase();rl.innerHTML='';if(!W.length){rl.innerHTML='<p style="padding:14px;color:#999">…</p>';return}
+    const L=W.filter(c=>!t||c.n.toLowerCase().includes(t)||(c.pt||'').toLowerCase().includes(t)||(c.c||'').toLowerCase()===t||c.id.toLowerCase()===t).sort((a,b)=>a.n.localeCompare(b.n,'en'));
+    const A=L.filter(c=>ADH.has(c.id)),R=L.filter(c=>!ADH.has(c.id));
+    const sec=(h,arr)=>{if(!arr.length)return;const d=document.createElement('div');d.className='rg-s';d.textContent=h;rl.appendChild(d);arr.forEach(c=>rl.appendChild(item(c)))};
+    sec('ADHONEP · '+A.length+' countries',A);sec(A.length?'All countries':'',R)}
+  function open(){rg.hidden=false;rq.value='';render();setTimeout(()=>rq.focus({preventScroll:true}),40)}
+  function close(){rg.hidden=true}
+  $('rp').onclick=open;$('rgX').onclick=close;$('rgB').onclick=close;rq.addEventListener('input',render);
+  $('rgG').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.l)};
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!rg.hidden){close();$('rp').focus()}});
+})();
 
-(function(){const w=$('wcf');['br','de','ar','az','kz','cn','cy','co','sv','es','us','mx','pt','ru','tr','uy','ae','za','by'].forEach((c,i)=>{const m=document.createElement('img');m.src='assets/flags/'+c+'.png';m.alt=c.toUpperCase();m.width=34;m.style.setProperty('--i',i);w.appendChild(m)})})();
 const J=u=>fetch(u).then(r=>r.json());
 Promise.all([J('data/regioes.json').catch(()=>null),J('data/capitulos.json').catch(()=>({})),J('data/conteudo.json').catch(()=>CT),J('data/world.json'),J('data/paises.json'),J('data/uf.json'),J('data/adhonep.json')]).then(r=>{RG=r[0];CAP=r[1];CT=r[2];W=r[3];PI=r[4];UF=r[5];ADH=new Set(r[6]);applyStatic();drawWorld();deepLink();loadLive()}).catch(()=>{$('gSub').textContent='Abra por um servidor HTTP (não direto pelo arquivo).'});
 })();
