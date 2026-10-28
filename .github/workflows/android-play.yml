@@ -1,0 +1,106 @@
+name: App Android → Google Play
+# Manual: Actions → "App Android → Google Play" → Run workflow. Gera o arquivo .aab para enviar ao Google Play
+# e um .apk para instalar direto no celular (Xiaomi) e testar.
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Número do build (aumente a cada envio: 1, 2, 3...)"
+        required: true
+        default: "1"
+      version_name:
+        description: "Versão exibida"
+        required: true
+        default: "1.0.0"
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      APP_ID: br.com.adhonepemsc.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 21 }
+      - name: Dependências e site embutido
+        working-directory: app
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          npm install --legacy-peer-deps
+          npm run web
+          # sem Firebase (google-services.json) o push do Android não pode iniciar: desliga no app
+          if [ -z "$GSJ" ]; then
+            sed -i 's#</head>#<script>window.ADH_NO_PUSH=1</script></head>#' www/index.html
+          fi
+          npx cap add android
+          npx capacitor-assets generate --android --iconBackgroundColor '#102b4e' --splashBackgroundColor '#102b4e'
+          npx cap sync android
+      - name: Firebase (opcional, para notificações)
+        working-directory: app
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GSJ" ]; then printf '%s' "$GSJ" > android/app/google-services.json; fi
+      - name: Versão, permissões e cor da barra
+        working-directory: app/android
+        run: |
+          sed -i "s/versionCode [0-9]*/versionCode ${{ inputs.build_number }}/; s/versionName \"[^\"]*\"/versionName \"${{ inputs.version_name }}\"/" app/build.gradle
+          M=app/src/main/AndroidManifest.xml
+          for P in POST_NOTIFICATIONS READ_CALENDAR WRITE_CALENDAR USE_BIOMETRIC ACCESS_COARSE_LOCATION ACCESS_FINE_LOCATION; do
+            grep -q "android.permission.$P" $M || sed -i "s#<application#<uses-permission android:name=\"android.permission.$P\" />\n    <application#" $M
+          done
+          grep -q "google-services" app/build.gradle || true
+      - name: Chave de assinatura (upload)
+        id: key
+        working-directory: app/android
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_SECRET: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > app/upload.jks
+            echo "KS_PASS=$KS_SECRET" >> $GITHUB_ENV
+            echo "new=0" >> $GITHUB_OUTPUT
+          else
+            # primeira vez: cria a chave e guarda num artefato privado para você salvar como segredo
+            PW=$(openssl rand -hex 16)
+            keytool -genkeypair -v -keystore app/upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass "$PW" -keypass "$PW" -dname "CN=ADHONEP-SC, O=ADHONEP, C=BR" 2>/dev/null
+            echo "KS_PASS=$PW" >> $GITHUB_ENV
+            mkdir -p ../../chave-android
+            base64 -w0 app/upload.jks > ../../chave-android/ANDROID_KEYSTORE_B64.txt
+            printf '%s' "$PW" > ../../chave-android/ANDROID_KEYSTORE_PASSWORD.txt
+            echo "new=1" >> $GITHUB_OUTPUT
+          fi
+      - name: Compilar (.aab e .apk assinados)
+        working-directory: app/android
+        run: |
+          cat >> app/build.gradle <<GRADLE
+
+          android {
+              signingConfigs {
+                  upload {
+                      storeFile file("upload.jks")
+                      storePassword System.getenv("KS_PASS")
+                      keyAlias "upload"
+                      keyPassword System.getenv("KS_PASS")
+                  }
+              }
+              buildTypes { release { signingConfig signingConfigs.upload } }
+          }
+          GRADLE
+          chmod +x gradlew
+          ./gradlew --no-daemon bundleRelease assembleRelease
+      - name: Reunir arquivos
+        run: |
+          mkdir -p saida
+          cp app/android/app/build/outputs/bundle/release/*.aab saida/ADHONEP-SC.aab
+          cp app/android/app/build/outputs/apk/release/*.apk saida/ADHONEP-SC.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: android-ADHONEP-SC, path: saida/*, retention-days: 30 }
+      - uses: actions/upload-artifact@v4
+        if: ${{ steps.key.outputs.new == '1' }}
+        with: { name: chave-android-GUARDE-PRIVADO, path: chave-android/*, retention-days: 7 }
