@@ -51,3 +51,8 @@ Conta Google Play: US$ 25 (única vez). O mesmo pacote gera o Android (`npm run 
 ```
 cd app && npm install && npm run web && npx cap add ios && npm run assets && npx cap sync ios && npx cap open ios
 ```
+
+## Atualização — recursos de app já incluídos
+- Barra inferior nativa (Início, Capítulos, Eventos, Sobre, Conta), área segura do iPhone, links externos no navegador do sistema, compartilhar nativo.
+- **Exclusão de conta**: Conta → "Solicitar exclusão da conta" (desativa acessos; coordenação conclui; pedidos ficam em `account_deletion_requests`).
+- **Push**: o app pede permissão e registra o aparelho (`device_tokens`). Falta o **envio**, que precisa da chave APNs (.p8 de Push) da sua conta Apple: Certificates, Identifiers & Profiles → Keys → + → Apple Push Notifications service (APNs). Quando tiver, me passe Key ID e Team ID e eu ligo o envio por evento/comunicado.
