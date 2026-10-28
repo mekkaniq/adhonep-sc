@@ -35,6 +35,7 @@
 
  /* 4) Notificações push: pede permissão uma vez e registra o dispositivo */
  var PN=P.PushNotifications;
+ if(window.ADH_NO_PUSH){PN=null}
  if(PN){
   PN.addListener('registration',function(t){rpc('adh_register_device',{p_token:t.value,p_platform:(C.getPlatform&&C.getPlatform())==='android'?'android':'ios'},true)});
   PN.addListener('pushNotificationActionPerformed',function(n){var d=(n.notification&&n.notification.data)||{};try{if(d.section==='eventsSection'&&window.adhGoTab)window.adhGoTab('events');else if(window.adhOpenAvisos)window.adhOpenAvisos()}catch(e){}});

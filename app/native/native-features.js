@@ -16,19 +16,25 @@
  function offerFaceId(){
   if(!NATIVE||ls('adh-faceid')||!sess()||!sess().refresh_token)return;
   bioOk().then(function(ok){if(!ok)return;
-   var o=pop('<div class="av-h"><b>Entrar com Face ID?</b><button class="av-x" aria-label="Fechar">✕</button></div><p style="color:#4a5a73;font-size:14px">Nas próximas vezes você entra sem digitar a senha. Seus dados de acesso ficam protegidos no iPhone.</p><div class="av-f"><button class="go" id="fidYes">Ativar Face ID</button><button class="go" id="fidNo" style="background:#eef2f8;color:#102b4e">Agora não</button></div>');
+   var o=pop('<div class="av-h"><b>Entrar com Face ID?</b><button class="av-x" aria-label="Fechar">×</button></div><p style="color:#4a5a73;font-size:14px">Nas próximas vezes você entra sem digitar a senha. Seus dados de acesso ficam protegidos no iPhone.</p><div class="av-f"><button class="go" id="fidYes">Ativar Face ID</button><button class="go" id="fidNo" style="background:#eef2f8;color:#102b4e">Agora não</button></div>');
    $('fidNo').onclick=function(){ls('adh-faceid','off');o.remove()};
    $('fidYes').onclick=function(){var s=sess();bioAsk('Ativar entrada com Face ID').then(function(){return SS.set({key:KEY,data:s.refresh_token})}).then(function(){ls('adh-faceid','on');o.remove()}).catch(function(){o.remove()})};
   })}
  function faceLogin(){
   if(!NATIVE||ls('adh-faceid')!=='on'||sess())return;
-  var o=pop('<div class="av-h"><b>Entrar com Face ID</b><button class="av-x" aria-label="Fechar">✕</button></div><div class="av-f"><button class="go" id="fidGo">Usar Face ID</button><p id="fidM" style="font-size:13px;color:#4a5a73"></p></div>');
+  var o=pop('<div class="av-h"><b>Entrar com Face ID</b><button class="av-x" aria-label="Fechar">×</button></div><div class="av-f"><button class="go" id="fidGo">Usar Face ID</button><p id="fidM" style="font-size:13px;color:#4a5a73"></p></div>');
   function run(){var m=$('fidM');bioAsk('Entrar no ADHONEP-SC').then(function(){return SS.get({key:KEY})}).then(function(r){var rt=r&&(r.data||r.value);if(!rt)throw new Error('sem token');
     return fetch(ADH_SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:ADH_SUPABASE_KEY,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:rt})}).then(function(x){return x.json()})})
    .then(function(d){if(!d||!d.access_token)throw new Error('expirou');adhStoreSession(d);SS.set({key:KEY,data:d.refresh_token}).catch(function(){});o.remove();return adhValidateRestoredSession()})
    .then(function(ok){try{if(ok&&adhProfile&&adhProfile.role!=='member')setMode('admin')}catch(e){}})
    .catch(function(e){if(m)m.textContent=(e&&/expirou|sem token/.test(e.message))?'Sessão expirada. Entre com e-mail e senha.':'';if(e&&/expirou|sem token/.test(e.message)){ls('adh-faceid','');try{SS.remove({key:KEY})}catch(x){}}})}
   $('fidGo').onclick=run;setTimeout(run,300)}
+ window.adhFaceId={
+  available:bioOk,
+  isOn:function(){return ls('adh-faceid')==='on'},
+  enable:function(){var t=sess();if(!t||!t.refresh_token)return Promise.reject(new Error('sem sessão'));return bioAsk('Ativar entrada com Face ID').then(function(){return SS.set({key:KEY,data:t.refresh_token})}).then(function(){ls('adh-faceid','on')})},
+  disable:function(){ls('adh-faceid','off');try{SS.remove({key:KEY})}catch(e){}return Promise.resolve()}
+ };
  window.addEventListener('load',function(){setTimeout(faceLogin,1200)});
  setInterval(offerFaceId,4000);
  /* ao sair, limpa o que foi guardado */

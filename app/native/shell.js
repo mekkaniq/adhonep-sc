@@ -359,6 +359,8 @@ function settingsHtml(){
  var pref='auto';try{pref=localStorage.getItem('adh-tema')||'auto'}catch(e){}
  var h='<div class="st-box"><div class="st-who"><b id="stName">'+esc((p&&p.label)||'Conta')+'</b><span id="stMail"></span></div><button class="mr-r" data-a="acct">'+ic('user')+'<span class="lb">Minha conta</span>'+ic('chev')+'</button></div>';
  h+='<div class="st-g">Aparência</div><div class="st-box"><div class="st-seg" data-seg>'+[['auto','Automático','sliders'],['light','Claro','sun'],['dark','Escuro','moon']].map(function(t){return '<button type="button" data-t="'+t[0]+'" class="'+(pref===t[0]?'on':'')+'">'+ic(t[2],'xs')+t[1]+'</button>'}).join('')+'</div></div>';
+ var fid='';if(window.adhFaceId&&window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())fid='<div class="st-g">Acesso</div><div class="st-box"><button class="mr-r" data-a="fid">'+ic('lock')+'<span class="lb">Entrar com Face ID</span><span class="st-st" id="fidSt">'+(adhFaceId.isOn()?'Ativado':'Desativado')+'</span></button></div>';
+ h+=fid;
  var extra='';
  if(can('audit'))extra+='<button class="mr-r" data-a="audit">'+ic('clock')+'<span class="lb">Histórico de ações</span>'+ic('chev')+'</button>';
  if(can('lgpd'))extra+='<button class="mr-r" data-a="lgpd">'+ic('lock')+'<span class="lb">Privacidade (LGPD)</span>'+ic('chev')+'</button>';
@@ -367,7 +369,8 @@ function settingsHtml(){
  return h}
 function bindSettings(root,close){
  root.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){setTheme(b.dataset.t);root.querySelectorAll('[data-t]').forEach(function(x){x.classList.toggle('on',x===b)})}});
- root.querySelectorAll('[data-a]').forEach(function(b){b.onclick=function(){var a=b.dataset.a;if(close)close();
+ root.querySelectorAll('[data-a]').forEach(function(b){b.onclick=function(){var a=b.dataset.a;if(a!=='fid'&&close)close();
+  if(a==='fid'){var st=root.querySelector('#fidSt');(adhFaceId.isOn()?adhFaceId.disable():adhFaceId.enable()).then(function(){if(st)st.textContent=adhFaceId.isOn()?'Ativado':'Desativado';toast(adhFaceId.isOn()?'Face ID ativado.':'Face ID desativado.')}).catch(function(){toast('Não foi possível ativar o Face ID.')});return}
   if(a==='acct'){try{openAccount()}catch(e){}}
   else if(a==='audit'||a==='lgpd'){setMode('admin');go(a)}
   else if(a==='out'){try{signOutAdmin()}catch(e){}S.landed=false;S.rankAccess=null;S.unread=0;setTab('home')}}});

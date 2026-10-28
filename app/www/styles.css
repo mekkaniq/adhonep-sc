@@ -1168,3 +1168,4 @@ html.in-app .cpage{padding-top:env(safe-area-inset-top)}
 .rk-acc form{display:grid;gap:8px;margin-top:12px}
 /* admin: fundo contínuo (sem faixa escura abaixo do conteúdo) */
 html.in-app #adminView,html.in-app #adminView .admincontent,html.in-app #adminView .main,html.in-app .admin{background:var(--a-bg)!important;min-height:100svh}
+.st-st{margin-left:auto;margin-right:6px;font-size:13px;color:var(--a-mut,#6b7a90)}
