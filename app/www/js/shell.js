@@ -91,10 +91,12 @@ function mount(){
  var pv=$('publicView');pv.dataset.tab='home';
  /* Início */
  var home=document.createElement('section');home.id='appHome';home.className='app-tab';
- home.innerHTML='<div class="ah-globe"><canvas id="appGlobe" aria-label="Globo interativo"></canvas><div class="ah-hint">Arraste para girar</div></div><div class="ah-copy"><div class="ah-eyebrow">ADHONEP · Santa Catarina</div><h1>Conectando pessoas a <em>uma missão.</em></h1><p>Encontre um capítulo, acompanhe os eventos e fique perto da rede em Santa Catarina.</p><div class="ah-stats"><div><b id="ahChap">—</b><span>capítulos ativos</span></div><div><b id="ahCity">—</b><span>municípios com capítulo</span></div></div><div class="ah-actions"><button class="b b-gold" data-go="map">'+ic('pin','sm')+'Capítulos</button><button class="b b-line" data-go="events">'+ic('calendar','sm')+'Eventos</button></div></div>';
+ home.innerHTML='<div class="ah-globe" data-v="sc"><canvas id="appSC" aria-label="Mapa de Santa Catarina em partículas"></canvas><canvas id="appGlobe" aria-label="Globo interativo"></canvas><div class="ah-sw" role="tablist"><button type="button" data-v="sc" class="on">Santa Catarina</button><button type="button" data-v="world">Mundo</button></div><div class="ah-hint">Toque e arraste</div></div><div class="ah-copy"><div class="ah-eyebrow">ADHONEP · Santa Catarina</div><h1>Conectando pessoas a <em>uma missão.</em></h1><p>Encontre um capítulo, acompanhe os eventos e fique perto da rede em Santa Catarina.</p><div class="ah-stats"><div><b id="ahChap">—</b><span>capítulos ativos</span></div><div><b id="ahCity">—</b><span>municípios com capítulo</span></div></div><div class="ah-actions"><button class="b b-gold" data-go="map">'+ic('pin','sm')+'Capítulos</button><button class="b b-line" data-go="events">'+ic('calendar','sm')+'Eventos</button></div></div>';
  pv.insertBefore(home,pv.firstChild);
  home.querySelectorAll('[data-go]').forEach(function(x){x.onclick=function(){setTab(x.dataset.go)}});
  if(window.AdhGlobe)AdhGlobe.init($('appGlobe'));
+ if(window.AdhSC)AdhSC.init($('appSC'));
+ (function(){var g=home.querySelector('.ah-globe');home.querySelectorAll('.ah-sw button').forEach(function(b){b.onclick=function(){g.dataset.v=b.dataset.v;home.querySelectorAll('.ah-sw button').forEach(function(x){x.classList.toggle('on',x===b)});homeAnim(S.tab==='home')}})})();
  /* demais abas */
  ['mapSection','eventsSection','aboutSection'].forEach(function(id){var e=$(id);if(e)e.classList.add('app-tab')});
  buildMap();buildEvents();buildAbout();buildAccount();
@@ -121,9 +123,9 @@ function setTab(t){
  if(logged()&&role()==='member'){try{adhMemberViewOn(false)}catch(e){}}
  try{setMode('public')}catch(e){}
  var pv=$('publicView');pv.classList.add('on');pv.dataset.tab=t;window.scrollTo(0,0);
- if(window.AdhGlobe){if(t==='home')AdhGlobe.start();else AdhGlobe.stop()}
+ homeAnim(t==='home');
  renderNav()}
-document.addEventListener('visibilitychange',function(){if(!document.hidden&&window.AdhGlobe&&curMode()==='public'&&S.tab==='home')AdhGlobe.start()});
+document.addEventListener('visibilitychange',function(){if(!document.hidden&&curMode()==='public'&&S.tab==='home')homeAnim(true)});
 
 /* --- capítulos --- */
 function buildMap(){
@@ -354,6 +356,9 @@ function uploadImg(file){
    .then(function(r){if(!r.ok)throw new Error('Não foi possível enviar a imagem ('+r.status+').');return ADH_SUPABASE_URL+'/storage/v1/object/public/notification-images/'+path})})}
 
 /* ===== configurações ===== */
+function homeAnim(on){var g=document.querySelector('#appHome .ah-globe'),v=g&&g.dataset.v;
+ if(window.AdhGlobe){if(on&&v==='world')AdhGlobe.start();else AdhGlobe.stop()}
+ if(window.AdhSC){if(on&&v!=='world')AdhSC.start();else AdhSC.stop()}}
 function settingsHtml(){
  var p=null;try{p=adhProfile}catch(e){}
  var pref='auto';try{pref=localStorage.getItem('adh-tema')||'auto'}catch(e){}
@@ -406,7 +411,7 @@ function onPage(n){
  if(n==='ranking')rankAccessPanel();
  if(n==='audit'||n==='lgpd'){var h=document.querySelector('#page-'+n+' .adminhead');if(h&&!h.querySelector('[data-back]')){var b=document.createElement('button');b.className='btn small';b.setAttribute('data-back','1');b.innerHTML=ic('chev','xs').replace('class="ic xs"','class="ic xs" style="transform:rotate(180deg)"')+'Configurações';b.onclick=function(){go('settings')};h.insertBefore(b,h.firstChild)}}}
 function homeStats(){
- try{var pub=(chapters||[]).filter(isPublicChapter);var a=$('ahChap'),b=$('ahCity');if(a)a.textContent=pub.length;if(b)b.textContent=new Set(pub.map(function(c){return c.city})).size}catch(e){}}
+ try{var pub=(chapters||[]).filter(isPublicChapter);if(window.AdhSC)AdhSC.gold(pub.map(function(c){return c.city}));var a=$('ahChap'),b=$('ahCity');if(a)a.textContent=pub.length;if(b)b.textContent=new Set(pub.map(function(c){return c.city})).size}catch(e){}}
 
 /* sem emoji: texto de botões e títulos fica só com palavras; os ícones são sempre SVG */
 var EMO=/^[\s←-⯿☀-➿\u{1F000}-\u{1FAFF}️‍]+(?=[A-Za-zÀ-ú0-9"“(])/u;
@@ -426,7 +431,7 @@ function poll(){
 function init(){
  if(!$('publicView'))return;
  mount();hook();homeStats();renderEv();clean(document.body);
- if(window.AdhGlobe)AdhGlobe.start();
+ homeAnim(true);
  setInterval(poll,700);
  setInterval(function(){if(logged())refreshAvisos().then(popCheck)},120000)}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();

@@ -9,7 +9,7 @@ cp "$B/index.html" "$B/styles.css" "$B/manifest.webmanifest" "$B/privacidade.htm
 cp -r "$B/js" "$B/assets" "$B/data" www/
 rm -rf www/assets/video            # o app não usa o vídeo de capa (usa o globo)
 find www/data/mun -type f ! -name SC.json -delete   # app = só Santa Catarina
-cp native/shell.js native/globe.js native/app-native.js native/native-features.js native/offline.js www/js/
+cp native/shell.js native/particles.js native/globe.js native/app-native.js native/native-features.js native/offline.js www/js/
 cp native/globe.json native/sc-cent.json www/data/
 cat native/shell.css >> www/styles.css
 python3 - <<'PY'
@@ -21,7 +21,7 @@ s,n=re.subn(r'<section class="hero hero-vmode" id="heroSection">.*?</section><di
 assert n==1,'hero não encontrada'
 s=re.sub(r'<source[^>]*\.webm[^>]*>','',s)
 s=s.replace('<head>','<head><script src="js/offline.js"></script>',1)
-tag='<script src="js/globe.js"></script><script src="js/shell.js"></script><script src="js/app-native.js"></script><script src="js/native-features.js"></script>\n'
+tag='<script src="js/globe.js"></script><script src="js/particles.js"></script><script src="js/shell.js"></script><script src="js/app-native.js"></script><script src="js/native-features.js"></script>\n'
 s=s.replace('</body>',tag+'</body>',1)
 open(p,'w').write(s)
 m='www/js/mapa.js';t=open(m).read()

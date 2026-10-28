@@ -146,5 +146,5 @@ addEventListener("adh-intro-reset",function(){if(calm)return;rolled=false;v.loop
 window.adhHeroSound=function(){var v=document.getElementById("heroVideo"),b=document.getElementById("heroSound");if(!v||!v.src)return;if(v.muted){v.muted=false;v.currentTime=0;v.play().catch(function(){});b.textContent="🔇 Silenciar";b.setAttribute("aria-pressed","true")}else{v.muted=true;b.textContent="🔊 Ativar som";b.setAttribute("aria-pressed","false")}};
 document.addEventListener("keydown",function(e){if(e.key==="Escape"&&!document.getElementById("reelModal").hidden)adhCloseReel()});
 document.addEventListener("DOMContentLoaded",function(){var v=document.getElementById("reelVideo");if(v)v.addEventListener("ended",adhCloseReel)})})();</script>
-<script src="js/globe.js"></script><script src="js/shell.js"></script><script src="js/app-native.js"></script><script src="js/native-features.js"></script>
+<script src="js/globe.js"></script><script src="js/particles.js"></script><script src="js/shell.js"></script><script src="js/app-native.js"></script><script src="js/native-features.js"></script>
 </body></html>

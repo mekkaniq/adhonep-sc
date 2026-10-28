@@ -264,3 +264,10 @@ html.in-app .cpage{padding-top:env(safe-area-inset-top)}
 /* admin: fundo contínuo (sem faixa escura abaixo do conteúdo) */
 html.in-app #adminView,html.in-app #adminView .admincontent,html.in-app #adminView .main,html.in-app .admin{background:var(--a-bg)!important;min-height:100svh}
 .st-st{margin-left:auto;margin-right:6px;font-size:13px;color:var(--a-mut,#6b7a90)}
+/* Início: partículas de SC / globo */
+#appHome .ah-globe canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+#appHome .ah-globe[data-v="sc"] #appGlobe,#appHome .ah-globe[data-v="world"] #appSC{display:none}
+.ah-sw{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;gap:2px;padding:3px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(230,207,156,.25);z-index:3}
+.ah-sw button{border:0;background:transparent;color:#cdd9ea;font:600 12px Inter,sans-serif;padding:7px 14px;border-radius:999px;letter-spacing:.02em}
+.ah-sw button.on{background:var(--gold);color:#102b4e}
+.ah-sw button{white-space:nowrap}
