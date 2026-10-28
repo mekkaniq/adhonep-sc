@@ -1,4 +1,4 @@
-window.ADH_VER_SB='3.20';
+window.ADH_VER_SB='1.9';
 /* Endereço (slug) da Edge Function que cria contas, como o Supabase a publicou: .../functions/v1/rapid-responder */
 const ADH_USER_FN='rapid-responder';
 
@@ -29,6 +29,7 @@ async function adhRefreshSession(){
 }
 async function adhFetch(path, options={}, retried=false){
  if((!options.method||options.method==='GET')&&/^\/rest\/v1\/(chapters|regions|municipalities)\?/.test(path)&&!/state_code=/.test(path))path+='&state_code=eq.SC'; /* ADHONEP-SC: só dados de SC */
+ if(!retried&&window.adhScopePath){options=window.adhScopeBody(path,options);path=window.adhScopePath(path)}
  const headers=adhHeaders(options.headers||{});
  const res=await fetch(ADH_SUPABASE_URL+path,{...options,headers});
  if(res.status===401&&adhSession?.refresh_token&&!retried){
@@ -40,12 +41,13 @@ async function adhFetch(path, options={}, retried=false){
  if(!res.ok)throw new Error(data?.message||data?.msg||data?.error_description||raw||('HTTP '+res.status));return data;
 }
 const adhSupportedRoles={state_admin:'Administrador',state_director:'Diretor estadual',regional_director:'Diretor regional',chapter_president:'Presidente de capítulo'};
+async function adhExtraRoles(uid){try{const sr=await adhFetch('/rest/v1/rpc/adh_my_scope_roles',{method:'POST',body:'{}'});const out=[];(sr||[]).forEach(function(r){if(r.role==='global_board')out.push({role:'state_admin',is_active:true,national:true});else if(r.role==='country_director'&&r.country_iso3==='BRA')out.push({role:'state_director',is_active:true,national:true});else if(r.role==='state_director'&&r.state_code===(window.ADH_UF||'SC'))out.push({role:'state_director',is_active:true})});return out}catch(e){return []}}
 function adhResolveProfile(roles,speakerEditor){const act=(Array.isArray(roles)?roles:[]).filter(r=>r.is_active!==false);const mk=(k,label)=>({role:k,label,speakerEditor:!!speakerEditor,regionIds:[...new Set(act.filter(r=>r.role==='regional_director'&&r.region_id!=null).map(r=>r.region_id))],chapterIds:[...new Set(act.filter(r=>r.role==='chapter_president'&&r.chapter_id!=null).map(r=>r.chapter_id))]});for(const k of ['state_admin','state_director','regional_director','chapter_president']){if(act.some(r=>r.role===k))return mk(k,adhSupportedRoles[k])}if(act.some(r=>r.role==='member'))return mk('member','Sócio');return speakerEditor?mk('speaker_editor','Responsável por preletores'):null}
 async function adhIsSpeakerEditor(uid){try{const r=await adhFetch('/rest/v1/speaker_editors?select=user_id&user_id=eq.'+encodeURIComponent(uid)+'&limit=1');return Array.isArray(r)&&r.length>0}catch(e){return false}}
 function adhApplyProfile(p){adhProfile=p;currentRole=p.label;const sel=document.getElementById('roleSelect');if(sel)sel.value=p.label;const lbl=document.getElementById('roleLabel');if(lbl)lbl.textContent=p.role==='state_admin'?'Administrador estadual':p.label;document.querySelector('.rolebar')?.setAttribute('style','display:none!important');if(typeof applyRole==='function')applyRole()}
 async function adhValidateRestoredSession(){
  if(!adhSession)return false;
- try{const user=await adhFetch('/auth/v1/user');if(!user?.id)throw new Error('Sessão sem usuário válido.');const roles=await adhFetch('/rest/v1/user_roles?select=role,is_active,region_id,chapter_id&user_id=eq.'+encodeURIComponent(user.id)+'&is_active=eq.true');const prof=adhResolveProfile(roles,await adhIsSpeakerEditor(user.id));if(!prof)throw new Error('Conta sem perfil habilitado.');adhApplyProfile(prof);if(prof.role==='member'){showMemberArea();return true}Promise.all([(prof.role==='state_admin'?loadAccessRequests().catch(()=>{}):0),typeof loadChaptersAdmin==='function'?loadChaptersAdmin().catch(()=>{}):0,typeof loadPersistentModules==='function'?loadPersistentModules().catch(()=>{}):0,typeof loadEventsFromSupabase==='function'?loadEventsFromSupabase(false).catch(()=>{}):0]);return true}
+ try{const user=await adhFetch('/auth/v1/user');if(!user?.id)throw new Error('Sessão sem usuário válido.');const roles=await adhFetch('/rest/v1/user_roles?select=role,is_active,region_id,chapter_id&user_id=eq.'+encodeURIComponent(user.id)+'&is_active=eq.true');const prof=adhResolveProfile((roles||[]).concat(await adhExtraRoles(user.id)),await adhIsSpeakerEditor(user.id));if(!prof)throw new Error('Conta sem perfil habilitado.');adhApplyProfile(prof);if(prof.role==='member'){showMemberArea();return true}Promise.all([(prof.role==='state_admin'?loadAccessRequests().catch(()=>{}):0),typeof loadChaptersAdmin==='function'?loadChaptersAdmin().catch(()=>{}):0,typeof loadPersistentModules==='function'?loadPersistentModules().catch(()=>{}):0,typeof loadEventsFromSupabase==='function'?loadEventsFromSupabase(false).catch(()=>{}):0]);return true}
  catch(e){console.warn('Sessão administrativa restaurada foi descartada:',e.message);adhStoreSession(null);return false}
 }
 function signOutAdmin(){adhStoreSession(null);adhProfile=null;currentRole='Administrador';reports=[];speakers=[];statewideAnnouncements=[];audit=[];adhAccessRequests=[];adhRealUsers=[];try{renderAll()}catch(e){}closeRealLogin();document.getElementById('adminView').classList.remove('on');document.getElementById('publicView').classList.add('on');document.getElementById('adminBtn').classList.remove('on');document.getElementById('publicBtn').classList.add('on');toast('Sessão administrativa encerrada.');}
@@ -74,13 +76,13 @@ function adhCacheLabel(savedAt){
 
 function openRealLogin(){document.getElementById('realLoginMessage').textContent='Use a conta administrativa já cadastrada no Supabase.';document.getElementById('realLoginModal').classList.add('open')}
 function closeRealLogin(){document.getElementById('realLoginModal').classList.remove('open')}
-async function realAdminLogin(ev){ev.preventDefault();const msg=document.getElementById('realLoginMessage'),btn=document.getElementById('realLoginSubmit');btn.disabled=true;msg.textContent='Verificando credenciais e permissões…';try{const login=await adhFetch('/auth/v1/token?grant_type=password',{method:'POST',headers:{},body:JSON.stringify({email:document.getElementById('realLoginEmail').value.trim(),password:document.getElementById('realLoginPassword').value})});if(!login?.access_token||!login?.user?.id)throw new Error('O Supabase não retornou uma sessão válida. Confira o e-mail e a senha.');adhStoreSession(login);const roles=await adhFetch('/rest/v1/user_roles?select=role,is_active,region_id,chapter_id&user_id=eq.'+encodeURIComponent(login.user.id)+'&is_active=eq.true');const profile=adhResolveProfile(roles,await adhIsSpeakerEditor(login.user.id));if(!profile){adhStoreSession(null);throw new Error('A autenticação funcionou, mas esta conta não tem um perfil habilitado (administrador, diretor, presidente, sócio ou responsável por preletores).');}adhApplyProfile(profile);closeRealLogin();if(profile.role==='member'){showMemberArea();return}if(profile.role!=='state_admin'){originalSetMode('admin');showPage(firstAllowedPage());toast('Login confirmado: '+profile.label+'.');await loadChaptersAdmin().catch(()=>{});try{await loadEventsFromSupabase(false)}catch(e){}if(typeof loadPersistentModules==='function')await loadPersistentModules();try{renderAll()}catch(e){}return}const rb=document.querySelector('.rolebar');if(rb)rb.style.display='none';const note=document.querySelector('#page-dashboard .adminhead p');if(note)note.textContent='Painel autenticado pelo Supabase. Os módulos ainda não integrados ao banco estão identificados como etapa de implantação.';/* Importante: entrar no modo administrativo explicitamente; antes a sessão era validada, mas a interface podia continuar na vista anterior. */originalSetMode('admin');document.querySelector('.rolebar')?.setAttribute('style','display:none!important');showPage('access-requests');toast('Login confirmado. Administração estadual autorizada.');await Promise.all([loadAccessRequests(),loadRealUsers(),loadTerritoryFromSupabase(),loadChaptersAdmin().catch(e=>{adhChapterLoadError=e.message;const el=document.getElementById("chapterRows");if(el){el.textContent="Falha ao carregar capítulos reais do Supabase: "+e.message;}})]);if(typeof loadPersistentModules==='function')await loadPersistentModules();}catch(e){adhStoreSession(null);msg.textContent='Não foi possível entrar: '+(e.message||'erro inesperado')+'. Se as credenciais estiverem corretas, envie esta mensagem para corrigirmos a configuração.';}finally{btn.disabled=false}}
+async function realAdminLogin(ev){ev.preventDefault();const msg=document.getElementById('realLoginMessage'),btn=document.getElementById('realLoginSubmit');btn.disabled=true;msg.textContent='Verificando credenciais e permissões…';try{const login=await adhFetch('/auth/v1/token?grant_type=password',{method:'POST',headers:{},body:JSON.stringify({email:document.getElementById('realLoginEmail').value.trim(),password:document.getElementById('realLoginPassword').value})});if(!login?.access_token||!login?.user?.id)throw new Error('O Supabase não retornou uma sessão válida. Confira o e-mail e a senha.');adhStoreSession(login);const roles=await adhFetch('/rest/v1/user_roles?select=role,is_active,region_id,chapter_id&user_id=eq.'+encodeURIComponent(login.user.id)+'&is_active=eq.true');const profile=adhResolveProfile((roles||[]).concat(await adhExtraRoles(login.user.id)),await adhIsSpeakerEditor(login.user.id));if(!profile){adhStoreSession(null);throw new Error('A autenticação funcionou, mas esta conta não tem um perfil habilitado (administrador, diretor, presidente, sócio ou responsável por preletores).');}adhApplyProfile(profile);closeRealLogin();if(profile.role==='member'){showMemberArea();return}if(profile.role!=='state_admin'){originalSetMode('admin');showPage(firstAllowedPage());toast('Login confirmado: '+profile.label+'.');await loadChaptersAdmin().catch(()=>{});try{await loadEventsFromSupabase(false)}catch(e){}if(typeof loadPersistentModules==='function')await loadPersistentModules();try{renderAll()}catch(e){}return}const rb=document.querySelector('.rolebar');if(rb)rb.style.display='none';const note=document.querySelector('#page-dashboard .adminhead p');if(note)note.textContent='Painel autenticado pelo Supabase. Os módulos ainda não integrados ao banco estão identificados como etapa de implantação.';/* Importante: entrar no modo administrativo explicitamente; antes a sessão era validada, mas a interface podia continuar na vista anterior. */originalSetMode('admin');document.querySelector('.rolebar')?.setAttribute('style','display:none!important');showPage('access-requests');toast('Login confirmado. Administração estadual autorizada.');await Promise.all([loadAccessRequests(),loadRealUsers(),loadTerritoryFromSupabase(),loadChaptersAdmin().catch(e=>{adhChapterLoadError=e.message;const el=document.getElementById("chapterRows");if(el){el.textContent="Falha ao carregar capítulos reais do Supabase: "+e.message;}})]);if(typeof loadPersistentModules==='function')await loadPersistentModules();}catch(e){adhStoreSession(null);msg.textContent='Não foi possível entrar: '+(e.message||'erro inesperado')+'. Se as credenciais estiverem corretas, envie esta mensagem para corrigirmos a configuração.';}finally{btn.disabled=false}}
 const originalSetMode = window.setMode;
 window.setMode = function(mode){if(mode==='admin'&&!adhSession){document.getElementById('publicView').classList.remove('on');document.getElementById('adminView').classList.remove('on');document.getElementById('publicBtn').classList.remove('on');document.getElementById('adminBtn').classList.add('on');openRealLogin();return;}if(mode==='admin'&&adhSession){document.querySelector('.rolebar')?.setAttribute('style','display:none!important');}const __r=originalSetMode(mode);if(mode==='admin'&&adhSession&&adhProfile&&adhProfile.role!=='state_admin'&&typeof showPage==='function')showPage(firstAllowedPage());return __r};
 function openPublicRequest(){document.getElementById('publicRequestModal').classList.add('open');loadRequestChapters()}
 async function loadRequestChapters(){const sel=document.getElementById('publicRequestChapter');try{const rows=await adhFetch('/rest/v1/chapters?select=id,name,municipality_id&order=name.asc&limit=1000',{headers:{Authorization:'Bearer '+ADH_SUPABASE_KEY}});if(Array.isArray(rows)){const ms=await adhFetch('/rest/v1/municipalities?select=id,name&limit=1000',{headers:{Authorization:'Bearer '+ADH_SUPABASE_KEY}}).catch(()=>[]);const mm=new Map((ms||[]).map(m=>[String(m.id),m.name]));sel.innerHTML='<option value="">Não se aplica / será analisado</option>'+rows.map(c=>`<option value="${String(c.id).replace(/[^0-9]/g,'')}">${escapeHtml(c.name||'Capítulo')}${mm.get(String(c.municipality_id))?' — '+escapeHtml(mm.get(String(c.municipality_id))):''}</option>`).join('')}}catch{ /* capítulo opcional; não impede a solicitação */}}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function submitPublicAccessRequest(ev){ev.preventDefault();const f=ev.target;if(f.elements.website&&f.elements.website.value){toast('Solicitação enviada com sucesso.');return}if(Date.now()-adhPageT0<8000){toast('Aguarde alguns segundos e envie novamente.');return}if(!f.elements.privacy_consent?.checked){toast('É necessário consentir com o uso dos dados para enviar a solicitação.');return}const fdata=new FormData(f),d=fdata,msg=document.getElementById('publicRequestMessage'),btn=document.getElementById('publicRequestSubmit');btn.disabled=true;msg.textContent='Enviando solicitação…';const body={full_name:String(d.get('full_name')).trim(),email:String(d.get('email')).trim().toLowerCase(),phone:String(d.get('phone')||'').trim()||null,city:String(d.get('city')).trim(),requested_role:String(d.get('requested_role')),chapter_id:d.get('chapter_id')?Number(d.get('chapter_id')):null,justification:String(d.get('justification')).trim(),status:'pending',consent_version:'privacidade-2026-10-25'};try{await adhFetch('/rest/v1/access_requests',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(body)});msg.textContent='✓ Recebemos o seu pedido! A diretoria estadual vai analisá-lo e entrará em contato. Não é preciso enviar de novo.';f.reset();toast('Solicitação enviada com sucesso.');}catch(e){msg.textContent='Não foi possível enviar: '+e.message; }finally{btn.disabled=false}}
+async function submitPublicAccessRequest(ev){ev.preventDefault();const f=ev.target;if(f.elements.website&&f.elements.website.value){toast('Solicitação enviada com sucesso.');return}if(Date.now()-adhPageT0<8000){toast('Aguarde alguns segundos e envie novamente.');return}if(!f.elements.privacy_consent?.checked){toast('É necessário consentir com o uso dos dados para enviar a solicitação.');return}const fdata=new FormData(f),d=fdata,msg=document.getElementById('publicRequestMessage'),btn=document.getElementById('publicRequestSubmit');btn.disabled=true;msg.textContent='Enviando solicitação…';const body={full_name:String(d.get('full_name')).trim(),email:String(d.get('email')).trim().toLowerCase(),phone:String(d.get('phone')||'').trim()||null,city:String(d.get('city')).trim(),requested_role:String(d.get('requested_role')),chapter_id:d.get('chapter_id')?Number(d.get('chapter_id')):null,justification:String(d.get('justification')).trim(),status:'pending',consent_version:ADH_POLICY_VERSION};try{await adhFetch('/rest/v1/access_requests',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify(body)});msg.textContent='✓ Recebemos o seu pedido! A diretoria estadual vai analisá-lo e entrará em contato. Não é preciso enviar de novo.';f.reset();toast('Solicitação enviada com sucesso.');}catch(e){msg.textContent='Não foi possível enviar: '+e.message; }finally{btn.disabled=false}}
 async function loadAccessRequests(){const status=document.getElementById('accessRequestStatusMessage');if(!adhSession){status.textContent='Entre com uma conta state_admin para consultar as solicitações.';return}status.textContent='Carregando solicitações do Supabase…';try{adhAccessRequests=await adhFetch('/rest/v1/access_requests?select=id,full_name,email,phone,city,chapter_id,requested_role,justification,status,created_at,review_notes&order=created_at.desc&limit=500');if(!Array.isArray(adhAccessRequests))adhAccessRequests=[];status.textContent='';status.style.display='none';document.getElementById('accessRequestCount').textContent=adhAccessRequests.filter(x=>x.status==='pending').length||'';adhPendingBanner();renderAccessRequests()}catch(e){status.textContent='Falha ao carregar solicitações: '+e.message+' — verifique a política SELECT de access_requests e a função de autorização.'}}
 const adhRoleNames={state_director:'Diretor estadual',regional_director:'Diretor regional',field_representative:'Representante de campo',chapter_president:'Presidente de capítulo',member:'Sócio',youth_coordinator:'Apoio jovem',women_coordinator:'Apoio feminino'};
 function renderAccessRequests(){const body=document.getElementById('accessRequestRows');if(!body)return;const q=(document.getElementById('accessRequestSearch')?.value||'').toLowerCase(),st=document.getElementById('accessRequestStatus')?.value||'pending';const rows=adhAccessRequests.filter(r=>(st==='all'||r.status===st)&&[r.full_name,r.email,r.city].some(v=>String(v||'').toLowerCase().includes(q)));body.innerHTML=rows.map(r=>`<tr><td><strong>${escapeHtml(r.full_name)}</strong><div class="meta">${escapeHtml(r.email)}${r.phone?' · '+escapeHtml(r.phone):''}</div><div class="meta">${escapeHtml(r.justification||'')}</div></td><td>${escapeHtml(adhRoleNames[r.requested_role]||r.requested_role)}</td><td>${escapeHtml(r.city||'—')}</td><td>${escapeHtml(r.created_at?new Date(r.created_at).toLocaleDateString('pt-BR'):'—')}</td><td><span class="tag ${r.status==='approved'?'active':r.status==='rejected'?'inactive':'activation'}">${escapeHtml(r.status)}</span>${r.review_notes?'<div class="meta">'+escapeHtml(r.review_notes)+'</div>':''}</td><td>${r.status==='pending'?`<div class="actions"><button class="btn small primary" onclick="decideAccessRequest('${r.id}','approved')">Aprovar</button><button class="btn small danger" onclick="decideAccessRequest('${r.id}','rejected')">Rejeitar</button></div>`:'—'}</td></tr>`).join('')||'<tr><td colspan="6" class="empty">Nenhuma solicitação encontrada.</td></tr>'}
@@ -275,7 +277,7 @@ async function loadMonthly(silent){
   try{
     if(!(adhDbChapters||[]).length){try{await loadChaptersAdmin()}catch(e){}}
     const rows=await adhFetch('/rest/v1/chapter_monthly_reports?select=*&order=ref_month.desc,chapter_id.asc&limit=3000');
-    adhMonthly=Array.isArray(rows)?rows:[];
+    adhMonthly=Array.isArray(rows)?rows:[];window.adhMonthlyOk=Array.isArray(rows);try{adhRenderAttention()}catch(e){}
     mrFillMonthSelect(document.getElementById('monthlyMonth'),12,true);
     const nb=document.getElementById('monthlyNewBtn');if(nb)nb.style.display=mrCanSubmit()?'':'none';
     mrNavCount();if(!silent||document.getElementById('page-monthly')?.classList.contains('on'))renderMonthly();
@@ -582,7 +584,7 @@ function adhMapFull(on){
 document.addEventListener('fullscreenchange',()=>{const p=document.getElementById('adminMapPanel');if(!document.fullscreenElement&&p&&p.classList.contains('adh-full'))adhMapFull(false)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){const p=document.getElementById('adminMapPanel');if(p&&p.classList.contains('adh-full')&&!document.fullscreenElement)adhMapFull(false)}});
 
-/* ===== v3.19: Minha conta (nome, telefone, e-mail, senha) ===== */
+/* ===== v1.0: Minha conta (nome, telefone, e-mail, senha) ===== */
 async function openAccount(){
  const $=id=>document.getElementById(id);
  if(!adhSession){toast('Entre na sua conta primeiro.');return}
@@ -634,7 +636,7 @@ async function saveAccountPassword(ev){
  }catch(e){m.textContent='Não foi possível alterar a senha: '+e.message}
 }
 
-/* ===== v3.19: página pública do capítulo (reuniões, endereço, foto) ===== */
+/* ===== v1.0: página pública do capítulo (reuniões, endereço, foto) ===== */
 let adhInfoIds=new Set(), adhInfoRows={};
 const ADH_PHOTO_BASE=()=>ADH_SUPABASE_URL+'/storage/v1/object/public/chapter-photos/';
 (function(){const _l=loadPublicChapters;loadPublicChapters=async function(){
@@ -664,9 +666,9 @@ async function adhOpenChapterPage(id,fromHash){
  const when=[i.frequency,i.meeting_day,i.meeting_time].filter(Boolean);
  const addr=i.address||'';
  const mapsOk=i.maps_url&&/^https:\/\//i.test(i.maps_url);
- const mapLink=mapsOk?i.maps_url:(addr?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(addr+' '+(c.city||'')+' SC'):'');
+ const mapLink=mapsOk?i.maps_url:(addr?'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(addr+' '+(c.city||'')+' '+ADH_UF):'');
  const d=String(c.contact||'').replace(/\D/g,'');
- const wa=/^55\d{10,11}$/.test(d)?'https://wa.me/'+d+'?text='+encodeURIComponent('Olá! Vi a página do capítulo '+c.name+' no site da ADHONEP-SC e gostaria de saber mais sobre as reuniões.'):'';
+ const wa=/^55\d{10,11}$/.test(d)?'https://wa.me/'+d+'?text='+encodeURIComponent('Olá! Vi a página do capítulo '+c.name+' no site da '+ADH_BRAND+' e gostaria de saber mais sobre as reuniões.'):'';
  const photo=i.photo_path?'<img class="cp-photo" src="'+E(ADH_PHOTO_BASE()+i.photo_path)+'" alt="Foto do local de reunião do capítulo '+E(c.name)+'" loading="lazy">':'';
  b.innerHTML=back+'<div class="eyebrow">Capítulo ADHONEP</div><h1>'+E(c.name)+'</h1><p class="sub">'+E(c.city)+' · Região '+E(c.region)+'</p>'+photo
   +'<div class="cp-grid">'
@@ -677,7 +679,7 @@ async function adhOpenChapterPage(id,fromHash){
   +(i.notes?'<div class="cp-box"><small>Como chegar / observações</small><p style="white-space:pre-line;color:var(--ink)">'+E(i.notes)+'</p></div>':'')
   +'<div class="cp-acts">'+(wa?'<a class="btn primary" target="_blank" rel="noopener" href="'+E(wa)+'">Falar com o presidente no WhatsApp</a>':'')+(mapLink?'<a class="btn" target="_blank" rel="noopener" href="'+E(mapLink)+'">Abrir no mapa</a>':'')+'<button class="btn" type="button" onclick="adhShareChapterPage('+Number(id)+')">Compartilhar</button></div>'
   +'<div class="cp-note">Confirme dia e horário com o presidente antes de ir: eles podem mudar em datas especiais.</div>';
- if(!window.__adhTitle0)window.__adhTitle0=document.title;document.title='Capítulo '+c.name+' · ADHONEP-SC';
+ if(!window.__adhTitle0)window.__adhTitle0=document.title;document.title='Capítulo '+c.name+' · '+ADH_BRAND;
 }
 async function adhShareChapterPage(id){const url=location.origin+location.pathname+'#capitulo/'+id;const c=(chapters||[]).find(x=>String(x.id)===String(id));try{if(navigator.share){await navigator.share({title:'ADHONEP-SC · '+(c?c.name:'Capítulo'),url});return}}catch(e){if(e&&e.name==='AbortError')return}try{await navigator.clipboard.writeText(url);toast('Link copiado.')}catch(e){prompt('Copie o link:',url)}}
 
@@ -713,12 +715,178 @@ async function saveChapterInfo(ev){
    const blob=await adhResizeImage(file,1600);if(blob.size>5*1024*1024)throw new Error('A foto ficou maior que 5 MB. Escolha outra.');
    const path=id+'/'+Date.now()+'-'+Math.random().toString(36).slice(2,8)+'.jpg';
    const up=await fetch(ADH_SUPABASE_URL+'/storage/v1/object/chapter-photos/'+path,{method:'POST',headers:{apikey:ADH_SUPABASE_KEY,Authorization:'Bearer '+adhSession.access_token,'Content-Type':'image/jpeg','x-upsert':'false'},body:blob});
-   if(!up.ok){const t=await up.text();throw new Error('Falha ao enviar a foto ('+up.status+'): '+(/row-level|policy|403|401/i.test(t)?'sem permissão ou migração v3.19 ainda não rodada.':t))}
+   if(!up.ok){const t=await up.text();throw new Error('Falha ao enviar a foto ('+up.status+'): '+(/row-level|policy|403|401/i.test(t)?'sem permissão ou migração da página do capítulo (v3.19) ainda não rodada.':t))}
    oldToDelete=photo;photo=path;
   }else if(del&&photo){oldToDelete=photo;photo=null}
   await adhFetch('/rest/v1/chapter_public_info?on_conflict=chapter_id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({chapter_id:id,meeting_place:v('meeting_place'),address:v('address'),maps_url:maps,frequency:v('frequency'),meeting_day:v('meeting_day'),meeting_time:v('meeting_time'),notes:v('notes'),photo_path:photo,show_public:show})});
   if(oldToDelete){try{await fetch(ADH_SUPABASE_URL+'/storage/v1/object/chapter-photos/'+oldToDelete,{method:'DELETE',headers:{apikey:ADH_SUPABASE_KEY,Authorization:'Bearer '+adhSession.access_token}})}catch(e){}}
   document.getElementById('infoPhotoFile').value='';closeModal('infoModal');toast(show?'Página salva e liberada no site público.':'Página salva (não aparece no site).');
- }catch(e){msg.textContent='Não foi possível salvar: '+(/row-level security|permission/i.test(e.message)?'sem permissão para este capítulo (ou a migração v3.19 ainda não foi rodada).':e.message)}
+ }catch(e){msg.textContent='Não foi possível salvar: '+(/row-level security|permission/i.test(e.message)?'sem permissão para este capítulo (ou a migração da página do capítulo (v3.19) ainda não foi rodada).':e.message)}
  finally{btn.disabled=false}
 }
+
+/* ===== v1.0: convite pelo WhatsApp + quadro "Atenção" para a liderança ===== */
+let adhInvite={blob:null,url:null,file:null,title:''};
+function adhWrapText(ctx,text,maxW){const words=String(text).split(/\s+/),lines=[];let cur='';for(const w of words){const t=cur?cur+' '+w:w;if(ctx.measureText(t).width>maxW&&cur){lines.push(cur);cur=w}else cur=t}if(cur)lines.push(cur);return lines}
+function adhLoadImg(src){return new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src})}
+async function adhMakeInviteArt(e,raw,noLogo){
+ const W=1080,H=1350,cv=document.createElement('canvas');cv.width=W;cv.height=H;const x=cv.getContext('2d');
+ const g=x.createLinearGradient(0,0,W,H);g.addColorStop(0,'#0b2a4a');g.addColorStop(1,'#1d4a7a');x.fillStyle=g;x.fillRect(0,0,W,H);
+ x.fillStyle='rgba(201,164,92,.10)';x.beginPath();x.arc(W-60,120,420,0,Math.PI*2);x.fill();x.beginPath();x.arc(80,H-80,320,0,Math.PI*2);x.fill();
+ const logo=noLogo?null:await adhLoadImg('assets/logo-branca.png');let y=90;
+ if(logo){const w=360,h=logo.height*(w/logo.width);x.drawImage(logo,(W-w)/2,y,w,h);y+=h+50}else y+=40;
+ x.textAlign='center';x.fillStyle='#c9a45c';x.font='700 34px Poppins,Inter,system-ui,sans-serif';
+ if('letterSpacing' in x)x.letterSpacing='8px';x.fillText('VOCÊ ESTÁ CONVIDADO',W/2,y+20);if('letterSpacing' in x)x.letterSpacing='0px';
+ y+=40;x.fillStyle='#c9a45c';x.fillRect(W/2-60,y+10,120,4);y+=90;
+ x.fillStyle='#fff';x.font='800 82px Poppins,Inter,system-ui,sans-serif';
+ let lines=adhWrapText(x,e.name,W-160);if(lines.length>3){lines=lines.slice(0,3);lines[2]=lines[2].replace(/\s*\S*$/,'')+'…'}
+ lines.forEach(l=>{x.fillText(l,W/2,y+70);y+=96});y+=40;
+ const d=raw&&raw.starts_at?new Date(raw.starts_at):(e.date?new Date(e.date+'T12:00:00'):null);
+ let when='';if(d&&!isNaN(d)){when=d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});const hh=d.getHours(),mm=d.getMinutes();if(raw&&raw.starts_at&&(hh||mm))when+=' · '+String(hh).padStart(2,'0')+'h'+(mm?String(mm).padStart(2,'0'):'')}
+ x.fillStyle='#fff';x.font='600 48px Inter,system-ui,sans-serif';
+ if(when)adhWrapText(x,when.charAt(0).toUpperCase()+when.slice(1),W-160).forEach(l=>{x.fillText(l,W/2,y+40);y+=62});
+ y+=18;x.fillStyle='#d6e2ef';x.font='500 40px Inter,system-ui,sans-serif';
+ if(e.location)adhWrapText(x,'📍 '+e.location,W-160).slice(0,2).forEach(l=>{x.fillText(l,W/2,y+36);y+=54});
+ x.fillStyle='#c9a45c';x.font='700 38px Inter,system-ui,sans-serif';y+=14;
+ adhWrapText(x,e.chapter+(e.city?' · '+e.city:''),W-160).slice(0,2).forEach(l=>{x.fillText(l,W/2,y+36);y+=52});
+ x.fillStyle='rgba(255,255,255,.55)';x.font='500 30px Inter,system-ui,sans-serif';x.fillText('adhonepemsc.com.br',W/2,H-70);
+ try{return await new Promise((r,j)=>{try{cv.toBlob(r,'image/png')}catch(er){j(er)}})}catch(er){if(!noLogo)return adhMakeInviteArt(e,raw,true);throw er}
+}
+async function adhInviteEvent(id){
+ const e=(events||[]).find(v=>String(v.id)===String(id));if(!e){toast('Evento não encontrado.');return}
+ const raw=(adhDbEvents||[]).find(v=>String(v.id)===String(id));
+ try{
+  toast('Montando o convite…');
+  let blob=null;
+  const src=e.image_url||e.image_data||(raw&&raw.image_url)||'';
+  if(src&&/^https:\/\//i.test(src)){try{const rs=await fetch(src);if(rs.ok){const b=await rs.blob();if(/^image\/(jpeg|png|webp)$/.test(b.type))blob=b}}catch(_){}}
+  const own=!!blob;
+  if(!blob)blob=await adhMakeInviteArt(e,raw);
+  if(!blob)throw new Error('não foi possível gerar a imagem');
+  const ext=blob.type==='image/png'?'png':blob.type==='image/webp'?'webp':'jpg';
+  if(adhInvite.url)URL.revokeObjectURL(adhInvite.url);
+  adhInvite={blob,url:URL.createObjectURL(blob),title:e.name,file:null,ext,own};
+  try{adhInvite.file=new File([blob],'convite-adhonep.'+ext,{type:blob.type})}catch(_){}
+  const d=raw&&raw.starts_at?new Date(raw.starts_at):null;let when='';
+  if(d&&!isNaN(d)){when=d.toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'});if(d.getHours()||d.getMinutes())when+=' às '+String(d.getHours()).padStart(2,'0')+'h'+(d.getMinutes()?String(d.getMinutes()).padStart(2,'0'):'')}
+  else if(e.date)when=e.date.split('-').reverse().join('/');
+  const link=location.origin+location.pathname+((typeof adhInfoIds!=='undefined'&&adhInfoIds.has(String(e.chapter_id)))?'#capitulo/'+e.chapter_id:'');
+  document.getElementById('inviteText').value='Você está convidado! 🙌\n*'+e.name+'*\n'+(when?'📅 '+when+'\n':'')+(e.location?'📍 '+e.location+(e.city?' — '+e.city:'')+'\n':'')+'Organização: '+e.chapter+'\nMais informações: '+link;
+  document.getElementById('inviteImg').src=adhInvite.url;document.getElementById('inviteMsg').textContent=own?'Será enviada a mesma arte do convite que foi cadastrada no evento, junto com a mensagem.':'Este evento não tem arte cadastrada; o site montou um convite automático. No celular, escolha o contato ou grupo; no computador, a imagem é baixada e o WhatsApp abre com a mensagem.';document.getElementById('inviteModal').classList.add('open');
+ }catch(err){toast('Não foi possível montar o convite: '+err.message)}
+}
+async function adhInviteShare(){
+ const text=document.getElementById('inviteText').value,f=adhInvite.file;
+ try{
+  if(f&&navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text,title:adhInvite.title});return}
+ }catch(e){if(e&&e.name==='AbortError')return}
+ adhInviteDownload();window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank','noopener');
+ document.getElementById('inviteMsg').textContent='Imagem baixada. No WhatsApp que abriu, escolha o contato e anexe a imagem junto da mensagem.';
+}
+function adhInviteDownload(){if(!adhInvite.url)return;const a=document.createElement('a');a.href=adhInvite.url;a.download='convite-adhonep.'+(adhInvite.ext||'png');document.body.appendChild(a);a.click();a.remove()}
+async function adhInviteCopy(){try{await navigator.clipboard.writeText(document.getElementById('inviteText').value);toast('Mensagem copiada.')}catch(e){document.getElementById('inviteText').select();toast('Selecione e copie a mensagem.')}}
+
+/* --- quadro "Atenção" (relatórios mensais em atraso) --- */
+function adhAttentionItems(){
+ const now=new Date(),out=[];
+ const closed=[1,2,3].map(n=>mrKey(new Date(now.getFullYear(),now.getMonth()-n,1))).filter(k=>now>mrDeadline(k));
+ mrChapters().filter(c=>mrChStatus(c)==='active').forEach(c=>{
+  const miss=closed.filter(k=>{
+   const [y,m]=k.split('-');if(c.created_at&&new Date(c.created_at)>new Date(+y,+m,1))return false;
+   return !adhMonthly.some(r=>String(r.chapter_id)===String(c.id)&&String(r.ref_month).slice(0,10)===k)});
+  if(!miss.length)return;
+  const first=miss[miss.length-1],late=Math.max(1,Math.ceil((now-mrDeadline(first))/864e5));
+  out.push({c,miss,level:miss.length>=2?'red':'yellow',late});
+ });
+ out.sort((a,b)=>(a.level===b.level?0:a.level==='red'?-1:1)||b.late-a.late||String(a.c.name).localeCompare(String(b.c.name),'pt-BR'));
+ return out;
+}
+function adhAttentionWa(it){
+ const c=it.c,ph=((adhChapterContacts||{})[String(c.id)]||{}).president_phone||'';
+ const nome=String(c.president_name||'').trim().split(/\s+/)[0];
+ const meses=it.miss.slice().reverse().map(k=>mrLabel(k).split(' ')[0].toLowerCase()).join(' e ');
+ const msg='Olá'+(nome?', '+nome:'')+'! Tudo bem? Aqui é da '+ADH_BRAND+'. Notamos que o relatório mensal de '+meses+' do capítulo '+c.name+' ainda não foi enviado (o prazo é sempre dia 5). Consegue enviar pela plataforma quando puder? Se tiver qualquer dificuldade, é só me chamar. Obrigado pelo trabalho! 🙏';
+ return /^55\d{10,11}$/.test(ph)?'https://wa.me/'+ph+'?text='+encodeURIComponent(msg):'';
+}
+let adhAttentionAll=false,adhContactsTried=false;
+async function adhEnsureContacts(){if(adhContactsTried)return;adhContactsTried=true;try{const rows=await adhFetch('/rest/v1/chapter_contacts?select=chapter_id,president_phone,show_public&limit=2000');adhChapterContacts={};(rows||[]).forEach(x=>{adhChapterContacts[String(x.chapter_id)]=x});adhRenderAttention()}catch(e){}}
+function adhRenderAttention(){
+ const box=document.getElementById('attentionPanel');if(!box)return;
+ const r=adhProfile&&adhProfile.role;
+ if(!adhSession||!['state_admin','state_director','regional_director'].includes(r)||!window.adhMonthlyOk){box.hidden=true;return}
+ adhEnsureContacts();
+ const items=adhAttentionItems(),total=mrChapters().filter(c=>mrChStatus(c)==='active').length;
+ const red=items.filter(i=>i.level==='red').length,yel=items.length-red;
+ const pend=mrCanReview()?adhMonthly.filter(x=>x.status==='Entregue'||x.status==='Reenviado').length:0;
+ const E=escapeHtml,show=adhAttentionAll?items:items.slice(0,8);
+ let h='<div class="eyebrow">Atenção</div><h3>'+(items.length?'Capítulos que precisam de um toque':'Tudo em dia 🎉')+'</h3><p class="sub">'+(r==='regional_director'?'Capítulos da sua região':'Estado inteiro')+' · '+(total-items.length)+' de '+total+' capítulos ativos com os relatórios mensais em dia (prazo: dia 5).'+(items.length?' <strong style="color:#a83c42">'+red+' crítico(s)</strong> · <strong style="color:#966315">'+yel+' em atraso</strong>':'')+'</p>';
+ if(pend)h+='<div class="detail" style="display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap"><span>📥 <strong>'+pend+'</strong> relatório(s) aguardando a sua revisão</span><button class="btn small primary" onclick="showPage(\'monthly\',document.querySelector(\'.nav[data-page=monthly]\'))">Revisar</button></div>';
+ h+=show.map(it=>{const wa=adhAttentionWa(it),meses=it.miss.slice().reverse().map(k=>mrLabel(k).split(' ')[0].toLowerCase()).join(', ');
+  return '<div class="detail" style="display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap"><span>'+(it.level==='red'?'🔴':'🟡')+' <strong>'+E(it.c.name)+'</strong> — '+(it.level==='red'?it.miss.length+' meses sem relatório ('+E(meses)+')':'relatório de '+E(meses)+' atrasado há '+it.late+' dia(s)')+'</span>'
+  +(wa?'<a class="btn small" target="_blank" rel="noopener" href="'+E(wa)+'">Falar com o presidente</a>':'<button class="btn small" onclick="openChapterContact('+Number(it.c.id)+')">Cadastrar telefone do presidente</button>')+'</div>'}).join('');
+ if(items.length>8)h+='<div style="margin-top:8px"><button class="btn small" onclick="adhAttentionAll=!adhAttentionAll;adhRenderAttention()">'+(adhAttentionAll?'Mostrar menos':'Ver todos ('+items.length+')')+'</button></div>';
+ box.innerHTML=h;box.hidden=false;
+}
+(function(){const _d=renderDashboard;renderDashboard=function(){const r=_d.apply(this,arguments);try{adhRenderAttention()}catch(e){}return r}})();
+
+
+/* LGPD — versão da política aceita e direitos do titular (claude v1.x) */
+var ADH_POLICY_VERSION='privacidade-2026-10-25';
+function lgpdMsg(t,ok){var m=document.getElementById('lgpdMsg');if(m){m.textContent=t;m.style.color=ok?'#1f7a4a':'#a83c42'}}
+async function lgpdExport(ev){ev.preventDefault();var em=document.getElementById('lgpdEmail').value.trim();lgpdMsg('Gerando…',true);try{var r=await adhFetch('/rest/v1/rpc/adh_lgpd_export',{method:'POST',body:JSON.stringify({p_email:em})});var blob=new Blob([JSON.stringify(r,null,2)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dados-titular-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();lgpdMsg('✓ Arquivo gerado e ação registrada no histórico.',true)}catch(e){lgpdMsg('Não foi possível gerar: '+e.message,false)}}
+async function lgpdAnonymize(){var em=document.getElementById('lgpdEmail').value.trim();if(!em){lgpdMsg('Informe o e-mail do titular.',false);return}if(!confirm('Anonimizar os dados de '+em+'? Isso bloqueia o login e não pode ser desfeito.'))return;lgpdMsg('Processando…',true);try{var r=await adhFetch('/rest/v1/rpc/adh_lgpd_anonymize',{method:'POST',body:JSON.stringify({p_email:em})});lgpdMsg('✓ Concluído: '+r.solicitacoes_anonimizadas+' solicitação(ões), '+r.perfis_anonimizados+' perfil(is), '+r.papeis_desativados+' papel(éis). '+r.nao_alterado,true)}catch(e){lgpdMsg('Não foi possível anonimizar: '+e.message,false)}}
+
+/* v3.3 · expansão de estados + backup provisório */
+function stMsg(t,ok){var e=document.getElementById('stMsg');if(e){e.textContent=t;e.style.color=ok?'#1f6f43':'#a83c42'}}
+function bkMsg(t,ok){var e=document.getElementById('bkMsg');if(e){e.textContent=t;e.style.color=ok?'#1f6f43':'#a83c42'}}
+function esMsg(t,ok){var e=document.getElementById('esMsg');if(e){e.textContent=t;e.style.color=ok?'#1f6f43':'#a83c42'}}
+let esData=[];
+async function esLoad(){try{var r=await Promise.all([adhFetch('/rest/v1/rpc/adh_state_overview',{method:'POST',body:'{}'}),adhFetch('/rest/v1/rpc/adh_list_scope_roles',{method:'POST',body:'{}'}),adhFetch('/rest/v1/countries?select=iso3,name&adhonep_present=eq.true&order=name.asc').catch(function(){return []})]);esData=r[0]||[];
+ var f=document.querySelector('#page-estados form');if(f&&!f.elements.state.options.length){f.elements.state.innerHTML=esData.map(function(s){return '<option value="'+s.code+'">'+esc(s.name)+' ('+s.code+')</option>'}).join('');f.elements.country.innerHTML=(r[2]||[]).map(function(c){return '<option value="'+c.iso3+'">'+esc(c.name)+'</option>'}).join('')}
+ document.getElementById('esRows').innerHTML=esData.map(function(s){var sc=s.code==='SC',ok=function(n){return n>0?'<b style="color:#1f6f43">'+n+'</b>':'<span style="color:#a83c42">0</span>'};
+  var go=' <a class="btn small gold" href="?uf='+s.code+'">Abrir plataforma</a>',acts=(sc?'<em>modelo (SC)</em>':'<button class="btn small" onclick="esActivate(\''+s.code+'\')">1 · Municípios</button> <button class="btn small" '+(s.municipalities?'':'disabled ')+'onclick="esChapters(\''+s.code+'\')">2 · Capítulos</button> <button class="btn small" '+(s.municipalities&&!s.regions?'':'disabled ')+'onclick="esSuggest(\''+s.code+'\')">3 · Regiões</button>')+go;
+  return '<tr><td>'+esc(s.name)+' <small>'+s.code+'</small></td><td>'+ok(s.municipalities)+'</td><td>'+ok(s.chapters)+'</td><td>'+ok(s.regions)+'</td><td>'+ok(s.directors)+'</td><td>'+acts+'</td></tr>'}).join('');
+ var L={state_director:'Diretor estadual',country_director:'Diretor nacional'};document.getElementById('esRoles').innerHTML=(r[1]||[]).length?r[1].map(function(x){return '<tr><td>'+esc(x.email)+'</td><td>'+(L[x.role]||x.role)+'</td><td>'+esc(x.state_code||x.country_iso3||'')+'</td><td>'+(x.is_active?'Ativo':'Revogado')+'</td><td>'+(x.is_active?'<button class="btn small" onclick="esRevoke('+x.id+')">Revogar</button>':'')+'</td></tr>'}).join(''):'<tr><td colspan="5" class="empty">Nenhum acesso concedido ainda.</td></tr>'}catch(e){esMsg('Não foi possível carregar: '+e.message,false)}}
+function esKind(f){var st=f.elements.kind.value==='state_director';document.getElementById('esStW').style.display=st?'':'none';document.getElementById('esCoW').style.display=st?'none':''}
+async function esActivate(uf){esMsg('Carregando municípios de '+uf+'…',true);try{var r=await fetch('data/mun/'+uf+'.json');if(!r.ok)throw new Error('arquivo de municípios de '+uf+' não encontrado');var g=await r.json();var rows=(Array.isArray(g)?g:[]).map(function(f){return {c:String(f.id||''),n:f.n||''}}).filter(function(x){return /^\d{7}$/.test(x.c)&&x.n});if(!rows.length)throw new Error('formato inesperado do arquivo');var n=await adhFetch('/rest/v1/rpc/adh_seed_state_municipalities',{method:'POST',body:JSON.stringify({p_uf:uf,p_rows:rows})});esMsg('✓ '+uf+': '+n+' municípios carregados.',true);esLoad()}catch(e){esMsg('Não foi possível ativar '+uf+': '+e.message,false)}}
+function esTc(s){return String(s||'').toLowerCase().replace(/(^|[\s–|(-])(\p{L})/gu,function(m,a,z){return a+z.toUpperCase()}).replace(/ (De|Do|Da|Dos|Das|E) /g,function(x){return x.toLowerCase()})}
+async function esChapters(uf){esMsg('Importando capítulos de '+uf+'…',true);try{var all=await (await fetch('data/capitulos.json')).json();var d=all[uf];if(!d||!d.length)throw new Error('sem capítulos na lista oficial para '+uf);var rows=d.map(function(c){return {n:esTc(c.n),c:c.c,p:c.p?esTc(c.p):'',m:c.m||[]}});var n=await adhFetch('/rest/v1/rpc/adh_seed_state_chapters',{method:'POST',body:JSON.stringify({p_uf:uf,p_rows:rows})});esMsg('✓ '+uf+': '+n+' capítulos importados (de '+rows.length+' na lista). Entram ocultos até o diretor confirmar.',true);esLoad()}catch(e){esMsg('Não foi possível importar: '+e.message,false)}}
+async function esSuggest(uf){if(!confirm('Criar regiões sugeridas (rascunho IBGE 2000, não oficial) para '+uf+'?'))return;esMsg('Gerando…',true);try{var all=await (await fetch('data/regioes.json')).json();var d=all[uf];if(!d)throw new Error('sem sugestão para '+uf);var res=await adhFetch('/rest/v1/rpc/adh_suggest_regions',{method:'POST',body:JSON.stringify({p_uf:uf,p_names:d.r,p_map:d.m})});esMsg('✓ '+uf+': '+res.regions+' regiões criadas ('+res.links+' municípios). São rascunho: o diretor do estado ajusta.',true);esLoad()}catch(e){esMsg('Não foi possível sugerir: '+e.message,false)}}
+async function esGrant(ev){ev.preventDefault();var f=ev.target,k=f.elements.kind.value;try{await adhFetch('/rest/v1/rpc/adh_grant_scope_role',{method:'POST',body:JSON.stringify({p_email:f.elements.email.value.trim(),p_role:k,p_state:k==='state_director'?f.elements.state.value:null,p_country:k==='country_director'?f.elements.country.value:null})});esMsg('✓ Acesso concedido.',true);f.elements.email.value='';esLoad()}catch(e){esMsg('Não foi possível conceder: '+e.message,false)}}
+async function esRevoke(id){if(!confirm('Revogar este acesso?'))return;try{await adhFetch('/rest/v1/rpc/adh_revoke_scope_role',{method:'POST',body:JSON.stringify({p_id:id})});esLoad()}catch(e){esMsg('Erro: '+e.message,false)}}
+async function bkDownload(){bkMsg('Gerando backup…',true);try{var r=await adhFetch('/rest/v1/rpc/adh_backup_export',{method:'POST',body:'{}'});var blob=new Blob([JSON.stringify(r)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='backup-adhonep-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();bkMsg('✓ Backup baixado e registrado no histórico. Guarde fora do sistema.',true)}catch(e){bkMsg('Não foi possível: '+e.message,false)}}
+async function bkSnapshot(){try{await adhFetch('/rest/v1/rpc/adh_backup_snapshot_now',{method:'POST',body:'{}'});bkMsg('✓ Cópia interna criada.',true);bkList()}catch(e){bkMsg('Não foi possível: '+e.message,false)}}
+async function bkList(){try{var r=await adhFetch('/rest/v1/rpc/adh_backup_list',{method:'POST',body:'{}'})||[];var el=document.getElementById('bkRows');el.innerHTML=r.length?r.map(function(x){var t=Object.values(x.row_counts||{}).reduce(function(a,b){return a+b},0);return '<tr><td>'+new Date(x.taken_at).toLocaleString('pt-BR')+'</td><td>'+(x.kind==='auto'?'Automática':'Manual')+'</td><td>'+t+'</td></tr>'}).join(''):'<tr><td colspan="3" class="empty">Nenhuma cópia ainda.</td></tr>'}catch(e){bkMsg('Não foi possível listar: '+e.message,false)}}
+
+/* v3.4 · capítulos no exterior (administrador) */
+const EXT_ST={active:'Ativo',inactive:'Inativo',in_activation:'Em ativação',reactivation:'Em reativação'};let extCountries=null;
+function extMsg(t,ok){var e=document.getElementById('extMsg');if(e){e.textContent=t;e.style.color=ok?'#1f6f43':'#a83c42'}}
+async function extLoad(){try{if(!extCountries){extCountries=(await adhFetch('/rest/v1/countries?select=iso3,name&iso3=neq.BRA&order=name.asc&limit=300'))||[];var f=document.querySelector('#page-exterior select[name=country]');f.innerHTML=extCountries.map(function(c){return '<option value="'+c.iso3+'">'+esc(c.name)+'</option>'}).join('')}
+ var r=await adhFetch('/rest/v1/chapters?select=id,name,city,status,is_public,country_iso3&country_iso3=neq.BRA&order=country_iso3.asc,name.asc&limit=1000')||[];var nm={};extCountries.forEach(function(c){nm[c.iso3]=c.name});
+ document.getElementById('extRows').innerHTML=r.length?r.map(function(x){return '<tr><td>'+esc(nm[x.country_iso3]||x.country_iso3)+'</td><td>'+esc(x.name)+'</td><td>'+esc(x.city||'')+'</td><td>'+(EXT_ST[x.status]||x.status)+'</td><td>'+(x.is_public?'Sim':'Não')+'</td><td><button class="btn small" onclick="extToggle('+x.id+','+(x.is_public?'false':'true')+')">'+(x.is_public?'Ocultar':'Publicar')+'</button> <button class="btn small" onclick="extStatus('+x.id+',\''+(x.status==='active'?'inactive':'active')+'\')">'+(x.status==='active'?'Desativar':'Ativar')+'</button></td></tr>'}).join(''):'<tr><td colspan="6" class="empty">Nenhum capítulo cadastrado fora do Brasil.</td></tr>'}catch(e){extMsg('Não foi possível carregar: '+e.message,false)}}
+async function extSave(ev){ev.preventDefault();var f=ev.target,d=new FormData(f);try{await adhFetch('/rest/v1/chapters',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({name:String(d.get('name')).trim(),city:String(d.get('city')||'').trim()||null,country_iso3:d.get('country'),status:d.get('status'),is_public:d.get('isPublic')==='on'})});f.reset();extMsg('✓ Capítulo adicionado.',true);extLoad()}catch(e){extMsg('Não foi possível salvar: '+e.message,false)}}
+async function extToggle(id,v){try{await adhFetch('/rest/v1/chapters?id=eq.'+id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({is_public:v})});extLoad()}catch(e){extMsg('Erro: '+e.message,false)}}
+async function extStatus(id,v){try{await adhFetch('/rest/v1/chapters?id=eq.'+id,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({status:v})});extLoad()}catch(e){extMsg('Erro: '+e.message,false)}}
+
+/* Painel nacional (Brasil): consolidado por estado */
+async function natLoad(){var body=document.getElementById('natRows'),k=document.getElementById('natKpi');if(!body)return;try{var d=await adhFetch('/rest/v1/rpc/adh_national_overview',{method:'POST',body:'{}'})||[];var sum=function(f){return d.reduce(function(a,s){return a+(s[f]||0)},0)};
+ var kp=[[sum('chapters'),'capítulos ativos'],[sum('chapters_public'),'públicos no site'],[d.filter(function(s){return s.chapters>0}).length,'estados com capítulo'],[sum('municipalities_with_chapter'),'municípios atendidos'],[d.filter(function(s){return s.directors>0}).length,'estados com diretor']];
+ k.innerHTML=kp.map(function(x){return '<div class="panel" style="padding:14px"><div style="font:700 26px var(--display,inherit)">'+x[0]+'</div><small>'+x[1]+'</small></div>'}).join('');
+ body.innerHTML=d.map(function(s){var z=function(n){return n>0?'<b>'+n+'</b>':'<span style="color:#a83c42">0</span>'};return '<tr><td>'+esc(s.name)+' <small>'+s.code+'</small></td><td>'+z(s.chapters)+'</td><td>'+s.chapters_public+'</td><td>'+s.municipalities_with_chapter+' <small>de '+s.municipalities+'</small></td><td>'+z(s.regions)+(s.code==='SC'?'':' <small>hipótese</small>')+'</td><td>'+(s.directors>0?'✓':'<span style="color:#a83c42">sem acesso</span>')+'</td><td>'+s.announcements+'</td><td><a class="btn small gold" href="?uf='+s.code+'">Abrir</a></td></tr>'}).join('')}catch(e){body.innerHTML='<tr><td colspan="8" class="empty">Não foi possível carregar: '+esc(e.message)+'</td></tr>'}}
+function natAnnounce(){showPage('announcements');try{var f=document.getElementById('announcementFormIntegrated');if(f&&f.elements.scope){f.elements.scope.value='country';if(typeof annScopeChanged==='function')annScopeChanged()}}catch(e){}}
+
+/* Diretor nacional / diretoria global: perfil com Painel nacional e troca de estado */
+(function(){var _r=adhResolveProfile;adhResolveProfile=function(roles,se){var p=_r(roles,se);if(p&&(Array.isArray(roles)?roles:[]).some(function(r){return r&&r.national}))p.national=true;return p};
+ var _a=adhApplyProfile;adhApplyProfile=function(p){_a(p);lvBar();setTimeout(function(){var h=(location.hash||'').replace('#','');if(!h&&window.ADH_LEVEL)h=ADH_LEVEL==='global'?'global':'nacional';if(!/^(gestao|global|nacional)$/.test(h))return;try{setMode('admin')}catch(e){}if(h!=='gestao'&&canViewPage(h))showPage(h)},400)};
+ var _p=rolePermissions;rolePermissions=function(r){var q=_p(r);if(typeof adhProfile!=='undefined'&&adhProfile&&adhProfile.national&&q&&q.pages&&q.pages.indexOf('nacional')<0){q=Object.assign({},q,{pages:q.pages.concat(['nacional'])})}if(typeof adhProfile!=='undefined'&&adhProfile&&adhProfile.national&&adhProfile.role==='state_admin'&&q&&q.pages&&q.pages.indexOf('global')<0){q=Object.assign({},q,{pages:q.pages.concat(['global'])})}return q};
+ var _s=signOutAdmin;signOutAdmin=function(){_s.apply(this,arguments);var e=document.getElementById('lvSw');if(e)e.remove()}})();
+async function lvBar(){var old=document.getElementById('lvSw');if(old)old.remove();if(!adhProfile||!adhProfile.national)return;var rl=document.getElementById('roleLabel');if(rl&&adhProfile.role==='state_director')rl.textContent='Diretor nacional';if(rl&&adhProfile.role==='state_admin')rl.textContent='Diretoria global';try{var st=(await adhFetch('/rest/v1/rpc/adh_states_list',{method:'POST',body:'{}'})||[]).filter(function(s){return s.country_iso3==='BRA'});var bar=document.querySelector('.adminbar>span:first-child');if(!bar||!st||!st.length)return;var w=document.createElement('span');w.id='lvSw';w.style.cssText='margin-left:12px;display:inline-flex;gap:6px;align-items:center';var gl=adhProfile.role==='state_admin',cur=ADH_LEVEL||ADH_UF;w.innerHTML='<small>Nível</small><select class="field" style="padding:4px 8px;min-height:0;width:auto" aria-label="Trocar de nível"><option value="@global"'+(ADH_LEVEL==='global'?' selected':'')+(gl?'':' hidden')+'>Global</option><option value="@brasil"'+(ADH_LEVEL==='brasil'?' selected':'')+'>Brasil</option>'+st.map(function(s){return '<option value="'+s.code+'"'+(!ADH_LEVEL&&s.code===ADH_UF?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>';w.querySelector('select').onchange=function(){var v=this.value;if(v==='@global')location.href='../beta-global/gestao/';else if(v==='@brasil')location.href='../beta-global/gestao/#brasil';else location.href='?uf='+v+'#gestao'};bar.appendChild(w)}catch(e){}}
+
+/* Painel global (diretoria global) */
+async function glLoad(){var body=document.getElementById('glRows'),k=document.getElementById('glKpi');if(!body)return;try{var d=await adhFetch('/rest/v1/rpc/adh_global_overview',{method:'POST',body:'{}'})||[];var sum=function(f){return d.reduce(function(a,s){return a+(s[f]||0)},0)};
+ var kp=[[d.length,'países com a ADHONEP'],[sum('chapters'),'capítulos ativos'],[sum('chapters_public'),'públicos no site'],[d.filter(function(s){return s.directors>0}).length,'países com diretor nacional']];
+ k.innerHTML=kp.map(function(x){return '<div class="panel" style="padding:14px"><div style="font:700 26px var(--display,inherit)">'+x[0]+'</div><small>'+x[1]+'</small></div>'}).join('');
+ body.innerHTML=d.map(function(s){var br=s.iso3==='BRA';return '<tr><td>'+esc(s.name)+' <small>'+s.iso3+'</small></td><td><b>'+s.chapters+'</b></td><td>'+s.chapters_public+'</td><td>'+(s.states||'—')+'</td><td>'+(s.directors>0?'✓':'<span style="color:#a83c42">sem acesso</span>')+'</td><td>'+s.announcements+'</td><td><button class="btn small gold" type="button" onclick="showPage(\''+(br?'nacional':'exterior')+'\')">'+(br?'Painel nacional':'Capítulos')+'</button></td></tr>'}).join('')}catch(e){body.innerHTML='<tr><td colspan="7" class="empty">Não foi possível carregar: '+esc(e.message)+'</td></tr>'}}
+function glAnnounce(){showPage('announcements');try{var f=document.getElementById('announcementFormIntegrated');if(f&&f.elements.scope){f.elements.scope.value='global';if(typeof annScopeChanged==='function')annScopeChanged()}}catch(e){}}
+/* Entrada direta nos níveis global/brasil: sem sessão, abre o login */
+if(window.ADH_LEVEL)window.addEventListener('load',function(){setTimeout(function(){try{if(!adhSession)setMode('admin')}catch(e){}},600)});

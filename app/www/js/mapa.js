@@ -204,7 +204,19 @@
   function idbSet(k, v) { return idbOpen().then(function (db) { return new Promise(function (res) { var t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = res; }); }).catch(function () { }); }
   function idbDel(k) { return idbOpen().then(function (db) { return new Promise(function (res) { var t = db.transaction('kv', 'readwrite'); t.objectStore('kv').delete(k); t.oncomplete = res; t.onerror = res; }); }).catch(function () { }); }
 
+  async function downloadGeoStatic(progress) {
+    var ms = await adhFetch('/rest/v1/municipalities?select=id,ibge_code,name&order=id.asc&limit=1000');
+    var r = await fetch('data/mun/' + ADH_UF + '.json'); if (!r.ok) throw new Error('Limites municipais de ' + ADH_UF_NAME + ' indisponíveis.');
+    var st = await r.json(), byCode = {}; st.forEach(function (x) { byCode[x.id] = x; });
+    var rows = (Array.isArray(ms) ? ms : []).map(function (m) {
+      var x = byCode[m.ibge_code]; if (!x) return null;
+      return { id: m.id, ibge_code: m.ibge_code, name: m.name, boundary_geojson: { type: 'MultiPolygon', coordinates: x.p.map(function (ring) { return [ring.map(function (p) { return [p[0] / 1000, p[1] / 1000]; })]; }) } };
+    }).filter(Boolean);
+    if (progress) progress(1, 1);
+    return buildGeo(rows);
+  }
   async function downloadGeo(progress) {
+    if (ADH_UF !== 'SC') return downloadGeoStatic(progress);
     var PAGE = 60, N = 6, done = 0;
     var pages = await Promise.all(Array.from({ length: N }, function (_, i) {
       return adhFetch('/rest/v1/municipalities?select=id,ibge_code,name,boundary_geojson&order=id.asc&limit=' + PAGE + '&offset=' + (i * PAGE))
@@ -223,10 +235,10 @@
     if (geoPromise) return geoPromise;
     geoPromise = (async function () {
       if (!force) {
-        var c = await idbGet('geo');
-        if (c && c.v === CACHE_V && Array.isArray(c.munis) && c.munis.length >= 100 && Date.now() - c.savedAt < CACHE_TTL) { geoMem = c; return c; }
+        var c = await idbGet(ADH_UF === 'SC' ? 'geo' : 'geo-' + ADH_UF);
+        if (c && c.v === CACHE_V && Array.isArray(c.munis) && c.munis.length >= (ADH_UF === 'SC' ? 100 : 1) && Date.now() - c.savedAt < CACHE_TTL) { geoMem = c; return c; }
       }
-      var g = await downloadGeo(progress); geoMem = g; idbSet('geo', g); return g;
+      var g = await downloadGeo(progress); geoMem = g; idbSet(ADH_UF === 'SC' ? 'geo' : 'geo-' + ADH_UF, g); return g;
     })().finally(function () { geoPromise = null; });
     return geoPromise;
   }
@@ -246,9 +258,11 @@
   function ease(t) { return t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
   function regionColor(name) { return typeof adhRegionColor === 'function' ? adhRegionColor(name) : '#94A3B8'; }
 
-  function createMap(mode) {
+  function createMap(mode, idsOv, key) {
     var pub = mode === 'public';
-    var ids = pub ? { box: 'officialMap', detail: 'mapCityDetail', label: 'publicMapFocusLabel' } : { box: 'adminOfficialMap', detail: 'adminMapDetail', label: 'adminMapFocusLabel' };
+    var tag = key || mode;
+    var ids = idsOv || (pub ? { box: 'officialMap', detail: 'mapCityDetail', label: 'publicMapFocusLabel' } : { box: 'adminOfficialMap', detail: 'adminMapDetail', label: 'adminMapFocusLabel' });
+    if (!ids.sel) ids.sel = 'adminRegionFocus'; if (!ids.reset) ids.reset = 'adminMapReset'; if (!ids.status) ids.status = 'adminMapStatus';
     var S = { loaded: false, loading: null, munis: [], byId: new Map(), regions: new Map(), chBy: new Map(), chapters: [], st: { level: 0, region: null, muni: null },
       near: [], statusFilter: null, vb: null, anim: 0, hover: false, followed: false, sig: '', els: {}, ro: null };
     var api = {};
@@ -334,15 +348,16 @@
       S.loading = (async function () {
         try {
           var cached = !opts.geo && geoMem;
-          if (!S.loaded || opts.geo) setLoading(cached ? 'Montando o mapa…' : 'Preparando o mapa de Santa Catarina…', cached ? '' : 'Na primeira visita os limites dos municípios são baixados e guardados neste aparelho. Nas próximas, o mapa abre na hora.');
-          var geoP = getGeo(!!opts.geo, function (d, n) { if (!cached) setLoading('Preparando o mapa de Santa Catarina…', 'Baixando limites municipais (' + d + ' de ' + n + ')'); });
+          if (!S.loaded || opts.geo) setLoading(cached ? 'Montando o mapa…' : 'Preparando o mapa de '+ADH_UF_NAME+'…', cached ? '' : 'Na primeira visita os limites dos municípios são baixados e guardados neste aparelho. Nas próximas, o mapa abre na hora.');
+          var geoP = getGeo(!!opts.geo, function (d, n) { if (!cached) setLoading('Preparando o mapa de '+ADH_UF_NAME+'…', 'Baixando limites municipais (' + d + ' de ' + n + ')'); });
           var reqs = [adhFetch('/rest/v1/regions?select=id,name&limit=500'), adhFetch('/rest/v1/region_municipalities?select=municipality_id,region_id&valid_until=is.null&limit=1000')];
           if (!pub) reqs.push(adhFetch('/rest/v1/chapters?select=id,name,chapter_number,municipality_id,region_id,status,is_public,president_name&order=name.asc&limit=2000'));
           var res = await Promise.all([geoP].concat(reqs));
           if (!Array.isArray(res[2])) throw new Error('A consulta de vínculos regionais retornou um formato inesperado (confira a política de leitura de region_municipalities).');
+          if (!pub && Array.isArray(res[3]) && scopeSet()) { var _sc = scopeSet(); res[3] = res[3].filter(function (c) { return _sc.has(String(c.region_id)); }); }
           buildModel(res[0], res[1], res[2], res[3]);
           render(); S.loaded = true;
-          if (!pub) { try { if (typeof renderMapIntegratedMetrics === 'function') renderMapIntegratedMetrics(res[3]); var ms = $('adminMapStatus'); if (ms) ms.textContent = S.munis.length + ' municípios · ' + S.chapters.length + ' capítulos (todos os status, inclusive não publicados).'; } catch (e) { } }
+          if (!pub) { try { if (tag !== 'cmd' && typeof renderMapIntegratedMetrics === 'function') renderMapIntegratedMetrics(res[3]); var ms = $(ids.status); if (ms) ms.textContent = S.munis.length + ' municípios · ' + S.chapters.length + ' capítulos (todos os status, inclusive não publicados).'; } catch (e) { } }
           if (geoMem && Date.now() - geoMem.savedAt > 7 * 24 * 3600 * 1000 && !opts.geo) getGeo(true).catch(function () { });   // renova em segundo plano
         } catch (e) { showError(e); console.warn('mapa:', e); }
         finally { S.loading = null; }
@@ -360,13 +375,13 @@
       var b = box(); if (!b) return;
       b.innerHTML = '<div class="amap amap-' + mode + '"><div class="amap-stage"><div class="amap-crumbs" role="navigation" aria-label="Navegação do mapa"></div><div class="amap-tip" hidden></div><div class="amap-compass" aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="29" fill="none" stroke="rgba(255,255,255,.35)"/><path d="M32 6l6 26-6 6-6-6z" fill="#e8c46b"/><path d="M32 58l-6-26 6-6 6 6z" fill="rgba(255,255,255,.55)"/><text x="32" y="5" font-size="8" text-anchor="middle" fill="#fff" font-family="Inter,sans-serif" font-weight="700">N</text></svg></div><div class="amap-scale" aria-hidden="true"><i></i><span></span></div></div><div class="amap-stats"></div><div class="amap-legend"></div><div class="amap-regions"></div></div>';
       var stage = b.querySelector('.amap-stage');
-      var svg = el('svg', { class: 'amap-svg', role: 'group', 'aria-label': 'Mapa dos municípios de Santa Catarina', preserveAspectRatio: 'xMidYMid meet' });
+      var svg = el('svg', { class: 'amap-svg', role: 'group', 'aria-label': 'Mapa dos municípios de '+ADH_UF_NAME, preserveAspectRatio: 'xMidYMid meet' });
       stage.insertBefore(svg, stage.firstChild);
       var defs = el('defs', {}, svg);
-      var gold = el('linearGradient', { id: 'g-gold-' + mode, x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
+      var gold = el('linearGradient', { id: 'g-gold-' + tag, x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
       [['0', '#fff0b8'], ['.5', '#f0c54f'], ['1', '#c9942a']].forEach(function (s) { el('stop', { offset: s[0], 'stop-color': s[1] }, gold); });
       S.regions.forEach(function (r) {
-        var g = el('linearGradient', { id: 'rg-' + mode + '-' + r.id, x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
+        var g = el('linearGradient', { id: 'rg-' + tag + '-' + r.id, x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
         [['0', mix(r.color, .12)], ['.6', r.color], ['1', shade(r.color, .1)]].forEach(function (s) { el('stop', { offset: s[0], 'stop-color': s[1] }, g); });
       });
       if (!pub) ST_ORDER.forEach(function (k) {
@@ -375,7 +390,7 @@
       });
       var rings = [];
       S.regions.forEach(function (r) {
-        var f = el('filter', { id: 'ringf-' + mode + '-' + r.id, 'color-interpolation-filters': 'sRGB', x: '-5%', y: '-5%', width: '110%', height: '110%' }, defs);
+        var f = el('filter', { id: 'ringf-' + tag + '-' + r.id, 'color-interpolation-filters': 'sRGB', x: '-5%', y: '-5%', width: '110%', height: '110%' }, defs);
         el('feMorphology', { in: 'SourceAlpha', operator: 'dilate', radius: 1, result: 'd', class: 'rd' }, f);
         el('feMorphology', { in: 'd', operator: 'erode', radius: 2, result: 'e', class: 'rr' }, f);
         el('feComposite', { in: 'd', in2: 'e', operator: 'out', result: 'ring' }, f);
@@ -383,24 +398,24 @@
         el('feComposite', { in2: 'ring', operator: 'in' }, f);
         rings.push(r);
       });
-      var sf = el('filter', { id: 'statef-' + mode, 'color-interpolation-filters': 'sRGB', x: '-5%', y: '-5%', width: '110%', height: '110%' }, defs);
+      var sf = el('filter', { id: 'statef-' + tag, 'color-interpolation-filters': 'sRGB', x: '-5%', y: '-5%', width: '110%', height: '110%' }, defs);
       el('feMorphology', { in: 'SourceAlpha', operator: 'dilate', radius: 1, result: 'd', class: 'sd' }, sf);
       el('feMorphology', { in: 'd', operator: 'erode', radius: 2, result: 'e', class: 'rs' }, sf);
       el('feComposite', { in: 'd', in2: 'e', operator: 'out', result: 'ring' }, sf);
       el('feFlood', { 'flood-color': '#e4f1ff', 'flood-opacity': '.85' }, sf);
       el('feComposite', { in2: 'ring', operator: 'in' }, sf);
-      S.munis.forEach(function (m) { el('path', { id: 'rp-' + mode + '-' + m.id, d: m.d0, fill: '#000', stroke: '#000', 'stroke-width': .5, 'stroke-linejoin': 'round' }, defs); });
+      S.munis.forEach(function (m) { el('path', { id: 'rp-' + tag + '-' + m.id, d: m.d0, fill: '#000', stroke: '#000', 'stroke-width': .5, 'stroke-linejoin': 'round' }, defs); });
 
       var gB = el('g', { class: 'amap-terrain', 'pointer-events': 'none' }, svg);
       ['land', 'sea'].forEach(function (k) {
-        var pt = el('pattern', { id: 'tex-' + k + '-' + mode, patternUnits: 'userSpaceOnUse', width: TILE, height: TILE }, defs);
+        var pt = el('pattern', { id: 'tex-' + k + '-' + tag, patternUnits: 'userSpaceOnUse', width: TILE, height: TILE }, defs);
         el('image', { href: k === 'land' ? ASSET_LAND : ASSET_SEA, x: 0, y: 0, width: TILE, height: TILE, preserveAspectRatio: 'none' }, pt);
       });
       var coast = coastProfile(S.munis, S.W, S.H, 3), line = coast.map(function (q, i) { return (i ? 'L' : 'M') + q[0].toFixed(1) + ' ' + q[1].toFixed(1); }).join('');
       var seaD = 'M' + coast[0][0].toFixed(1) + ' -6000' + line.replace(/^M/, 'L') + 'L' + coast[coast.length - 1][0].toFixed(1) + ' 6000L7000 6000L7000 -6000Z';
-      el('rect', { x: -6000, y: -6000, width: 13000, height: 12000, fill: 'url(#tex-land-' + mode + ')' }, gB);
+      el('rect', { x: -6000, y: -6000, width: 13000, height: 12000, fill: 'url(#tex-land-' + tag + ')' }, gB);
       el('rect', { x: -6000, y: -6000, width: 13000, height: 12000, fill: '#03101f', 'fill-opacity': .38 }, gB);
-      el('path', { d: seaD, fill: 'url(#tex-sea-' + mode + ')' }, gB);
+      el('path', { d: seaD, fill: 'url(#tex-sea-' + tag + ')' }, gB);
       el('path', { d: seaD, fill: '#03101f', 'fill-opacity': .3 }, gB);
       [[46, .05], [28, .07], [14, .1], [6, .14]].forEach(function (w) { el('path', { d: line, fill: 'none', stroke: '#8fd8ff', 'stroke-opacity': w[1], 'stroke-width': w[0], 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, gB); });
       el('rect', { class: 'amap-bg', x: -6000, y: -6000, width: 12000, height: 12000, fill: 'transparent' }, svg);
@@ -411,8 +426,8 @@
         var p = el('path', { class: 'muni', d: m.d0, 'fill-rule': 'evenodd', 'data-id': m.id, role: 'img', 'aria-label': m.name }, gM);
         S.paths.set(m.id, p);
       });
-      rings.forEach(function (r) { var g = el('g', { class: 'ring', 'data-r': r.id, filter: 'url(#ringf-' + mode + '-' + r.id + ')' }, gR); r.munis.forEach(function (m) { el('use', { href: '#rp-' + mode + '-' + m.id }, g); }); });
-      var gs = el('g', { filter: 'url(#statef-' + mode + ')' }, gS); S.munis.forEach(function (m) { el('use', { href: '#rp-' + mode + '-' + m.id }, gs); });
+      rings.forEach(function (r) { var g = el('g', { class: 'ring', 'data-r': r.id, filter: 'url(#ringf-' + tag + '-' + r.id + ')' }, gR); r.munis.forEach(function (m) { el('use', { href: '#rp-' + tag + '-' + m.id }, g); }); });
+      var gs = el('g', { filter: 'url(#statef-' + tag + ')' }, gS); S.munis.forEach(function (m) { el('use', { href: '#rp-' + tag + '-' + m.id }, gs); });
 
       S.els = { stats: b.querySelector('.amap-stats'), regs: b.querySelector('.amap-regions'), scale: stage.querySelector('.amap-scale'), svg: svg, stage: stage, gM: gM, gR: gR, gS: gS, gL: gL, tip: stage.querySelector('.amap-tip'), crumbs: stage.querySelector('.amap-crumbs'), legend: b.querySelector('.amap-legend') };
       S.vb = fit([0, 0, S.W, S.H]); applyVB(S.vb);
@@ -430,7 +445,7 @@
       S.munis.forEach(function (m) {
         var p = S.paths.get(m.id); if (!p) return;
         var r = S.regions.get(m.regionId), st = muniStatus(m.id);
-        p.style.setProperty('--tint', r ? 'url(#rg-' + mode + '-' + r.id + ')' : '#3a4a60');
+        p.style.setProperty('--tint', r ? 'url(#rg-' + tag + '-' + r.id + ')' : '#3a4a60');
         var cls = 'muni';
         if (pub) { if (st !== 'none') cls += ' has-ch'; }
         else cls += ' st-' + st;
@@ -439,7 +454,7 @@
       });
     }
     function fillCityList() {
-      if (!pub) { var sl = $('adminRegionFocus'); if (sl) { sl.innerHTML = '<option value="">Todas as regiões</option>' + Array.from(S.regions.values()).filter(function (x) { return x.id !== '0'; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (x) { return '<option>' + esc(x.name) + '</option>'; }).join(''); sl.disabled = false; } return; }
+      if (!pub) { var sl = $(ids.sel); if (sl) { sl.innerHTML = '<option value="">Todas as regiões</option>' + Array.from(S.regions.values()).filter(function (x) { var sc = scopeSet(); return x.id !== '0' && (!sc || sc.has(String(x.id))); }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (x) { return '<option>' + esc(x.name) + '</option>'; }).join(''); sl.disabled = false; } return; }
       var dl = $('cityList'); if (!dl) return;
       dl.innerHTML = S.munis.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (m) { return '<option value="' + esc(m.name) + '"></option>'; }).join('');
       var inp = $('findChapter'); if (inp) inp.setAttribute('list', 'cityList');
@@ -447,11 +462,11 @@
     function renderExtras() {
       var st = S.els.stats; if (st) {
         var nr = 0; S.regions.forEach(function (r) { if (r.num) nr++; });
-        st.innerHTML = '<div><b>' + nr + '</b><span>Regiões</span></div><div><b>' + S.munis.length + '</b><span>Municípios em SC</span></div><div><b>' + S.chapters.length + '</b><span>' + (pub ? 'Capítulos ativos' : 'Capítulos') + '</span></div>';
+        st.innerHTML = '<div><b>' + nr + '</b><span>Regiões</span></div><div><b>' + S.munis.length + '</b><span>Municípios em '+ADH_UF+'</span></div><div><b>' + S.chapters.length + '</b><span>' + (pub ? 'Capítulos ativos' : 'Capítulos') + '</span></div>';
       }
       var rg = S.els.regs; if (rg) {
         var cnt = new Map(); S.chapters.forEach(function (c) { var mm = S.byId.get(String(c.muni)); if (mm) cnt.set(mm.regionId, (cnt.get(mm.regionId) || 0) + 1); });
-        rg.innerHTML = '<div class="rg-title">Regiões da ADHONEP-SC</div><div class="rg-grid">' + Array.from(S.regions.values()).filter(function (r) { return r.num; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (r) {
+        rg.innerHTML = '<div class="rg-title">Regiões da '+ADH_BRAND+'</div><div class="rg-grid">' + Array.from(S.regions.values()).filter(function (r) { return r.num; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (r) {
           return '<button type="button" class="rg" data-r="' + esc(r.id) + '"><i style="background:' + r.color + '"></i><span>' + esc(r.name) + '</span><b>' + (cnt.get(r.id) || 0) + '</b></button>'; }).join('') + '</div>';
         rg.querySelectorAll('.rg').forEach(function (b) {
           b.onclick = function () { go(1, b.getAttribute('data-r')); };
@@ -530,6 +545,7 @@
       visibleSet().forEach(function (id) { var m = S.byId.get(id); if (!m) return; x0 = Math.min(x0, m.bb[0]); y0 = Math.min(y0, m.bb[1]); x1 = Math.max(x1, m.bb[2]); y1 = Math.max(y1, m.bb[3]); });
       return isFinite(x0) ? [x0, y0, x1, y1] : [0, 0, S.W, S.H];
     }
+    function scopeSet() { try { return (!pub && typeof adhProfile !== 'undefined' && adhProfile && adhProfile.role === 'regional_director') ? new Set((adhProfile.regionIds || []).map(String)) : null; } catch (e) { return null; } }
     function applyVisibility() {
       if (!S.paths) return; var vis = visibleSet(), L = S.st.level, detail = L === 2 ? 'd1' : 'd0';
       S.paths.forEach(function (p, id) {
@@ -539,11 +555,12 @@
         p.classList.toggle('is-focus', L === 2 && id === S.st.muni);
         p.classList.toggle('is-near', L === 2 && S.near.indexOf(id) >= 0);
         p.classList.toggle('is-faded', !pub && !!S.statusFilter && on && st !== S.statusFilter);
+        var sc = scopeSet(), out = !!sc && !!m && !sc.has(String(m.regionId)); p.classList.toggle('is-out', out);
         var hid = !pub && !!S.onlyNone && on && st !== 'none'; p.classList.toggle('is-hidden', hid); p.classList.toggle('is-only', !pub && !!S.onlyNone && on && st === 'none');
         var want = on && L === 2 && id === S.st.muni ? m.d1 : m.d0; if (p.__d !== want) { p.setAttribute('d', want); p.__d = want; }
         var inter = on && (pub ? (L === 0 || L === 1 ? true : true) : true);
         if (on && (pub ? st !== 'none' : true)) p.setAttribute('tabindex', 0); else p.removeAttribute('tabindex');
-        p.style.pointerEvents = (on && !hid) ? 'auto' : 'none';
+        p.style.pointerEvents = (on && !hid && !out) ? 'auto' : 'none';
       });
       S.els.gR.querySelectorAll('.ring').forEach(function (g) { g.style.display = (L === 0 || (L === 1 && g.getAttribute('data-r') === S.st.region)) ? '' : 'none'; });
       S.els.gS.style.display = L === 0 ? '' : 'none';
@@ -600,7 +617,7 @@
 
     function renderCrumbs() {
       var c = S.els.crumbs; if (!c) return; var L = S.st.level, r = S.regions.get(S.st.region), m = S.byId.get(S.st.muni || '');
-      var h = '<button type="button" data-g="0"' + (L === 0 ? ' class="cur" aria-current="true"' : '') + '>Santa Catarina</button>';
+      var h = '<button type="button" data-g="0"' + (L === 0 ? ' class="cur" aria-current="true"' : '') + '>'+ADH_UF_NAME+'</button>';
       if (L >= 1 && r) h += '<span aria-hidden="true">›</span><button type="button" data-g="1"' + (L === 1 ? ' class="cur" aria-current="true"' : '') + '>' + esc(r.name) + '</button>';
       if (L === 2 && m) h += '<span aria-hidden="true">›</span><button type="button" class="cur" aria-current="true">' + esc(m.name) + '</button>';
       if (L > 0) h += '<button type="button" class="back" data-g="b">← Voltar</button>';
@@ -609,7 +626,7 @@
     }
     function syncExternal() {
       var r = S.regions.get(S.st.region), m = S.byId.get(S.st.muni || ''), L = S.st.level;
-      var txt = L === 0 ? 'Visão geral de Santa Catarina' : L === 1 ? 'Região: ' + (r ? r.name : '') : 'Município: ' + (m ? m.name : '') + (r ? ' · ' + r.name : '');
+      var txt = L === 0 ? 'Visão geral de '+ADH_UF_NAME : L === 1 ? 'Região: ' + (r ? r.name : '') : 'Município: ' + (m ? m.name : '') + (r ? ' · ' + r.name : '');
       var lab = $(ids.label); if (lab) lab.textContent = txt;
       if (pub) {
         root.adhMapFilter = { region: L >= 1 && r ? r.name : '', city: L === 2 && m ? m.name : '' };
@@ -618,8 +635,8 @@
         if (note) { note.innerHTML = L === 0 ? '' : '<div class="fnote"><span>Filtrando pelo mapa: <b>' + esc(root.adhMapFilter.region) + (root.adhMapFilter.city ? ' › ' + esc(root.adhMapFilter.city) : '') + '</b></span><button type="button" class="btn small" onclick="AdhMap.reset()">Limpar</button></div>'; }
         if (typeof renderPublic === 'function') renderPublic();
       } else {
-        var rs = $('adminMapReset'); if (rs) { rs.disabled = L === 0; rs.onclick = function () { go(0); }; }
-        var sel = $('adminRegionFocus'); if (sel) { sel.disabled = false; sel.value = L >= 1 && r ? r.name : ''; }
+        var rs = $(ids.reset); if (rs) { rs.disabled = L === 0; rs.onclick = function () { go(0); }; }
+        var sel = $(ids.sel); if (sel) { sel.disabled = false; sel.value = L >= 1 && r ? r.name : ''; }
       }
     }
 
@@ -629,12 +646,20 @@
       var list = nearestMunis(S.byId, muniId, Array.from(S.chBy.keys()), 2); if (!list.length) return '<p>Ainda não há capítulos publicados perto deste município.</p>';
       return '<div class="nearby">' + list.map(function (n) {
         var m = S.byId.get(n.id), cs = S.chBy.get(n.id) || [], c = cs[0];
-        return '<div class="near-card"><div><strong>' + esc(c ? ((c.number != null ? String(c.number).padStart(3, '0') + ' — ' : '') + c.name) : m.name) + '</strong><span>' + esc(m.name) + ' · a cerca de ' + Math.max(1, Math.round(n.dist)) + ' km</span></div><button type="button" class="btn small" onclick="AdhMap.goMuni(\'' + esc(m.id) + '\')">Ver no mapa</button></div>';
+        return '<div class="near-card"><div><strong>' + esc(c ? ((c.number != null ? String(c.number).padStart(3, '0') + ' — ' : '') + c.name) : m.name) + '</strong><span>' + esc(m.name) + ' · a cerca de ' + Math.max(1, Math.round(n.dist)) + ' km</span></div><button type="button" class="btn small" onclick="AdhMap.goMuni(\'' + esc(m.id) + '\',\'' + tag + '\')">Ver no mapa</button></div>';
       }).join('') + '</div>';
     }
     function chapterCard(c) {
       if (pub) return '<div class="detail"><strong>' + esc((c.number != null ? String(c.number).padStart(3, '0') + ' — ' : '') + c.name) + '</strong>' + (c.address ? '<p>Endereço: ' + esc(c.address) + '</p>' : '') + (typeof adhContactHtml === 'function' ? adhContactHtml(c, 'Contato público a confirmar') : '<p>Contato: ' + esc(c.contact || 'Contato público a confirmar') + '</p>') + '</div>';
       return '<div class="detail"><div class="statusline"><span class="tag ' + ({ active: 'active', inactive: 'inactive', activation: 'activation', reactivation: 'reactivation' }[c.status]) + '">' + ST[c.status].label + '</span><span class="tag ' + (c.published ? 'active' : 'inactive') + '">' + (c.published ? 'Público' : 'Não público') + '</span></div><strong>' + esc((c.number != null ? String(c.number).padStart(3, '0') + ' — ' : '') + c.name) + '</strong>' + (c.president ? '<p>Presidente: ' + esc(c.president) + '</p>' : '') + (c.address ? '<p>Endereço: ' + esc(c.address) + '</p>' : '') + (typeof canEdit === 'function' && canEdit('chapter', true) && typeof openChapter === 'function' ? '<div class="actions" style="margin-top:8px"><button class="btn small" type="button" onclick="openChapter(' + Number(c.id) + ')">Editar capítulo</button></div>' : '') + '</div>';
+    }
+    function regionChapterList(cs) {
+      var ord = { active: 0, reactivation: 1, activation: 2, inactive: 3 };
+      cs = cs.slice().sort(function (a, b) { return (ord[a.c.status] - ord[b.c.status]) || (Number(a.c.number || 9999) - Number(b.c.number || 9999)) || String(a.c.name).localeCompare(String(b.c.name), 'pt-BR'); });
+      return '<div class="gx-rc-list">' + cs.map(function (x) {
+        var c = x.c, ph = (typeof gxRdPhone === 'function') ? gxRdPhone(c.contact) : null;
+        return '<div class="gx-rc" role="button" tabindex="0" onclick="AdhMap.goMuni(\'' + esc(x.m.id) + '\',\'' + tag + '\')"><div class="gx-rc-top"><strong>' + esc((c.number != null ? String(c.number).padStart(3, '0') + ' — ' : '') + c.name) + '</strong><span class="tag ' + c.status + '">' + ST[c.status].label + '</span></div><div class="meta">' + esc(x.m.name) + (c.president ? ' · Presidente: ' + esc(c.president) : '') + (ph ? ' · <a href="tel:+' + ph.wa + '" onclick="event.stopPropagation()">' + esc(ph.fmt) + '</a> <a class="gx-rd-wa" target="_blank" rel="noopener" href="https://wa.me/' + ph.wa + '" onclick="event.stopPropagation()">WhatsApp</a>' : '') + '</div></div>';
+      }).join('') + '</div>';
     }
     function renderPanel() {
       var d = $(ids.detail); if (!d || !S.loaded && !S.munis.length) return;
@@ -644,33 +669,34 @@
         if (pub) {
           var nm = 0; S.chBy.forEach(function () { nm++; }); var rc = new Map();
           S.chapters.forEach(function (c) { var mm = S.byId.get(String(c.muni)); if (mm) rc.set(mm.regionId, (rc.get(mm.regionId) || 0) + 1); });
-          html = head('Santa Catarina', '<b>' + S.chapters.length + '</b> capítulos ativos em <b>' + nm + '</b> municípios. Clique numa região do mapa para explorar.') +
-            '<div class="chips">' + Array.from(S.regions.values()).filter(function (x) { return x.id !== '0'; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (x) { return chip(x.name, rc.get(x.id) || 0, "AdhMap.goRegion('" + esc(x.id) + "')"); }).join('') + '</div>';
+          html = head(ADH_UF_NAME, '<b>' + S.chapters.length + '</b> capítulos ativos em <b>' + nm + '</b> municípios. Clique numa região do mapa para explorar.') +
+            '<div class="chips">' + Array.from(S.regions.values()).filter(function (x) { return x.id !== '0'; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (x) { return chip(x.name, rc.get(x.id) || 0, "AdhMap.goRegion('" + esc(x.id) + "','" + tag + "')"); }).join('') + '</div>';
         } else {
           var cnt = { active: 0, activation: 0, reactivation: 0, inactive: 0 }; S.chapters.forEach(function (c) { cnt[c.status]++; });
-          html = head('Santa Catarina', S.chapters.length + ' capítulos cadastrados em ' + S.regions.size + ' regiões.') + '<div class="detail"><div class="statline">' + ST_ORDER.map(function (k) { return '<span><i class="sw" style="background:' + ST[k].color + '"></i>' + ST[k].label + ': <b>' + cnt[k] + '</b></span>'; }).join('') + '</div></div><p class="sub" style="margin-top:12px">Clique numa região para isolá-la. Use a legenda para destacar uma situação.</p><div class="chips">' + Array.from(S.regions.values()).filter(function (x) { return x.id !== '0'; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (x) { return chip(x.name, null, "AdhMap.goRegion('" + esc(x.id) + "')"); }).join('') + '</div>';
+          html = head(ADH_UF_NAME, S.chapters.length + ' capítulos cadastrados em ' + S.regions.size + ' regiões.') + '<div class="detail"><div class="statline">' + ST_ORDER.map(function (k) { return '<span><i class="sw" style="background:' + ST[k].color + '"></i>' + ST[k].label + ': <b>' + cnt[k] + '</b></span>'; }).join('') + '</div></div><p class="sub" style="margin-top:12px">Clique numa região para isolá-la. Use a legenda para destacar uma situação.</p><div class="chips">' + Array.from(S.regions.values()).filter(function (x) { return x.id !== '0'; }).sort(function (a, b) { return a.name.localeCompare(b.name, 'pt-BR'); }).map(function (x) { return chip(x.name, null, "AdhMap.goRegion('" + esc(x.id) + "','" + tag + "')"); }).join('') + '</div>';
         }
       } else if (L === 1 && r) {
         var cs = []; r.munis.forEach(function (mm) { (S.chBy.get(mm.id) || []).forEach(function (c) { cs.push({ c: c, m: mm }); }); });
         if (pub) {
           var cities = r.munis.filter(function (mm) { return S.chBy.has(mm.id); });
-          html = head('Região ' + r.name, '<b>' + cs.length + '</b> capítulo(s) ativo(s) em <b>' + cities.length + '</b> de ' + r.munis.length + ' municípios.') + (cities.length ? '<p class="sub">Clique num município destacado para ver o capítulo:</p><div class="chips">' + cities.map(function (mm) { return chip(mm.name, null, "AdhMap.goMuni('" + esc(mm.id) + "')"); }).join('') + '</div>' : '<p>Ainda não há capítulo ativo publicado nesta região. Clique em um município para ver os mais próximos.</p>');
+          html = head('Região ' + r.name, '<b>' + cs.length + '</b> capítulo(s) ativo(s) em <b>' + cities.length + '</b> de ' + r.munis.length + ' municípios.') + (cities.length ? '<p class="sub">Clique num município destacado para ver o capítulo:</p><div class="chips">' + cities.map(function (mm) { return chip(mm.name, null, "AdhMap.goMuni('" + esc(mm.id) + "','" + tag + "')"); }).join('') + '</div>' : '<p>Ainda não há capítulo ativo publicado nesta região. Clique em um município para ver os mais próximos.</p>');
         } else {
           var cn = { active: 0, activation: 0, reactivation: 0, inactive: 0 }; cs.forEach(function (x) { cn[x.c.status]++; });
-          html = head('Região ' + r.name, r.munis.length + ' municípios · ' + cs.length + ' capítulos') + '<div class="detail"><div class="statline">' + ST_ORDER.map(function (k) { return '<span><i class="sw" style="background:' + ST[k].color + '"></i>' + ST[k].label + ': <b>' + cn[k] + '</b></span>'; }).join('') + '</div></div>' + (cs.length ? '<div class="chips">' + cs.map(function (x) { return chip(x.m.name, null, "AdhMap.goMuni('" + esc(x.m.id) + "')"); }).join('') + '</div>' : '') + '<p class="sub" style="margin-top:10px">Clique em um município para isolar a cidade.</p>';
+          html = head('Região ' + r.name, r.munis.length + ' municípios · ' + cs.length + ' capítulos') + '<div class="detail"><div class="statline">' + ST_ORDER.map(function (k) { return '<span><i class="sw" style="background:' + ST[k].color + '"></i>' + ST[k].label + ': <b>' + cn[k] + '</b></span>'; }).join('') + '</div></div>' + (cs.length ? regionChapterList(cs) : '<p class="sub">Nenhum capítulo cadastrado nesta região.</p>') + '<p class="sub" style="margin-top:10px">Clique em um capítulo para isolar a cidade no mapa.</p>';
         }
+        if (!pub && typeof gxRdPanel === 'function') html += gxRdPanel(r.id, r.name);
         if (!pub && r.out && r.out.length) html += '<div class="fnote warn"><span><b>Atenção:</b> ' + r.out.map(function (x) { return esc(x.name); }).join(', ') + ' está vinculado a esta região mas fica longe das demais. Confira o vínculo em region_municipalities.</span></div>';
       } else if (L === 2 && m) {
         var list = S.chBy.get(m.id) || [], rn = r ? r.name : '';
         if (pub) html = head(m.name, 'Região ' + esc(rn) + ' · IBGE ' + esc(m.code)) + (list.length ? list.map(chapterCard).join('') : '<div class="detail"><strong>Ainda não há capítulo ativo em ' + esc(m.name) + '.</strong><p>Os capítulos mais próximos são:</p>' + nearHtml(m.id) + '</div>');
         else html = head(m.name, 'Região ' + esc(rn) + ' · IBGE ' + esc(m.code)) + (list.length ? list.map(chapterCard).join('') : '<div class="detail"><strong>Sem capítulo cadastrado neste município.</strong></div>');
       }
-      if (L > 0) html = '<div class="actions" style="margin-bottom:8px"><button type="button" class="btn small" onclick="AdhMap.back(\'' + mode + '\')">← Voltar</button></div>' + html;
+      if (L > 0) html = '<div class="actions" style="margin-bottom:8px"><button type="button" class="btn small" onclick="AdhMap.back(\'' + tag + '\')">← Voltar</button></div>' + html;
       d.innerHTML = html;
     }
 
     /* ---------- API pública da instância ---------- */
-    api.go = go; api.back = back; api.reset = function () { S.followed = false; go(0); };
+    api.refreshPanel = function () { try { renderPanel(); } catch (e) { } }; api.go = go; api.back = back; api.reset = function () { S.followed = false; go(0); };
     api.goRegionId = function (id) { go(1, id); };
     api.goMuniId = function (id) { var m = S.byId.get(String(id)); if (m) go(2, m.regionId, m.id); };
     api.goRegionName = function (name) { var f = null; S.regions.forEach(function (r) { if (r.name === name) f = r; }); if (f) go(1, f.id); else go(0); };
@@ -680,7 +706,7 @@
       if (S.st.level === 2 && S.st.muni && !S.chBy.has(S.st.muni)) { var m = S.byId.get(S.st.muni); return '<div class="empty"><strong>Ainda não há capítulo ativo em ' + esc(m.name) + '.</strong><p>Os capítulos mais próximos:</p>' + nearHtml(m.id) + '</div>'; }
       var n = norm(q); if (!n) return '';
       var hits = S.munis.filter(function (x) { return norm(x.name).indexOf(n) >= 0; }).slice(0, 6);
-      if (hits.length) return '<div class="empty"><p>Nenhum capítulo corresponde a “' + esc(q) + '”. Você quis dizer:</p><div class="chips">' + hits.map(function (x) { return chip(x.name, null, "AdhMap.goMuni('" + esc(x.id) + "')"); }).join('') + '</div></div>';
+      if (hits.length) return '<div class="empty"><p>Nenhum capítulo corresponde a “' + esc(q) + '”. Você quis dizer:</p><div class="chips">' + hits.map(function (x) { return chip(x.name, null, "AdhMap.goMuni('" + esc(x.id) + "','" + tag + "')"); }).join('') + '</div></div>';
       return '';
     };
     api.followSearch = function (q) {
@@ -696,12 +722,14 @@
   var AdhMap = { pub: null, adm: null, utils: PURE };
   AdhMap.initPublic = function (opts) { if (!AdhMap.pub) AdhMap.pub = createMap('public'); return AdhMap.pub.load(opts); };
   AdhMap.initAdmin = function (opts) { if (!AdhMap.adm) AdhMap.adm = createMap('admin'); return AdhMap.adm.load(opts); };
-  AdhMap.goMuni = function (id) { if (AdhMap.pub) AdhMap.pub.goMuniId(id); };
-  AdhMap.goRegion = function (id) { if (AdhMap.pub) AdhMap.pub.goRegionId(id); };
+  AdhMap.initCmd = function (opts) { if (!AdhMap.cmd) AdhMap.cmd = createMap('admin', { box: 'cmdMap', detail: 'cmdMapDetail', label: 'cmdMapLabel', sel: 'cmdRegionFocus', reset: 'cmdMapReset', status: 'cmdMapStatus' }, 'cmd'); return AdhMap.cmd.load(opts); };
+  AdhMap.inst = function (t) { return t === 'admin' ? AdhMap.adm : (t === 'cmd' ? AdhMap.cmd : AdhMap.pub); };
+  AdhMap.goMuni = function (id, t) { var m = AdhMap.inst(t); if (m) m.goMuniId(id); };
+  AdhMap.goRegion = function (id, t) { var m = AdhMap.inst(t); if (m) m.goRegionId(id); };
   AdhMap.reset = function () { if (AdhMap.pub) AdhMap.pub.reset(); };
-  AdhMap.back = function (mode) { var m = mode === 'admin' ? AdhMap.adm : AdhMap.pub; if (m) m.back(); };
+  AdhMap.back = function (mode) { var m = mode === 'admin' ? AdhMap.adm : (mode === 'cmd' ? AdhMap.cmd : AdhMap.pub); if (m) m.back(); };
   AdhMap.emptyHtml = function (q) { return AdhMap.pub ? AdhMap.pub.emptyHtml(q) : ''; };
-  AdhMap.clearCache = function () { geoMem = null; return idbDel('geo'); };
+  AdhMap.clearCache = function () { geoMem = null; return idbDel(ADH_UF === 'SC' ? 'geo' : 'geo-' + ADH_UF); };
   root.AdhMap = AdhMap;
   root.loadOfficialMap = function () { return AdhMap.initPublic(); };
   root.loadAdminMap = function () { return AdhMap.initAdmin(); };
@@ -711,5 +739,6 @@
     var inp = $('findChapter'), t = null;
     if (inp) inp.addEventListener('input', function () { clearTimeout(t); t = setTimeout(function () { if (AdhMap.pub) AdhMap.pub.followSearch(inp.value); }, 320); });
     var sel = $('adminRegionFocus'); if (sel) sel.addEventListener('change', function () { if (AdhMap.adm) AdhMap.adm.goRegionName(sel.value); });
+    var sc = $('cmdRegionFocus'); if (sc) sc.addEventListener('change', function () { if (AdhMap.cmd) AdhMap.cmd.goRegionName(sc.value); });
   });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,10 +1,22 @@
 #!/usr/bin/env bash
-# Copia SOMENTE o site de produção de SC (raiz) para app/www. Não inclui /beta, /beta-global nem arquivos de gestão do repositório.
+# App = plataforma ADHONEP-SC "beta" (capa em vídeo, tema, Central de comando, gestão) + camada nativa (avisos, barra inferior, push).
+# Não inclui /beta-global nem /beta/estado. Só dados de SC.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 rm -rf www && mkdir -p www
-R=..
-cp "$R/index.html" "$R/styles.css" "$R/manifest.webmanifest" "$R/privacidade.html" "$R/termos.html" www/
-for d in js assets; do cp -r "$R/$d" "www/$d"; done
-for f in inter-400.woff inter-500.woff inter-600.woff inter-700.woff poppins-500.woff poppins-700.woff fundo-hero.jpg mapa-mar.jpg mapa-terreno.jpg logo-branca.png logo-colorida.png favicon-48.png icon-192.png icon-512.png apple-touch-icon.png; do [ -f "$R/$f" ] && cp "$R/$f" www/; done
-echo "www pronto: $(find www -type f | wc -l) arquivos"
+B=../beta
+cp "$B/index.html" "$B/styles.css" "$B/manifest.webmanifest" "$B/privacidade.html" "$B/termos.html" www/
+cp -r "$B/js" "$B/assets" "$B/data" www/
+rm -f www/assets/video/*.webm   # iOS não usa webm; só mp4
+cp native/avisos.js native/app-native.js www/js/
+cat native/app.css >> www/styles.css
+python3 - <<'PY'
+p='www/index.html';s=open(p).read()
+tag='<script src="js/avisos.js"></script><script src="js/app-native.js"></script>\n'
+assert '</body>' in s
+import re
+s=re.sub(r'<source[^>]*\.webm[^>]*>','',s)
+s=s.replace('</body>',tag+'</body>',1)
+open(p,'w').write(s)
+PY
+echo "www pronto: $(find www -type f | wc -l) arquivos, $(du -sh www | cut -f1)"

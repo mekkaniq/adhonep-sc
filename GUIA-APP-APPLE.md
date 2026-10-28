@@ -56,3 +56,7 @@ cd app && npm install && npm run web && npx cap add ios && npm run assets && npx
 - Barra inferior nativa (Início, Capítulos, Eventos, Sobre, Conta), área segura do iPhone, links externos no navegador do sistema, compartilhar nativo.
 - **Exclusão de conta**: Conta → "Solicitar exclusão da conta" (desativa acessos; coordenação conclui; pedidos ficam em `account_deletion_requests`).
 - **Push**: o app pede permissão e registra o aparelho (`device_tokens`). Falta o **envio**, que precisa da chave APNs (.p8 de Push) da sua conta Apple: Certificates, Identifiers & Profiles → Keys → + → Apple Push Notifications service (APNs). Quando tiver, me passe Key ID e Team ID e eu ligo o envio por evento/comunicado.
+
+## Atualização 2 — o app agora é a plataforma "beta" completa
+Capa com efeito cortina, vídeo de apresentação (mp4), tema claro/escuro, Central de comando, gestão, diretoria e reuniões, mais a camada de app: barra inferior, **Avisos** (caixa de entrada), envio de avisos por líderes (📣 no painel), lembrete de véspera no evento e exclusão de conta.
+Avisos automáticos (evento novo / pendência de cadastro / lembrete diário): rodar `supabase/PENDENTE-gatilhos-avisos.sql` no SQL Editor (a criação automática foi bloqueada).
