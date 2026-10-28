@@ -23,16 +23,6 @@
  if(!NATIVE)return;
  document.documentElement.classList.add('in-app');
 
- /* 2) Barra inferior nativa */
- var bar=document.createElement('nav');bar.id='appTabs';bar.setAttribute('aria-label','Navegação do aplicativo');
- bar.innerHTML='<button data-t="top"><i>⌂</i>Início</button><button data-t="mapSection"><i>⌖</i>Capítulos</button><button data-t="eventsSection"><i>◷</i>Eventos</button><button data-t="inbox"><i>🔔</i>Avisos<span id="avBadge" hidden>0</span></button><button data-t="acct"><i>☺</i>Conta</button>';
- document.body.appendChild(bar);
- bar.onclick=function(e){var b=e.target.closest('button');if(!b)return;var t=b.dataset.t;
-  if(t==='acct'){ if(typeof adhSession!=='undefined'&&adhSession){ try{openAccount()}catch(x){} } else { try{openRealLogin()}catch(x){} } return }
-  if(t==='inbox'){window.adhOpenInbox&&window.adhOpenInbox();return}
-  if(t==='top'){scrollTo({top:0,behavior:'smooth'});return}
-  var el=$(t);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})};
-
  /* 3) Plugins nativos (só existem dentro do app) */
  var P=C.Plugins||{};
  try{P.StatusBar&&P.StatusBar.setStyle&&P.StatusBar.setStyle({style:'DARK'})}catch(e){}
@@ -47,7 +37,7 @@
  var PN=P.PushNotifications;
  if(PN){
   PN.addListener('registration',function(t){rpc('adh_register_device',{p_token:t.value,p_platform:(C.getPlatform&&C.getPlatform())==='android'?'android':'ios'},true)});
-  PN.addListener('pushNotificationActionPerformed',function(n){var d=(n.notification&&n.notification.data)||{};if(d.section){var el=$(d.section);el&&el.scrollIntoView({behavior:'smooth'})}});
+  PN.addListener('pushNotificationActionPerformed',function(n){var d=(n.notification&&n.notification.data)||{};try{if(d.section==='eventsSection'&&window.adhGoTab)window.adhGoTab('events');else if(window.adhOpenAvisos)window.adhOpenAvisos()}catch(e){}});
   var ask=function(){PN.requestPermissions().then(function(r){if(r.receive==='granted')PN.register()}).catch(function(){})};
   try{if(!localStorage.getItem('adh-push-asked')){setTimeout(function(){localStorage.setItem('adh-push-asked','1');ask()},6000)}else{PN.checkPermissions().then(function(r){if(r.receive==='granted')PN.register()})}}catch(e){}
  }

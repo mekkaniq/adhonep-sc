@@ -40,6 +40,7 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :NSFaceIDUsageDescription string Entrar no ADHONEP-SC com Face ID, sem digitar a senha." App/Info.plist || true
           /usr/libexec/PlistBuddy -c "Add :NSCalendarsWriteOnlyAccessUsageDescription string Adicionar eventos da ADHONEP ao seu calendario." App/Info.plist || true
           /usr/libexec/PlistBuddy -c "Add :NSCalendarsUsageDescription string Adicionar eventos da ADHONEP ao seu calendario." App/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :NSLocationWhenInUseUsageDescription string Usamos sua localizacao apenas para mostrar os eventos e capitulos mais proximos." App/Info.plist || true
           /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" App/Info.plist || true
           /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string remote-notification" App/Info.plist || true
           printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>aps-environment</key><string>production</string></dict></plist>\n' > App/App.entitlements

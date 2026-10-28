@@ -3,7 +3,7 @@
   "appName": "ADHONEP-SC",
   "webDir": "www",
   "backgroundColor": "#102b4e",
-  "ios": { "contentInset": "always", "scheme": "ADHONEP-SC" },
+  "ios": { "contentInset": "never", "scheme": "ADHONEP-SC" },
   "plugins": {
     "SplashScreen": { "launchShowDuration": 800, "backgroundColor": "#102b4e", "showSpinner": false },
     "StatusBar": { "style": "DARK", "backgroundColor": "#102b4e" }

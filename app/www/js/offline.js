@@ -1,5 +1,6 @@
 /* ADHONEP-SC app · uso offline: guarda a última resposta pública do servidor e usa quando não há internet. */
 (function(){
+ try{var C0=window.Capacitor;if((C0&&C0.isNativePlatform&&C0.isNativePlatform())||/[?&]appshell=1/.test(location.search))document.documentElement.classList.add('in-app')}catch(e){}
  if(!window.fetch||window.__adhOffline)return;window.__adhOffline=1;
  var PUB=/\/rest\/v1\/(chapters|events|municipalities|regions|public_announcements|chapter_public_info)\?/;
  var orig=window.fetch.bind(window),PFX='adhc1:';

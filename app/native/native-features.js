@@ -44,8 +44,8 @@
   var txt=d.innerText,m=/Município: (.+?) ·/.exec(txt),ad=/Endereço: (.+)/.exec(txt),city=m?m[1].trim():'';
   var wa=d.querySelector('a[href*="wa.me/"]'),num=wa?(/wa\.me\/(\d+)/.exec(wa.href)||[])[1]:'';
   var h='<div class="nx-acts">';
-  if(num)h+='<a class="btn small" href="tel:+'+esc(num)+'">📞 Ligar</a>';
-  h+='<a class="btn small" data-m="'+esc((ad?ad[1].trim()+', ':'')+city+', SC')+'">🧭 Como chegar</a><a class="btn small" data-s="1">↗ Compartilhar</a></div>';
+  if(num)h+='<a class="btn small" href="tel:+'+esc(num)+'">Ligar</a>';
+  h+='<a class="btn small" data-m="'+esc((ad?ad[1].trim()+', ':'')+city+', SC')+'">Como chegar</a><a class="btn small" data-s="1">Compartilhar</a></div>';
   d.insertAdjacentHTML('beforeend',h);
   d.querySelector('[data-m]').onclick=function(e){e.preventDefault();openUrl(maps(this.dataset.m))};
   d.querySelector('[data-s]').onclick=function(e){e.preventDefault();shareIt(name,'Capítulo '+name+' da ADHONEP em '+city+' — encontre no app ADHONEP-SC.')}}
@@ -57,20 +57,7 @@
   var K=plug('CapacitorCalendar');
   if(NATIVE&&K&&K.createEventWithPrompt)K.createEventWithPrompt({title:e.title,location:loc,startDate:st,endDate:en,description:'ADHONEP-SC'}).catch(function(){});
   else ics({id:id,title:e.title,start:st,end:en,loc:loc})}
- function enhanceEvents(){
-  var box=$('publicEvents');if(!box)return;
-  box.querySelectorAll('button[onclick*="adhInviteEvent("]').forEach(function(b){
-   if(b.parentNode.querySelector('.nx-cal'))return;var id=/adhInviteEvent\((\d+)\)/.exec(b.getAttribute('onclick'))[1];
-   var c=document.createElement('button');c.type='button';c.className='btn nx-cal';c.textContent='📅 Adicionar ao calendário';c.onclick=function(){addCal(id)};
-   var s=document.createElement('button');s.type='button';s.className='btn';s.textContent='↗ Compartilhar';s.onclick=function(){var card=b.closest('.infocard');shareIt(card?card.querySelector('h3').textContent:'Evento ADHONEP','Evento da ADHONEP-SC — veja no app.')};
-   b.parentNode.appendChild(c);b.parentNode.appendChild(s)})}
- /* ===== 4) Atalho de reunião (líderes) ===== */
- function meetTab(){
-  var bar=$('appTabs');if(!bar)return;var lead=/^(chapter_president|regional_director|state_director|state_admin)$/.test(role())&&sess();
-  var b=bar.querySelector('[data-t=meet]');
-  if(lead&&!b){b=document.createElement('button');b.dataset.t='meet';b.innerHTML='<i>✔</i>Reunião';bar.insertBefore(b,bar.querySelector('[data-t=acct]'))}
-  if(!lead&&b)b.remove()}
- document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('#appTabs [data-t=meet]');if(!b)return;e.stopPropagation();try{setMode('admin');showPage('meetings')}catch(x){}},true);
+ window.adhAddCal=addCal;window.adhShareIt=shareIt;
  var css=document.createElement('style');css.textContent='.nx-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.nx-acts .btn{text-decoration:none;display:inline-block}.nx-cal{margin-left:0}';document.head.appendChild(css);
- setInterval(function(){enhanceChapter();enhanceEvents();meetTab()},1200);
+ setInterval(enhanceChapter,1200);
 })();

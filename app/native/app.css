@@ -1,9 +1,0 @@
-/* ===== Modo aplicativo (Capacitor) ===== */
-html.in-app body{padding-bottom:calc(64px + env(safe-area-inset-bottom));-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
-html.in-app header,html.in-app .topbar{padding-top:env(safe-area-inset-top)}
-#appTabs{display:none}
-html.in-app #appTabs{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:90;background:#102b4e;border-top:1px solid rgba(255,255,255,.12);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
-#appTabs button{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;color:#c9d6ea;font:600 11px/1.1 inherit;font-family:inherit;padding:6px 2px}
-#appTabs button i{font-style:normal;font-size:18px;color:#d9b66a}
-#appTabs button:active{color:#fff}
-html.in-app footer .wrap{padding-bottom:12px}
