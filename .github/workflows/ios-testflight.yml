@@ -1,0 +1,65 @@
+name: App iOS → TestFlight
+# Manual: Actions → "App iOS → TestFlight" → Run workflow. Não roda sozinho.
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "Número do build (aumente a cada envio: 1, 2, 3...)"
+        required: true
+        default: "1"
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      BUNDLE_ID: br.com.adhonepemsc.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Dependências e site embutido
+        working-directory: app
+        run: |
+          npm install
+          npm run web
+          npx cap add ios
+          npx capacitor-assets generate --ios --iconBackgroundColor '#102b4e' --splashBackgroundColor '#102b4e'
+          npx cap sync ios
+      - name: Chave da App Store Connect
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "${{ secrets.ASC_KEY_P8 }}" > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+      - name: Versão / build / assinatura automática
+        working-directory: app/ios/App
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ inputs.build_number }}" App/Info.plist
+          /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" App/Info.plist || true
+          sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = ${{ inputs.build_number }};/g" App.xcodeproj/project.pbxproj
+          sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};/g" App.xcodeproj/project.pbxproj
+      - name: Archive
+        working-directory: app/ios/App
+        run: |
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath $RUNNER_TEMP/App.xcarchive \
+            DEVELOPMENT_TEAM=$TEAM_ID CODE_SIGN_STYLE=Automatic \
+            -allowProvisioningUpdates -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8 \
+            -authenticationKeyID $KEY_ID -authenticationKeyIssuerID $ISSUER_ID archive
+      - name: Exportar e enviar ao TestFlight
+        working-directory: app/ios/App
+        run: |
+          cat > $RUNNER_TEMP/export.plist <<PL
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict></plist>
+          PL
+          xcodebuild -exportArchive -archivePath $RUNNER_TEMP/App.xcarchive -exportOptionsPlist $RUNNER_TEMP/export.plist \
+            -allowProvisioningUpdates -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8 \
+            -authenticationKeyID $KEY_ID -authenticationKeyIssuerID $ISSUER_ID
