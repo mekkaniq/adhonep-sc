@@ -60,3 +60,6 @@ cd app && npm install && npm run web && npx cap add ios && npm run assets && npx
 ## Atualização 2 — o app agora é a plataforma "beta" completa
 Capa com efeito cortina, vídeo de apresentação (mp4), tema claro/escuro, Central de comando, gestão, diretoria e reuniões, mais a camada de app: barra inferior, **Avisos** (caixa de entrada), envio de avisos por líderes (📣 no painel), lembrete de véspera no evento e exclusão de conta.
 Avisos automáticos (evento novo / pendência de cadastro / lembrete diário): rodar `supabase/PENDENTE-gatilhos-avisos.sql` no SQL Editor (a criação automática foi bloqueada).
+
+## Atualização 3 — recursos nativos
+Face ID (entrada rápida), ligar / como chegar / compartilhar no capítulo, adicionar evento ao calendário, uso offline (dados públicos salvos), atalho "Reunião" na barra para líderes, e envio de push preparado em `supabase/functions/send-push` (precisa dos segredos APNS_* e do segredo CRON_SECRET). O app agora usa Capacitor 8 e o fluxo do GitHub roda em macos-26 (Xcode 26, exigido pela Apple).

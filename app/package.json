@@ -13,18 +13,21 @@
     "assets": "npx capacitor-assets generate --iconBackgroundColor '#102b4e' --splashBackgroundColor '#102b4e'"
   },
   "dependencies": {
-    "@capacitor/android": "^7.0.0",
-    "@capacitor/app": "^7.0.0",
-    "@capacitor/browser": "^7.0.0",
-    "@capacitor/core": "^7.0.0",
-    "@capacitor/ios": "^7.0.0",
-    "@capacitor/push-notifications": "^7.0.0",
-    "@capacitor/share": "^7.0.0",
-    "@capacitor/splash-screen": "^7.0.0",
-    "@capacitor/status-bar": "^7.0.0"
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/browser": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/push-notifications": "^8.0.0",
+    "@capacitor/share": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0",
+    "@aparajita/capacitor-biometric-auth": "latest",
+    "@aparajita/capacitor-secure-storage": "latest",
+    "@ebarooni/capacitor-calendar": "latest"
   },
   "devDependencies": {
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^7.0.0"
+    "@capacitor/cli": "^8.0.0"
   }
 }

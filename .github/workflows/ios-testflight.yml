@@ -9,7 +9,7 @@ on:
         default: "1"
 jobs:
   ios:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 60
     env:
       TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -19,11 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with: { node-version: 22 }
       - name: Dependências e site embutido
         working-directory: app
         run: |
-          npm install
+          npm install --legacy-peer-deps
           npm run web
           npx cap add ios
           npx capacitor-assets generate --ios --iconBackgroundColor '#102b4e' --splashBackgroundColor '#102b4e'
@@ -37,6 +37,13 @@ jobs:
         run: |
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ inputs.build_number }}" App/Info.plist
           /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" App/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :NSFaceIDUsageDescription string Entrar no ADHONEP-SC com Face ID, sem digitar a senha." App/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :NSCalendarsWriteOnlyAccessUsageDescription string Adicionar eventos da ADHONEP ao seu calendario." App/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :NSCalendarsUsageDescription string Adicionar eventos da ADHONEP ao seu calendario." App/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes array" App/Info.plist || true
+          /usr/libexec/PlistBuddy -c "Add :UIBackgroundModes:0 string remote-notification" App/Info.plist || true
+          printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict><key>aps-environment</key><string>production</string></dict></plist>\n' > App/App.entitlements
+          python3 -c "import re;p='App.xcodeproj/project.pbxproj';s=open(p).read();s=re.sub(r'(\\n\\s*)(PRODUCT_BUNDLE_IDENTIFIER = )',r'\\1CODE_SIGN_ENTITLEMENTS = App/App.entitlements;\\1\\2',s);open(p,'w').write(s)"
           sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = ${{ inputs.build_number }};/g" App.xcodeproj/project.pbxproj
           sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};/g" App.xcodeproj/project.pbxproj
       - name: Archive

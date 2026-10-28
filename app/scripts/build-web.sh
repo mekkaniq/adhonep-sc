@@ -8,14 +8,15 @@ B=../beta
 cp "$B/index.html" "$B/styles.css" "$B/manifest.webmanifest" "$B/privacidade.html" "$B/termos.html" www/
 cp -r "$B/js" "$B/assets" "$B/data" www/
 rm -f www/assets/video/*.webm   # iOS não usa webm; só mp4
-cp native/avisos.js native/app-native.js www/js/
+cp native/avisos.js native/app-native.js native/native-features.js native/offline.js www/js/
 cat native/app.css >> www/styles.css
 python3 - <<'PY'
 p='www/index.html';s=open(p).read()
-tag='<script src="js/avisos.js"></script><script src="js/app-native.js"></script>\n'
+tag='<script src="js/avisos.js"></script><script src="js/app-native.js"></script><script src="js/native-features.js"></script>\n'
 assert '</body>' in s
 import re
 s=re.sub(r'<source[^>]*\.webm[^>]*>','',s)
+s=s.replace('<head>','<head><script src="js/offline.js"></script>',1)
 s=s.replace('</body>',tag+'</body>',1)
 open(p,'w').write(s)
 import re as _r
