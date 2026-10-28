@@ -25,10 +25,11 @@
 
  /* 2) Barra inferior nativa */
  var bar=document.createElement('nav');bar.id='appTabs';bar.setAttribute('aria-label','Navegação do aplicativo');
- bar.innerHTML='<button data-t="top"><i>⌂</i>Início</button><button data-t="mapSection"><i>⌖</i>Capítulos</button><button data-t="eventsSection"><i>◷</i>Eventos</button><button data-t="aboutSection"><i>✦</i>Sobre</button><button data-t="acct"><i>☺</i>Conta</button>';
+ bar.innerHTML='<button data-t="top"><i>⌂</i>Início</button><button data-t="mapSection"><i>⌖</i>Capítulos</button><button data-t="eventsSection"><i>◷</i>Eventos</button><button data-t="inbox"><i>🔔</i>Avisos<span id="avBadge" hidden>0</span></button><button data-t="acct"><i>☺</i>Conta</button>';
  document.body.appendChild(bar);
  bar.onclick=function(e){var b=e.target.closest('button');if(!b)return;var t=b.dataset.t;
   if(t==='acct'){ if(typeof adhSession!=='undefined'&&adhSession){ try{openAccount()}catch(x){} } else { try{openRealLogin()}catch(x){} } return }
+  if(t==='inbox'){window.adhOpenInbox&&window.adhOpenInbox();return}
   if(t==='top'){scrollTo({top:0,behavior:'smooth'});return}
   var el=$(t);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})};
 
