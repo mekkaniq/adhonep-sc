@@ -216,7 +216,7 @@
     return buildGeo(rows);
   }
   async function downloadGeo(progress) {
-    if (ADH_UF !== 'SC') return downloadGeoStatic(progress);
+    return downloadGeoStatic(progress); /* app: limites locais, abre rápido e offline */
     var PAGE = 60, N = 6, done = 0;
     var pages = await Promise.all(Array.from({ length: N }, function (_, i) {
       return adhFetch('/rest/v1/municipalities?select=id,ibge_code,name,boundary_geojson&order=id.asc&limit=' + PAGE + '&offset=' + (i * PAGE))

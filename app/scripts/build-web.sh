@@ -18,5 +18,10 @@ import re
 s=re.sub(r'<source[^>]*\.webm[^>]*>','',s)
 s=s.replace('</body>',tag+'</body>',1)
 open(p,'w').write(s)
+import re as _r
+m='www/js/mapa.js';t=open(m).read()
+k="if (ADH_UF !== 'SC') return downloadGeoStatic(progress);"
+assert k in t
+open(m,'w').write(t.replace(k,'return downloadGeoStatic(progress); /* app: limites locais, abre rápido e offline */',1))
 PY
 echo "www pronto: $(find www -type f | wc -l) arquivos, $(du -sh www | cut -f1)"
