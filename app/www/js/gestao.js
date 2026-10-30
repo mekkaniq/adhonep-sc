@@ -516,6 +516,8 @@ function gxHealthList() {
 }
 function gxHealthPill(n) { const b = gxBand(n); return '<span style="display:inline-block;min-width:44px;text-align:center;padding:3px 10px;border-radius:999px;font-weight:800;background:' + b.bg + ';color:' + b.color + '">' + n + '</span> <span style="font-size:12px;color:' + b.color + ';font-weight:700">' + b.label + '</span>'; }
 function gxHealthBar(n) { const b = gxBand(n); return '<div style="height:6px;border-radius:99px;background:var(--gx-track);margin-top:6px;overflow:hidden"><div style="height:100%;width:' + n + '%;background:' + b.bar + '"></div></div>'; }
+let gxHealthReg = '';
+function gxHealthPick(r) { gxHealthReg = (gxHealthReg === r ? '' : r); gxRenderHealth(); const t = gxEl('gxHealthChap'); if (t && gxHealthReg) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 function gxRenderHealth() {
   const page = gxEl('page-ranking'); if (!page) return;
   const grid = page.querySelector('.agrid'); if (!grid) return;
@@ -523,20 +525,34 @@ function gxRenderHealth() {
   if (!box) { box = document.createElement('div'); box.id = 'gxHealth'; box.className = 'panel'; grid.insertBefore(box, grid.firstChild); }
   const list = gxHealthList(); if (!list.length) { box.innerHTML = ''; box.hidden = true; return; }
   box.hidden = false;
-  const E = escapeHtml;
-  const cnt = GX_BANDS.map(b => ({ b, n: list.filter(x => x.h.score >= b.min && x.h.score < (b.min === 80 ? 101 : GX_BANDS[GX_BANDS.indexOf(b) - 1].min)).length }));
-  const byReg = {}; list.forEach(x => { const r = x.rk.region_name || '—'; (byReg[r] = byReg[r] || []).push(x.h.score); });
-  const regs = Object.keys(byReg).map(r => ({ r, n: Math.round(byReg[r].reduce((s, v) => s + v, 0) / byReg[r].length), c: byReg[r].length })).sort((a, b) => b.n - a.n);
+  const E = escapeHtml, avg = a => a.length ? Math.round(a.reduce((s, v) => s + v, 0) / a.length) : 0;
+  const bandCnt = arr => GX_BANDS.map(b => ({ b, n: arr.filter(x => gxBand(x.h.score) === b).length }));
+  const chips = arr => '<div style="display:flex;flex-wrap:wrap;gap:6px">' + bandCnt(arr).filter(x => x.n).map(x => '<span style="padding:3px 10px;border-radius:999px;background:' + x.b.bg + ';color:' + x.b.color + ';font-weight:700;font-size:12px">' + x.n + ' ' + x.b.label.toLowerCase() + '</span>').join('') + '</div>';
+  const byReg = {}; list.forEach(x => { const r = x.rk.region_name || '—'; (byReg[r] = byReg[r] || []).push(x); });
+  const regs = Object.keys(byReg).map(r => ({ r, items: byReg[r], n: avg(byReg[r].map(x => x.h.score)) })).sort((a, b) => b.n - a.n);
+  if (gxHealthReg && !byReg[gxHealthReg]) gxHealthReg = '';
+  const shown = gxHealthReg ? byReg[gxHealthReg] : list;
+  const state = avg(list.map(x => x.h.score)), sb = gxBand(state);
+  const weak = list.filter(x => x.h.score < 60).length;
+  const sc = (t, v, sub) => '<div style="flex:1;min-width:150px;padding:12px 14px;border:1px solid var(--line,#e2e8f0);border-radius:12px"><div class="meta">' + t + '</div><div style="font-size:26px;font-weight:800;line-height:1.2">' + v + '</div><div class="meta">' + sub + '</div></div>';
   box.innerHTML = '<h3>Saúde dos capítulos</h3>'
     + '<p class="sub">Nota de 0 a 100: relatório do mês (30), reuniões (30), mandato do presidente (20) e atividade do mês (20). Calculada na tela, não é gravada. Capítulo com “dados incompletos” pode estar sem registrar, não necessariamente sem trabalhar.</p>'
-    + '<div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px">' + cnt.map(x => '<span style="padding:6px 12px;border-radius:999px;background:' + x.b.bg + ';color:' + x.b.color + ';font-weight:700;font-size:13px">' + x.n + ' ' + x.b.label.toLowerCase() + '</span>').join('') + '</div>'
+    /* 1) estado */
+    + '<div class="eyebrow" style="margin-top:6px">Estado</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 6px">'
+    + sc('Nota média do estado', gxHealthPill(state) + gxHealthBar(state), 'média dos capítulos')
+    + sc('Capítulos avaliados', list.length, regs.length + ' região(ões)')
+    + sc('Precisam de atenção', weak, 'nota abaixo de 60') + '</div>' + chips(list)
+    /* 2) regiões */
+    + '<div class="eyebrow" style="margin-top:18px">Por região <span class="meta">— toque numa região para ver só os capítulos dela</span></div>'
+    + '<div class="tablewrap"><table><thead><tr><th>Região</th><th>Capítulos</th><th>Nota média</th><th>Situação</th></tr></thead><tbody>'
+    + regs.map(r => '<tr onclick="gxHealthPick(\'' + E(r.r).replace(/'/g, "\\'") + '\')" style="cursor:pointer;' + (gxHealthReg === r.r ? 'background:rgba(201,162,75,.15)' : '') + '"><td><strong>' + E(r.r) + '</strong></td><td>' + r.items.length + '</td><td style="min-width:150px">' + gxHealthPill(r.n) + gxHealthBar(r.n) + '</td><td>' + chips(r.items) + '</td></tr>').join('') + '</tbody></table></div>'
+    /* 3) capítulos */
+    + '<div class="eyebrow" id="gxHealthChap" style="margin-top:18px">Por capítulo' + (gxHealthReg ? ' — ' + E(gxHealthReg) + ' <a href="#" onclick="gxHealthPick(\'' + E(gxHealthReg).replace(/'/g, "\\'") + '\');return false" class="meta">(ver todas as regiões)</a>' : '') + '</div>'
     + '<div class="tablewrap"><table><thead><tr><th>Capítulo</th><th>Região</th><th>Nota</th><th>Relatório</th><th>Reuniões</th><th>Mandato</th><th>Atividade</th></tr></thead><tbody>'
-    + list.map(x => '<tr><td><strong>' + E(x.c.name) + '</strong>' + (x.h.incomplete.length ? '<div class="meta" style="color:#9a6a00">dados incompletos: ' + E(x.h.incomplete.join(', ')) + '</div>' : '') + '</td><td>' + E(x.rk.region_name || '—') + '</td><td style="min-width:150px">' + gxHealthPill(x.h.score) + gxHealthBar(x.h.score) + '</td>'
+    + shown.map(x => '<tr><td><strong>' + E(x.c.name) + '</strong>' + (x.h.incomplete.length ? '<div class="meta" style="color:#9a6a00">dados incompletos: ' + E(x.h.incomplete.join(', ')) + '</div>' : '') + '</td><td>' + E(x.rk.region_name || '—') + '</td><td style="min-width:150px">' + gxHealthPill(x.h.score) + gxHealthBar(x.h.score) + '</td>'
       + x.h.parts.map(p => '<td title="' + E(p[3]) + '">' + p[1] + '/' + p[2] + '<div class="meta">' + E(p[3]) + '</div></td>').join('') + '</tr>').join('')
-    + '</tbody></table></div>'
-    + '<h3 style="margin-top:18px">Saúde das regiões</h3><p class="sub">Média da nota dos capítulos ativos da região.</p>'
-    + '<div class="tablewrap"><table><thead><tr><th>Região</th><th>Capítulos</th><th>Nota média</th></tr></thead><tbody>'
-    + regs.map(r => '<tr><td><strong>' + E(r.r) + '</strong></td><td>' + r.c + '</td><td style="min-width:150px">' + gxHealthPill(r.n) + gxHealthBar(r.n) + '</td></tr>').join('') + '</tbody></table></div>';
+    + '</tbody></table></div>';
 }
 (function () {
   const rr = renderRanking;
