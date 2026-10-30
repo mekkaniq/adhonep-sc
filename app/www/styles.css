@@ -1176,3 +1176,14 @@ html.in-app #adminView,html.in-app #adminView .admincontent,html.in-app #adminVi
 .ah-sw button{border:0;background:transparent;color:#cdd9ea;font:600 12px Inter,sans-serif;padding:7px 14px;border-radius:999px;letter-spacing:.02em}
 .ah-sw button.on{background:var(--gold);color:#102b4e}
 .ah-sw button{white-space:nowrap}
+/* formulários em folha: ficam acima da barra inferior, com o botão de enviar sempre alcançável */
+html.in-app .modal{z-index:400}
+html.in-app .modalbox{overflow-y:auto;-webkit-overflow-scrolling:touch}
+/* relatórios dos apoios: cada linha vira um cartão no celular */
+html.in-app #page-support thead{display:none}
+html.in-app #page-support table,html.in-app #page-support tbody{display:block;width:100%}
+html.in-app #page-support tr{display:block;padding:12px 2px;border-bottom:1px solid var(--a-line,#dfe6ee)}
+html.in-app #page-support td{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:3px 0;border:0;text-align:right}
+html.in-app #page-support td[data-l]::before{content:attr(data-l);color:var(--a-mut,#6b7a8c);font-size:12.5px;text-align:left}
+html.in-app #page-support td:first-child{display:block;text-align:left;font-size:16px;padding-bottom:6px}
+html.in-app #page-support td:last-child{justify-content:flex-start;padding-top:8px}

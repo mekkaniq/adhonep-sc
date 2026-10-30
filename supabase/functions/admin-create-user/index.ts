@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     if (full_name.length < 3) return json({ error: "Informe o nome completo." }, 400);
     if (!ROLES.includes(role)) return json({ error: "Perfil inválido." }, 400);
     if (role === "regional_director" && !region_id) return json({ error: "Diretor regional exige uma região." }, 400);
-    if ((role === "chapter_president" || role === "member") && !chapter_id) return json({ error: "Este perfil exige um capítulo." }, 400);
+    if ((role === "chapter_president" || role === "member" || role === "youth_coordinator" || role === "women_coordinator") && !chapter_id) return json({ error: "Este perfil exige um capítulo." }, 400);
     if (password && password.length < 8) return json({ error: "A senha provisória deve ter ao menos 8 caracteres." }, 400);
     if (!isAdmin) {
       if (role !== "member") return json({ error: "Presidentes só podem cadastrar sócios." }, 403);

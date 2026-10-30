@@ -223,13 +223,13 @@ function buildAccount(){
  $('acReq').onclick=function(){try{openPublicRequest()}catch(e){}}}
 
 /* ===== barra inferior por perfil ===== */
-var LOAD={central:'cmdOpen',  'access-requests':'loadAccessRequests',mandates:'gxLoadMandates',meetings:'gxLoadMeetings',calendar:'gxRenderCalendar',members:'loadMembers',users:'loadRealUsers',ranking:'loadRanking',library:'loadLibrary',audit:'loadAuditDb',monthly:'loadMonthly'};
+var LOAD={central:'cmdOpen',  'access-requests':'loadAccessRequests',mandates:'gxLoadMandates',meetings:'gxLoadMeetings',calendar:'gxRenderCalendar',members:'loadMembers',users:'loadRealUsers',ranking:'loadRanking',library:'loadLibrary',audit:'loadAuditDb',monthly:'loadMonthly',support:'loadSupport'};
 function go(p){
  try{showPage(p)}catch(e){}
  var fn=LOAD[p];if(fn&&typeof window[fn]==='function'){try{window[fn]()}catch(e){}}
  window.scrollTo(0,0);renderNav()}
 function adminSlots(){
- var s1=can('central')?['central','Central','target']:can('dashboard')?['dashboard','Início','home']:can('reports')?['reports','Relatórios','clip']:null;
+ var s1=can('central')?['central','Central','target']:can('dashboard')?['dashboard','Início','home']:can('reports')?['reports','Relatórios','clip']:can('support')?['support','Relatório','bars']:null;
  var out=[];if(s1)out.push(s1);
  if(can('chapters'))out.push(['chapters','Capítulos','building']);
  if(can('events'))out.push(['events','Eventos','calendar']);
@@ -268,7 +268,7 @@ function renderNav(){
 
 /* ===== menu "Mais" ===== */
 var MORE=[['Gestão',[['dashboard','Visão geral','home'],['central','Central de comando','target'],['access-requests','Solicitações de cadastro','userplus'],['chapters','Capítulos','building'],['regions','Regiões e municípios','map'],['mandates','Mandatos','award'],['meetings','Reuniões','repeat'],['events','Eventos','calendar'],['calendar','Agenda','calendar'],['members','Sócios','users'],['speakers','Preletores','mic'],['users','Usuários e acessos','shield']]],
- ['Acompanhamento',[['reports','Relatórios de eventos','clip'],['monthly','Andamento mensal','bars'],['ranking','Ranking','trophy'],['announcements','Comunicados','mega'],['library','Biblioteca','book']]]];
+ ['Acompanhamento',[['reports','Relatórios de eventos','clip'],['monthly','Andamento mensal','bars'],['support','Apoios Jovem e Feminino','users'],['ranking','Ranking','trophy'],['announcements','Comunicados','mega'],['library','Biblioteca','book']]]];
 function sheet(html,mount){var o=document.createElement('div');o.className='av-o';o.innerHTML='<div class="av-b" role="dialog" aria-modal="true">'+html+'</div>';
  o.addEventListener('click',function(e){if(e.target===o||e.target.closest('.av-x'))o.remove()});document.body.appendChild(o);if(mount)mount(o);return o}
 function openMore(){
