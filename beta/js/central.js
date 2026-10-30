@@ -224,9 +224,9 @@ function cmdRender() {
     const rkMap = new Map(rkAll.map((x, i) => [String(x.chapter_id != null ? x.chapter_id : x.id), { pos: i + 1, pts: x.points }]));
     const sorted = rows.slice().sort((a, b) => ((rkMap.get(String(b.c.id)) || { pts: -1 }).pts - (rkMap.get(String(a.c.id)) || { pts: -1 }).pts) || (b.h.score - a.h.score));
     const rkCell = c => { const r = rkMap.get(String(c.id)); return r ? '<span class="cmd-rkpos' + (r.pos <= 3 ? ' top' : '') + '">' + r.pos + 'º</span><em>' + cmdN(r.pts) + ' pts</em>' : '<em>—</em>'; };
-    cmdEl('cmdCompare').innerHTML = '<div class="tablewrap"><table class="cmd-tb"><thead><tr><th>Ranking</th><th>Capítulo</th><th>Presidente</th><th>Saúde</th><th>Reunião</th><th>Relatório</th><th>Mandato</th><th>Sócios</th></tr></thead><tbody>'
+    cmdEl('cmdCompare').innerHTML = '<div class="tablewrap"><table class="cmd-tb"><thead><tr><th>Posição</th><th>Capítulo</th><th>Presidente</th><th>Saúde</th><th>Reunião</th><th>Relatório</th><th>Mandato</th><th>Sócios</th></tr></thead><tbody>'
       + sorted.map(x => { const mi = gxMeetInfo(x.c), p = x.h.parts; return '<tr class="cmd-click" onclick="gxChapterTimeline(\'' + x.c.id + '\')"><td class="cmd-rkcell">' + rkCell(x.c) + '</td><td><b>' + E(x.c.name) + '</b><em>' + E(x.c.city || '') + '</em></td><td class="cmd-pres">' + E(x.c.president || '—') + '</td><td><span class="cmd-pill" style="color:' + cmdBandColor(x.h.score) + ';border-color:' + cmdBandColor(x.h.score) + '">' + x.h.score + '</span></td><td>' + E(p[1][3]) + '</td><td>' + E(p[0][3]) + '</td><td>' + E(p[2][3]) + '</td><td>' + (CMD.members ? cmdN(CMD.members[String(x.c.id)] || 0) : '—') + '</td></tr>'; }).join('')
-      + '</tbody></table></div><p class="cmd-foot">Ordenado pelo ranking do mês. Clique em um capítulo para ver o histórico.</p>';
+      + '</tbody></table></div><p class="cmd-foot">Ordenado pela saúde do mês. Clique em um capítulo para ver o histórico.</p>';
   }
 
   // alertas

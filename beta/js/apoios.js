@@ -3,14 +3,16 @@
    o diretor regional aprova ou pede correções. Tabela: chapter_support_reports (supabase/migracao-v3.14-relatorio-apoios.sql). */
 (function(){
  var KIND={youth:'Apoio Jovem',women:'Apoio Feminino'};
- var SP=[];
+ var SP=[],CS={};
+ function has(c,k){var r=CS[String(c)];return !r||r['has_'+k]!==false}
+ var canSet=function(){return isAdmin()||isPres()||isRD()};
  var role=function(){return adhProfile&&adhProfile.role};
  var isAdmin=function(){return role()==='state_admin'},isPres=function(){return role()==='chapter_president'},isCoord=function(){return role()==='coordinator'},isRD=function(){return role()==='regional_director'};
  var canReview=function(){return isAdmin()||isRD()};
  /* pares (capítulo, apoio) em que este perfil pode enviar */
  function myPairs(){var chs=(adhDbChapters||[]),out=[];
-  if(isAdmin()){chs.filter(function(c){return String(c.status||'').toLowerCase()==='active'}).forEach(function(c){['youth','women'].forEach(function(k){out.push({c:c.id,k:k})})})}
-  else if(isPres()){(adhProfile.chapterIds||[]).forEach(function(id){['youth','women'].forEach(function(k){out.push({c:id,k:k})})})}
+  if(isAdmin()){chs.filter(function(c){return String(c.status||'').toLowerCase()==='active'}).forEach(function(c){['youth','women'].forEach(function(k){if(has(c.id,k))out.push({c:c.id,k:k})})})}
+  else if(isPres()){(adhProfile.chapterIds||[]).forEach(function(id){['youth','women'].forEach(function(k){if(has(id,k))out.push({c:id,k:k})})})}
   else if(isCoord()){(adhProfile.apoios||[]).forEach(function(a){out.push({c:a.c,k:a.k})})}
   return out}
  function chName(id){var c=(adhDbChapters||[]).find(function(x){return String(x.id)===String(id)});return c?c.name:('Capítulo '+id)}
@@ -20,7 +22,7 @@
   var mon=document.getElementById('page-monthly');if(!mon)return;
   var sec=document.createElement('section');sec.className='apage';sec.id='page-support';
   sec.innerHTML='<div class="adminhead"><div><div class="eyebrow">Acompanhamento</div><h1>Apoios Jovem e Feminino</h1><p>Relatório mensal de cada apoio no capítulo. Prazo de entrega: até o dia 5 do mês seguinte. Enviado pelo coordenador do apoio ou pelo presidente do capítulo e aprovado pelo diretor regional.</p></div><div class="actions"><button class="btn primary" id="spNewBtn" onclick="openSupportForm()">+ Relatório do mês</button><button class="btn" onclick="loadSupport()">Atualizar</button></div></div>'+
-   '<div class="panel"><div class="filters"><select class="field" id="spMonth" onchange="renderSupport()"></select><select class="field" id="spKind" onchange="renderSupport()"><option value="">Todos os apoios</option><option value="youth">Apoio Jovem</option><option value="women">Apoio Feminino</option></select><select class="field" id="spStatus" onchange="renderSupport()"><option value="all">Todas as situações</option><option value="review">Aguardando aprovação</option><option value="fix">Correções solicitadas</option><option value="done">Aprovados</option></select><input class="field" id="spSearch" placeholder="Buscar capítulo…" oninput="renderSupport()"></div><div id="spNotice" class="notice" role="status">Carregando…</div><div class="tablewrap"><table><thead><tr><th>Capítulo</th><th>Apoio</th><th>Reuniões<br><span class="meta">média · novos</span></th><th>Visitantes</th><th>Eventos</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="spRows"><tr><td colspan="7" class="empty">Carregando…</td></tr></tbody></table></div><div id="spMissingBox" hidden><h3 style="margin:18px 0 6px">Sem relatório neste mês</h3><div id="spMissing" class="meta"></div></div></div>';
+   '<div class="panel"><details id="spPanel" style="margin-bottom:14px" hidden><summary style="cursor:pointer;font-weight:700">Apoios do capítulo</summary><p class="meta" style="margin:8px 0">Marque os apoios que existem. O que não existir não aparece nem fica pendente.</p><div id="spToggles"></div></details><div class="filters"><select class="field" id="spMonth" onchange="renderSupport()"></select><select class="field" id="spKind" onchange="renderSupport()"><option value="">Todos os apoios</option><option value="youth">Apoio Jovem</option><option value="women">Apoio Feminino</option></select><select class="field" id="spStatus" onchange="renderSupport()"><option value="all">Todas as situações</option><option value="review">Aguardando aprovação</option><option value="fix">Correções solicitadas</option><option value="done">Aprovados</option></select><input class="field" id="spSearch" placeholder="Buscar capítulo…" oninput="renderSupport()"></div><div id="spNotice" class="notice" role="status">Carregando…</div><div class="tablewrap"><table><thead><tr><th>Capítulo</th><th>Apoio</th><th>Reuniões<br><span class="meta">média · novos</span></th><th>Visitantes</th><th>Eventos</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="spRows"><tr><td colspan="7" class="empty">Carregando…</td></tr></tbody></table></div><div id="spMissingBox" hidden><h3 style="margin:18px 0 6px">Sem relatório neste mês</h3><div id="spMissing" class="meta"></div></div></div>';
   mon.parentNode.insertBefore(sec,mon.nextSibling);
   var mb=document.querySelector('.nav[data-page="monthly"]');
   if(mb){var b=document.createElement('button');b.className='nav';b.dataset.page='support';b.setAttribute('onclick',"showPage('support',this);loadSupport()");b.innerHTML='▥ Apoios Jovem e Feminino <span id="spNavCount" class="pillnum"></span>';mb.parentNode.insertBefore(b,mb.nextSibling)}
@@ -46,14 +48,25 @@
   if(!adhSession||!adhProfile||adhProfile.role==='member')return;inject();var note=document.getElementById('spNotice');
   try{if(!(adhDbChapters||[]).length){try{await loadChaptersAdmin()}catch(e){}}
    var rows=await adhFetch('/rest/v1/chapter_support_reports?select=*&order=ref_month.desc,chapter_id.asc&limit=3000');
-   SP=Array.isArray(rows)?rows:[];mrFillMonthSelect(document.getElementById('spMonth'),12,true);
+   SP=Array.isArray(rows)?rows:[];try{var cs=await adhFetch('/rest/v1/chapter_supports?select=*');CS={};(Array.isArray(cs)?cs:[]).forEach(function(r){CS[String(r.chapter_id)]=r})}catch(e){}mrFillMonthSelect(document.getElementById('spMonth'),12,true);
    var nb=document.getElementById('spNewBtn');if(nb)nb.style.display=canSubmit()?'':'none';
-   navCount();if(!silent||document.getElementById('page-support')?.classList.contains('on'))renderSupport()}
+   navCount();renderToggles();if(!silent||document.getElementById('page-support')?.classList.contains('on'))renderSupport()}
   catch(e){var m=String(e&&e.message||e);if(note&&!silent)note.textContent=/relation .* does not exist|schema cache|chapter_support_reports/i.test(m)?'A migração v3.14 ainda não foi aplicada no Supabase (supabase/migracao-v3.14-relatorio-apoios.sql).':'Não foi possível carregar os relatórios: '+m}};
  function navCount(){var el=document.getElementById('spNavCount');if(!el)return;var n=0;
   if(canReview())n=SP.filter(function(r){return r.status==='Entregue'||r.status==='Reenviado'}).length;
   else if(canSubmit()){var d=new Date(),prev=mrKey(new Date(d.getFullYear(),d.getMonth()-1,1));n=myPairs().filter(function(p){return !SP.some(function(r){return String(r.chapter_id)===String(p.c)&&r.kind===p.k&&String(r.ref_month).slice(0,10)===prev})}).length+SP.filter(function(r){return r.status==='Correções solicitadas'}).length}
   el.textContent=n?String(n):'';el.style.display=n?'':'none'}
+function editable(){var chs=(adhDbChapters||[]).filter(function(c){return String(c.status||'').toLowerCase()==='active'});
+  if(isPres()){var ids=(adhProfile.chapterIds||[]).map(String);return chs.filter(function(c){return ids.indexOf(String(c.id))>=0})}
+  if(isRD()){var rg=(adhProfile.regionIds||[]).map(String);return chs.filter(function(c){return rg.indexOf(String(c.region_id))>=0})}
+  return isAdmin()?chs:[]}
+ function renderToggles(){var d=document.getElementById('spPanel'),box=document.getElementById('spToggles');if(!d||!box)return;
+  var list=canSet()?editable():[];d.hidden=!list.length;if(!list.length)return;if(list.length===1)d.open=true;
+  box.innerHTML=list.map(function(c){return '<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;padding:6px 0;border-top:1px solid #e3e9f0"><strong style="flex:1 1 180px">'+escapeHtml(c.name)+'</strong>'+['youth','women'].map(function(k){return '<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" data-c="'+escapeHtml(String(c.id))+'" data-k="'+k+'"'+(has(c.id,k)?' checked':'')+'> '+KIND[k]+'</label>'}).join('')+'</div>'}).join('');
+  box.querySelectorAll('input[type=checkbox]').forEach(function(i){i.onchange=function(){setSupport(i.dataset.c,i.dataset.k,i.checked,i)}})}
+ async function setSupport(c,k,v,el){try{await adhFetch('/rest/v1/rpc/adh_set_chapter_support',{method:'POST',body:JSON.stringify({p_chapter:Number(c),p_kind:k,p_value:v})});
+   var r=CS[String(c)]||{chapter_id:c,has_youth:true,has_women:true};r['has_'+k]=v;CS[String(c)]=r;toast(v?KIND[k]+' marcado como existente neste capítulo.':KIND[k]+' removido das pendências deste capítulo.');navCount();renderSupport();var nb=document.getElementById('spNewBtn');if(nb)nb.style.display=canSubmit()?'':'none'}
+  catch(e){if(el)el.checked=!v;toast('Não foi possível salvar: '+(e&&e.message||e))}}
  window.renderSupport=function(){
   var body=document.getElementById('spRows');if(!body)return;
   var month=document.getElementById('spMonth').value||mrDefaultMonth(),kind=document.getElementById('spKind').value,st=document.getElementById('spStatus').value,q=(document.getElementById('spSearch').value||'').toLowerCase();
@@ -62,9 +75,10 @@
   body.innerHTML=rows.map(function(r){var mine=myPairs().some(function(p){return String(p.c)===String(r.chapter_id)&&p.k===r.kind});var canEdit=isAdmin()||(mine&&(r.status==='Entregue'||r.status==='Correções solicitadas'));
    return '<tr><td><strong>'+escapeHtml(chName(r.chapter_id))+'</strong>'+(r.on_time===false?'<div class="meta">entregue fora do prazo</div>':'')+'</td><td data-l="Apoio">'+KIND[r.kind]+'</td><td data-l="Reuniões">'+r.meetings+(r.avg_attendance!=null?' · média '+r.avg_attendance:'')+' · '+r.new_participants+' novo(s)</td><td data-l="Visitantes">'+r.visitors+'</td><td data-l="Eventos">'+r.events_count+'</td><td data-l="Situação">'+mrTagHtml(r.status)+(r.status==='Correções solicitadas'&&r.reviewer_notes?'<div class="meta">'+escapeHtml(r.reviewer_notes)+'</div>':'')+'</td><td><div class="actions"><button class="btn small" onclick="openSupportView(\''+r.id+'\')">Ver</button>'+(canEdit?'<button class="btn small" onclick="openSupportForm(\''+r.id+'\')">'+(r.status==='Correções solicitadas'?'Corrigir':'Editar')+'</button>':'')+'</div></td></tr>'}).join('')||'<tr><td colspan="7" class="empty">Nenhum relatório encontrado.</td></tr>';
   var note=document.getElementById('spNotice'),late=new Date()>mrDeadline(month);
-  var expected=(canSubmit()&&!canReview()&&!isAdmin()?myPairs():(function(){var out=[],rg=isRD()?(adhProfile.regionIds||[]).map(String):null;(adhDbChapters||[]).filter(function(c){return String(c.status||'').toLowerCase()==='active'&&(!rg||rg.indexOf(String(c.region_id))>=0)}).forEach(function(c){['youth','women'].forEach(function(k){out.push({c:c.id,k:k})})});return out})()).filter(function(p){return !kind||p.k===kind});
+  var expected=(canSubmit()&&!canReview()&&!isAdmin()?myPairs():(function(){var out=[],rg=isRD()?(adhProfile.regionIds||[]).map(String):null;(adhDbChapters||[]).filter(function(c){return String(c.status||'').toLowerCase()==='active'&&(!rg||rg.indexOf(String(c.region_id))>=0)}).forEach(function(c){['youth','women'].forEach(function(k){if(has(c.id,k))out.push({c:c.id,k:k})})});return out})()).filter(function(p){return !kind||p.k===kind});
   var missing=expected.filter(function(p){return !SP.some(function(r){return String(r.chapter_id)===String(p.c)&&r.kind===p.k&&String(r.ref_month).slice(0,10)===month})});
   var box=document.getElementById('spMissingBox'),list=document.getElementById('spMissing');
+  if(isPres()&&!myPairs().length){note.textContent='Nenhum apoio marcado neste capítulo. Se houver Apoio Jovem ou Apoio Feminino, marque acima para abrir o relatório.';box.hidden=true;return}
   if(canSubmit()&&!canReview()){var fix=SP.filter(function(r){return r.status==='Correções solicitadas'}).length;
    note.textContent=(missing.length?'Falta enviar o relatório de '+mrLabel(month)+' ('+missing.map(function(p){return KIND[p.k]+' · '+chName(p.c)}).join(', ')+'). Prazo: '+mrDeadline(month).toLocaleDateString('pt-BR')+(late?' — já passou; envie assim mesmo, mas ele não conta como entregue no prazo.':'.'):'Relatório de '+mrLabel(month)+' enviado.')+(fix?' Há '+fix+' relatório(s) com correções solicitadas.':'');box.hidden=true}
   else{var aw=SP.filter(function(r){return r.status==='Entregue'||r.status==='Reenviado'}).length;

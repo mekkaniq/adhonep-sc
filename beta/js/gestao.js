@@ -444,7 +444,7 @@ function gxAttentionExtra() {
       const wa = /^55\d{10,11}$/.test(ph) ? 'https://wa.me/' + ph + '?text=' + encodeURIComponent(msg) : '';
       h += '<div class="detail gx-att"><span>' + (x.h.score < 40 ? '🔴' : '🟠') + ' <strong>' + E(x.c.name) + '</strong> — nota de saúde ' + x.h.score + '/100 (' + x.h.band.label.toLowerCase() + ')' + (fracos.length ? ', fraco em ' + E(fracos.join(', ')) : '') + (x.h.incomplete.length ? ' · dados incompletos' : '') + '</span>' + (wa ? '<a class="btn small" target="_blank" rel="noopener" href="' + wa + '">WhatsApp</a>' : '') + '</div>';
     });
-    if (low.length > 6) h += '<p class="sub">+ ' + (low.length - 6) + ' capítulo(s) com nota de saúde abaixo de 60. Veja todos na página Ranking.</p>';
+    if (low.length > 6) h += '<p class="sub">+ ' + (low.length - 6) + ' capítulo(s) com nota de saúde abaixo de 60. Veja todos na página Saúde dos capítulos.</p>';
     if (low.length) h += '<p class="sub">Nota com base em ' + E(mrLabel(gxRankAtt.month || '')) + ' (mês fechado) e nas reuniões e mandatos de hoje.</p>';
   }
   return n || h ? '<div class="gx-att-box" style="margin-top:10px"><div class="eyebrow">Liderança e reuniões</div>' + h + '</div>' : '';

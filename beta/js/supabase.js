@@ -361,7 +361,7 @@ function openMonthlyView(id){
 async function reviewMonthly(id,status){
   let notes=null;
   if(status==='Correções solicitadas'){notes=await adhDialog({title:'Pedir correções',message:'Diga ao presidente o que precisa ser corrigido:',input:true,confirmLabel:'Enviar pedido'});if(!notes||notes.trim().length<3){if(notes!==null)toast('Informe o que precisa ser corrigido.');return}}
-  else if(!(await adhDialog({title:'Aprovar relatório',message:'Ao aprovar, o relatório passa a valer no ranking e o capítulo não poderá mais editá-lo.'})))return;
+  else if(!(await adhDialog({title:'Aprovar relatório',message:'Ao aprovar, o relatório passa a valer na saúde do capítulo e o capítulo não poderá mais editá-lo.'})))return;
   try{await adhFetch('/rest/v1/chapter_monthly_reports?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({status,reviewer_notes:notes?notes.trim():null})});closeModal('monthlyViewModal');toast(status==='Aprovado'?'Relatório aprovado.':'Correções solicitadas ao capítulo.');await loadMonthly()}
   catch(e){toast('A decisão não foi concluída: '+mrErr(e))}
 }
@@ -376,7 +376,7 @@ async function loadRanking(){
     adhRankData=data;renderRanking();
     const box=document.getElementById('rankingSettingsBox');
     if(mrIsAdmin()){try{adhRankSettings=await adhFetch('/rest/v1/ranking_settings?select=*&order=sort_order.asc')||[];box.hidden=false;document.getElementById('rankingSettings').innerHTML=adhRankSettings.map(s=>`<label class="flabel">${escapeHtml(s.label)}<input class="field" type="number" step="1" min="0" data-k="${escapeHtml(s.key)}" data-orig="${s.value}" value="${s.value}"></label>`).join('')}catch(e){box.hidden=true}}else box.hidden=true;
-  }catch(e){note.textContent='Não foi possível carregar o ranking: '+mrErr(e)}
+  }catch(e){note.textContent='Não foi possível carregar a saúde dos capítulos: '+mrErr(e)}
 }
 function mrRank(list){let last=null,pos=0;return list.map((x,i)=>{if(x.points!==last){pos=i+1;last=x.points}return pos})}
 function renderRanking(){
@@ -395,9 +395,9 @@ async function saveRankingSettings(){
   try{for(const i of inputs){const v=Number(i.value);if(!Number.isFinite(v)||v<0)throw new Error('Valor inválido em: '+i.closest('label').firstChild.textContent);await adhFetch('/rest/v1/ranking_settings?key=eq.'+encodeURIComponent(i.dataset.k),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({value:v})})}toast('Pontuação salva.');await loadRanking()}
   catch(e){toast('Não foi possível salvar: '+mrErr(e))}
 }
-function exportRanking(){const d=adhRankData;if(!d){toast('Abra o ranking primeiro.');return}const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
-  const lines=[['Ranking de capítulos — '+mrLabel(d.month)],['Posição','Capítulo','Região','Reuniões','Eventos','Outros','Sócios novos','Total'],...(()=>{const rc=mrRank(d.chapters);return d.chapters.map((c,i)=>[rc[i],c.name,c.region_name,c.p_meetings,c.p_events,Number(c.p_prison)+Number(c.p_ontime)+Number(c.p_missing),c.p_members,c.points])})(),[],['Ranking de regiões'],['Posição','Região','Capítulos ativos','Média','Abertos','Reativados','Inativados','Total'],...(()=>{const rr=mrRank(d.regions);return d.regions.map((r,i)=>[rr[i],r.name,r.active_chapters,r.avg_points,r.opened,r.reactivated,r.inactivated,r.points])})()];
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+lines.map(l=>l.map(q).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));a.download='ranking-adhonep-'+String(d.month).slice(0,7)+'.csv';document.body.appendChild(a);a.click();a.remove()}
+function exportRanking(){const d=adhRankData;if(!d){toast('Abra a página Saúde dos capítulos primeiro.');return}const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const lines=[['Saúde dos capítulos — '+mrLabel(d.month)],['Posição','Capítulo','Região','Reuniões','Eventos','Outros','Sócios novos','Total'],...(()=>{const rc=mrRank(d.chapters);return d.chapters.map((c,i)=>[rc[i],c.name,c.region_name,c.p_meetings,c.p_events,Number(c.p_prison)+Number(c.p_ontime)+Number(c.p_missing),c.p_members,c.points])})(),[],['Saúde das regiões'],['Posição','Região','Capítulos ativos','Média','Abertos','Reativados','Inativados','Total'],...(()=>{const rr=mrRank(d.regions);return d.regions.map((r,i)=>[rr[i],r.name,r.active_chapters,r.avg_points,r.opened,r.reactivated,r.inactivated,r.points])})()];
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+lines.map(l=>l.map(q).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));a.download='saude-adhonep-'+String(d.month).slice(0,7)+'.csv';document.body.appendChild(a);a.click();a.remove()}
 
 /* carrega as pendências assim que o perfil é aplicado (contador no menu) */
 (function(){const ap=adhApplyProfile;adhApplyProfile=function(p){const r=ap.apply(this,arguments);if(p&&p.role!=='member')setTimeout(()=>{try{loadMonthly(true)}catch(e){}},1200);return r}})();
