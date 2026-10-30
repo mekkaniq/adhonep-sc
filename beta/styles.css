@@ -903,3 +903,6 @@ html.lvl-global .nav:not([data-page="global"]):not([data-page="nacional"]):not([
 html.lvl-brasil .nav:not([data-page="nacional"]):not([data-page="audit"]),
 html.lvl-global #publicBtn,html.lvl-brasil #publicBtn{display:none!important}
 html.lvl-global .rolebar,html.lvl-brasil .rolebar{display:none!important}
+
+/* capa: ao terminar o vídeo (sozinho), o texto sobe com suavidade */
+.hero-vmode.vauto .hero-grid,.hero-vmode.vauto .hero-shade,.hero-vmode.vauto .hero-video,.hero-vmode.vauto .hero-sound{transition:opacity 1s ease,transform 1s ease,filter 1s ease}
