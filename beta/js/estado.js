@@ -1,7 +1,7 @@
 /* ADHONEP · contexto de estado (claude v2.0). ?uf=XX troca o estado da plataforma; sem parâmetro = SC (comportamento de sempre). */
 (function(){
-  /* Interruptor: outros estados/países/níveis (global, Brasil) ficam desligados por enquanto. Para ligar no futuro: window.ADH_MULTI=true antes deste arquivo. */
-  var ON=window.ADH_MULTI===true;window.ADH_MULTI=ON;
+  /* Outros estados/níveis (global, Brasil): só valem para quem tem papel nacional/global. O marcador abaixo é gravado no login desse perfil (supabase.js) e apagado para todos os outros; sem ele, ?uf= e ?nivel= são ignorados e a plataforma fica em SC. */
+  var ON=false;try{ON=window.ADH_MULTI===true||localStorage.getItem('adh_multi')==='1'}catch(e){}window.ADH_MULTI=ON;
   var N={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
   var uf='SC';try{var q=(new URLSearchParams(location.search).get('uf')||'').toUpperCase();if(ON&&N[q])uf=q}catch(e){}
   var lv='';try{var qn=(new URLSearchParams(location.search).get('nivel')||'').toLowerCase();if(ON&&(qn==='global'||qn==='brasil'))lv=qn}catch(e){}window.ADH_LEVEL=lv;if(lv)document.documentElement.classList.add('lvl-'+lv);window.ADH_UF=uf;window.ADH_UF_NAME=N[uf];window.ADH_UF_NAMES=N;window.ADH_BRAND='ADHONEP-'+uf;
