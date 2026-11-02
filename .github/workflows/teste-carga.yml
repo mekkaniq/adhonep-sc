@@ -1,0 +1,37 @@
+name: Teste de carga (k6)
+
+on:
+  workflow_dispatch:
+    inputs:
+      perfil:
+        description: 'fumaca (1 min, conferir) · lancamento (~100 logados + 60 visitantes, 9 min) · pico (até 300 + 150, 9 min)'
+        type: choice
+        options: [fumaca, lancamento, pico]
+        default: fumaca
+
+permissions:
+  contents: read
+
+jobs:
+  k6:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: grafana/setup-k6-action@v1
+      - name: Rodar teste (${{ inputs.perfil }})
+        working-directory: loadtest
+        env:
+          PERFIL: ${{ inputs.perfil }}
+          K6_EMAIL: ${{ secrets.K6_EMAIL }}
+          K6_PASSWORD: ${{ secrets.K6_PASSWORD }}
+        run: k6 run --quiet adhonep.js
+      - name: Resumo
+        if: always()
+        run: test -f loadtest/resultado.md && cat loadtest/resultado.md >> "$GITHUB_STEP_SUMMARY" || echo "Sem resumo (o teste não chegou a rodar)." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: resultado-carga-${{ inputs.perfil }}
+          path: loadtest/resultado.*
+          if-no-files-found: ignore
