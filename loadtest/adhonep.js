@@ -23,6 +23,9 @@ const TEM_LOGIN = !!(__ENV.K6_EMAIL && __ENV.K6_PASSWORD);
 // CACHE=1 (padrão): imita o cache do site/app (claude v1.12) — regiões, municípios, capítulos, contatos e comunicados
 // só vão ao servidor uma vez a cada 5 min por pessoa. CACHE=0: comportamento antigo (tudo sempre no servidor).
 const CACHE = __ENV.CACHE !== '0';
+// Ritmo de uso: no 'lancamento' cada pessoa abre o app e navega a cada ~2–4 min (uso real de quem acabou de instalar);
+// 'fumaca' e 'pico' mantêm o ritmo acelerado (pessoa recarregando a cada ~20–30 s), que é teste de estresse.
+const RITMO = PERFIL === 'lancamento' ? 6 : 1;
 const CACHEAVEIS = { regioes: 1, municipios: 1, regiao_municipio: 1, capitulos: 1, comunicados_pub: 1, contatos: 1 };
 const ultimo = {}; // por usuário virtual (cada VU tem a sua cópia)
 
@@ -124,7 +127,7 @@ export function publico() {
     ]);
     tPublico.add(ms);
   });
-  sleep(8 + Math.random() * 12); // a pessoa olha o mapa antes de sair/recarregar
+  sleep((8 + Math.random() * 12) * RITMO); // a pessoa olha o mapa antes de sair/recarregar
 }
 
 /* ---------- sócio/presidente logado no app ---------- */
@@ -150,7 +153,7 @@ export function logado(d) {
       ['eventos', '/rest/v1/events?select=id,chapter_id,title,starts_at,status,is_published&order=starts_at.asc&limit=1000'],
     ]);
   });
-  sleep(10 + Math.random() * 20);
+  sleep((10 + Math.random() * 20) * RITMO);
 }
 
 /* ---------- login real, em ritmo baixo (o Supabase limita logins por IP) ---------- */

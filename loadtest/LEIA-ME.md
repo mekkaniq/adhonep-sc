@@ -9,8 +9,8 @@ Mede quanto tempo o **Supabase** (banco, login e funções) leva para responder 
    (Sem eles o teste roda só a parte pública do site.)
 2. *Actions → Teste de carga (k6) → Run workflow* e escolha o perfil:
    - **fumaca** (1 min): confere se tudo responde. Rode primeiro.
-   - **lancamento** (9 min): ~100 logados abrindo o app quase juntos + 60 visitantes no site público.
-   - **pico** (9 min): sobe até 300 logados + 150 visitantes, para achar o limite. Rode fora do horário de uso.
+   - **lancamento** (9 min): uso real do lançamento — ~100 logados + 60 visitantes, cada um abrindo e navegando a cada 2–4 min.
+   - **pico** (9 min): estresse — até 300 logados + 150 visitantes recarregando a cada ~20–30 s. Rode fora do horário de uso e espere ~1 h entre um teste pesado e outro (o plano gratuito tem "créditos" de CPU que se esgotam).
 3. Ao terminar, o resumo aparece na própria página do workflow (tempos, falhas e se passou nas metas).
 
 ## Metas (passa = ✅)

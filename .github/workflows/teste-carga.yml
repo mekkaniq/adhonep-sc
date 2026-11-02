@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       perfil:
-        description: 'fumaca (1 min, conferir) · lancamento (~100 logados + 60 visitantes, 9 min) · pico (até 300 + 150, 9 min)'
+        description: 'fumaca (1 min, conferir) · lancamento (uso real: ~100 logados + 60 visitantes navegando a cada 2–4 min, 9 min) · pico (até 300 + 150, 9 min)'
         type: choice
         options: [fumaca, lancamento, pico]
         default: fumaca
