@@ -20,6 +20,11 @@ const URL = __ENV.SUPABASE_URL || 'https://ayrdfetnscrfrlcssiua.supabase.co';
 const KEY = __ENV.SUPABASE_KEY || 'sb_publishable_4q2FsB0DhzqgdR91JM0FDA_DMyuWNxs'; // chave pública (já está no site)
 const PERFIL = (__ENV.PERFIL || 'fumaca').toLowerCase();
 const TEM_LOGIN = !!(__ENV.K6_EMAIL && __ENV.K6_PASSWORD);
+// CACHE=1 (padrão): imita o cache do site/app (claude v1.12) — regiões, municípios, capítulos, contatos e comunicados
+// só vão ao servidor uma vez a cada 5 min por pessoa. CACHE=0: comportamento antigo (tudo sempre no servidor).
+const CACHE = __ENV.CACHE !== '0';
+const CACHEAVEIS = { regioes: 1, municipios: 1, regiao_municipio: 1, capitulos: 1, comunicados_pub: 1, contatos: 1 };
+const ultimo = {}; // por usuário virtual (cada VU tem a sua cópia)
 
 const tPublico = new Trend('tempo_abrir_site_publico', true);
 const tLogado = new Trend('tempo_abrir_app_logado', true);
@@ -77,6 +82,16 @@ function ok(res, nome) {
 /* Pedidos em paralelo, como o navegador faz ao abrir a tela */
 function lote(token, lista) {
   const t0 = Date.now();
+  if (CACHE) {
+    const agora = Date.now();
+    lista = lista.filter(([nome]) => {
+      const k = (token ? 'L:' : 'P:') + nome;
+      if (!CACHEAVEIS[nome]) return true;
+      if (ultimo[k] && agora - ultimo[k] < 5 * 60e3) return false;
+      ultimo[k] = agora; return true;
+    });
+    if (!lista.length) return Date.now() - t0;
+  }
   const res = http.batch(lista.map(([nome, path, body]) => {
     const p = hdr(token); p.tags = Object.assign({ nome }, p.tags);
     return body ? ['POST', URL + path, JSON.stringify(body), p] : ['GET', URL + path, null, p];
@@ -104,7 +119,7 @@ export function publico() {
       ['regiao_municipio', '/rest/v1/region_municipalities?select=municipality_id,region_id&valid_until=is.null&limit=1000&state_code=eq.SC'],
       ['capitulos', '/rest/v1/chapters?select=id,name,chapter_number,municipality_id,region_id,status,is_public,president_name&order=name.asc&limit=2000&state_code=eq.SC'],
       ['eventos', '/rest/v1/events?select=id,chapter_id,title,event_type,description,starts_at,ends_at,venue_name,address,municipality_id,status,is_published,public_contact,image_url&is_published=eq.true&status=eq.scheduled&starts_at=gt.' + agora + '&order=starts_at.asc&limit=1000'],
-      ['comunicados', '/rest/v1/public_announcements?select=id,title,category,summary,body,action_label,action_url,scope,region_id&order=published_at.desc&limit=40&state_code=eq.SC'],
+      ['comunicados_pub', '/rest/v1/public_announcements?select=id,title,category,summary,body,action_label,action_url,scope,region_id&order=published_at.desc&limit=40&state_code=eq.SC'],
       ['contatos', '/rest/v1/public_chapter_contacts?select=chapter_id,president_phone&limit=1000'],
     ]);
     tPublico.add(ms);
@@ -149,7 +164,7 @@ export function handleSummary(data) {
   const m = data.metrics, v = (k, s) => (m[k] && m[k].values && m[k].values[s] != null) ? m[k].values[s] : null;
   const f = (x) => x == null ? '—' : (x >= 1000 ? (x / 1000).toFixed(2) + ' s' : Math.round(x) + ' ms');
   const th = Object.entries(m).filter(([, x]) => x.thresholds).map(([k, x]) => '| ' + k + ' | ' + Object.entries(x.thresholds).map(([t, r]) => (r.ok ? '✅ ' : '❌ ') + t).join('<br>') + ' |').join('\n');
-  const md = '# Teste de carga ADHONEP-SC — perfil `' + PERFIL + '`\n\n'
+  const md = '# Teste de carga ADHONEP-SC — perfil `' + PERFIL + '`' + (CACHE ? ' · com cache' : ' · sem cache') + '\n\n'
     + '| Medida | Mediana | p95 | Pior |\n|---|---|---|---|\n'
     + [['Abrir site público', 'tempo_abrir_site_publico'], ['Abrir app logado', 'tempo_abrir_app_logado'], ['Login', 'tempo_login'], ['Cada consulta', 'http_req_duration']]
       .map(([n, k]) => '| ' + n + ' | ' + f(v(k, 'med')) + ' | ' + f(v(k, 'p(95)')) + ' | ' + f(v(k, 'max')) + ' |').join('\n')

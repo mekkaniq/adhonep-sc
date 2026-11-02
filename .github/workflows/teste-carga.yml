@@ -8,6 +8,10 @@ on:
         type: choice
         options: [fumaca, lancamento, pico]
         default: fumaca
+      cache:
+        description: 'Imitar o cache do site/app (versão nova)'
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -23,6 +27,7 @@ jobs:
         working-directory: loadtest
         env:
           PERFIL: ${{ inputs.perfil }}
+          CACHE: ${{ inputs.cache && '1' || '0' }}
           K6_EMAIL: ${{ secrets.K6_EMAIL }}
           K6_PASSWORD: ${{ secrets.K6_PASSWORD }}
         run: k6 run --quiet adhonep.js

@@ -40,6 +40,30 @@ async function adhFetch(path, options={}, retried=false){
  const raw=await res.text();let data=null;try{data=raw?JSON.parse(raw):null}catch{}
  if(!res.ok)throw new Error(data?.message||data?.msg||data?.error_description||raw||('HTTP '+res.status));return data;
 }
+/* ---- Cache dos dados que todo mundo usa (claude v1.12) ----
+   Regiões, municípios, capítulos, contatos e comunicados públicos mudam pouco e são iguais para todos:
+   ficam guardados no aparelho. Até 5 min: usa direto, sem ir ao servidor. Até 24 h: mostra o guardado na hora
+   e atualiza por trás. Pedidos iguais ao mesmo tempo viram um só. Quem grava algo limpa o cache daquela tabela. */
+(function(){
+ const RX=/^\/rest\/v1\/(regions|municipalities|region_municipalities|chapters|public_chapter_contacts|public_announcements|chapter_public_info)\?/;
+ const FRESH=5*60e3,STALE=24*3600e3,PFX='adhq1:',mem=new Map(),fly=new Map();
+ const who=()=>{try{return adhSession&&adhSession.user&&adhSession.user.id?'u'+String(adhSession.user.id).slice(0,12):'a'}catch(e){return 'a'}};
+ const rd=k=>{if(mem.has(k))return mem.get(k);try{const v=localStorage.getItem(k);if(v){const o=JSON.parse(v);mem.set(k,o);return o}}catch(e){}return null};
+ const wr=(k,d)=>{const o={t:Date.now(),d};mem.set(k,o);try{localStorage.setItem(k,JSON.stringify(o))}catch(e){try{for(let i=localStorage.length-1;i>=0;i--){const x=localStorage.key(i);if(x&&x.indexOf(PFX)===0)localStorage.removeItem(x)}}catch(_){}}};
+ const cp=d=>d==null?d:JSON.parse(JSON.stringify(d));
+ window.adhCacheBust=function(table){const re=new RegExp(':\\/rest\\/v1\\/'+(table||'[a-z_]+')+'\\?');[...mem.keys()].forEach(k=>{if(re.test(k))mem.delete(k)});try{for(let i=localStorage.length-1;i>=0;i--){const x=localStorage.key(i);if(x&&x.indexOf(PFX)===0&&re.test(x))localStorage.removeItem(x)}}catch(e){}};
+ const _f=adhFetch;
+ adhFetch=async function(path,options={},retried=false){
+  const m=String(options.method||'GET').toUpperCase();
+  if(m!=='GET'){const t=(/^\/rest\/v1\/([a-z_]+)/.exec(path)||[])[1];if(t&&t!=='rpc')window.adhCacheBust(t);return _f(path,options,retried)}
+  if(retried||options.noCache||!RX.test(path))return _f(path,options,retried);
+  const k=PFX+who()+':'+path,e=rd(k),age=e?Date.now()-e.t:1e15;
+  const net=()=>{if(fly.has(k))return fly.get(k);const pr=_f(path,options,retried).then(d=>{wr(k,d);return d}).finally(()=>fly.delete(k));fly.set(k,pr);return pr};
+  if(e&&age<FRESH)return cp(e.d);
+  if(e&&age<STALE){net().catch(()=>{});return cp(e.d)}
+  return cp(await net());
+ };
+})();
 const adhSupportedRoles={state_admin:'Administrador',state_director:'Diretor estadual',regional_director:'Diretor regional',chapter_president:'Presidente de capítulo'};
 async function adhExtraRoles(uid){try{const sr=await adhFetch('/rest/v1/rpc/adh_my_scope_roles',{method:'POST',body:'{}'});const out=[];(sr||[]).forEach(function(r){if(r.role==='global_board')out.push({role:'state_admin',is_active:true,national:true});else if(r.role==='country_director'&&r.country_iso3==='BRA')out.push({role:'state_director',is_active:true,national:true});else if(r.role==='state_director'&&r.state_code===(window.ADH_UF||'SC'))out.push({role:'state_director',is_active:true})});return out}catch(e){return []}}
 function adhResolveProfile(roles,speakerEditor){const act=(Array.isArray(roles)?roles:[]).filter(r=>r.is_active!==false);const mk=(k,label)=>({role:k,label,speakerEditor:!!speakerEditor,regionIds:[...new Set(act.filter(r=>r.role==='regional_director'&&r.region_id!=null).map(r=>r.region_id))],chapterIds:[...new Set(act.filter(r=>r.role==='chapter_president'&&r.chapter_id!=null).map(r=>r.chapter_id))]});for(const k of ['state_admin','state_director','regional_director','chapter_president']){if(act.some(r=>r.role===k))return mk(k,adhSupportedRoles[k])}if(act.some(r=>r.role==='member'))return mk('member','Sócio');return speakerEditor?mk('speaker_editor','Responsável por preletores'):null}
@@ -883,7 +907,7 @@ function natAnnounce(){showPage('announcements');try{var f=document.getElementBy
 (function(){var _r=adhResolveProfile;adhResolveProfile=function(roles,se){var p=_r(roles,se);var nat=!!(p&&(Array.isArray(roles)?roles:[]).some(function(r){return r&&r.national}));if(nat){p.national=true;window.ADH_MULTI=true;try{localStorage.setItem('adh_multi','1')}catch(e){}}else if(p){try{localStorage.removeItem('adh_multi')}catch(e){}window.ADH_MULTI=false;if(window.ADH_UF!=='SC'||window.ADH_LEVEL){try{location.replace(location.pathname)}catch(e){}}}return p};
  var _a=adhApplyProfile;adhApplyProfile=function(p){_a(p);lvBar();setTimeout(function(){var h=(location.hash||'').replace('#','');if(!h&&window.ADH_LEVEL)h=ADH_LEVEL==='global'?'global':'nacional';if(!/^(gestao|global|nacional)$/.test(h))return;try{setMode('admin')}catch(e){}if(h!=='gestao'&&canViewPage(h))showPage(h)},400)};
  var _p=rolePermissions;rolePermissions=function(r){var q=_p(r);if(typeof adhProfile!=='undefined'&&adhProfile&&adhProfile.national&&q&&q.pages&&q.pages.indexOf('nacional')<0){q=Object.assign({},q,{pages:q.pages.concat(['nacional'])})}if(typeof adhProfile!=='undefined'&&adhProfile&&adhProfile.national&&adhProfile.role==='state_admin'&&q&&q.pages&&q.pages.indexOf('global')<0){q=Object.assign({},q,{pages:q.pages.concat(['global'])})}return q};
- var _s=signOutAdmin;signOutAdmin=function(){try{localStorage.removeItem('adh_multi')}catch(e){}_s.apply(this,arguments);var e=document.getElementById('lvSw');if(e)e.remove()}})();
+ var _s=signOutAdmin;signOutAdmin=function(){try{localStorage.removeItem('adh_multi')}catch(e){}try{window.adhCacheBust&&window.adhCacheBust()}catch(e){}_s.apply(this,arguments);var e=document.getElementById('lvSw');if(e)e.remove()}})();
 async function lvBar(){var old=document.getElementById('lvSw');if(old)old.remove();if(!adhProfile||!adhProfile.national)return;var rl=document.getElementById('roleLabel');if(rl&&adhProfile.role==='state_director')rl.textContent='Diretor nacional';if(rl&&adhProfile.role==='state_admin')rl.textContent='Diretoria global';try{var st=(await adhFetch('/rest/v1/rpc/adh_states_list',{method:'POST',body:'{}'})||[]).filter(function(s){return s.country_iso3==='BRA'});var bar=document.querySelector('.adminbar>span:first-child');if(!bar||!st||!st.length)return;var w=document.createElement('span');w.id='lvSw';w.style.cssText='margin-left:12px;display:inline-flex;gap:6px;align-items:center';var gl=adhProfile.role==='state_admin',cur=ADH_LEVEL||ADH_UF;w.innerHTML='<small>Nível</small><select class="field" style="padding:4px 8px;min-height:0;width:auto" aria-label="Trocar de nível"><option value="@global"'+(ADH_LEVEL==='global'?' selected':'')+(gl?'':' hidden')+'>Global</option><option value="@brasil"'+(ADH_LEVEL==='brasil'?' selected':'')+'>Brasil</option>'+st.map(function(s){return '<option value="'+s.code+'"'+(!ADH_LEVEL&&s.code===ADH_UF?' selected':'')+'>'+esc(s.name)+'</option>'}).join('')+'</select>';w.querySelector('select').onchange=function(){var v=this.value;if(v==='@global')location.href='../beta-global/gestao/';else if(v==='@brasil')location.href='../beta-global/gestao/#brasil';else location.href='?uf='+v+'#gestao'};bar.appendChild(w)}catch(e){}}
 
 /* Painel global (diretoria global) */
