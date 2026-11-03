@@ -1211,3 +1211,6 @@ html.in-app #eventsSection .ev-empty{border-color:rgba(255,255,255,.22);color:#c
 /* convite inteiro aparece (convites são verticais) */
 .ev-img.has-img{height:auto;aspect-ratio:4/5;background:#0b1b33}
 .ev-img.has-img img{object-fit:contain}
+/* cidade em destaque no cartão público do evento (sem nome do capítulo) */
+.ev-city{display:flex;align-items:center;gap:7px;font:600 15px/1.2 Poppins,Inter,sans-serif;color:var(--gold2);letter-spacing:.01em}
+.ev-city .ic{color:var(--gold)}
