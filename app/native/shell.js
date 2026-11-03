@@ -131,12 +131,12 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden&&cur
 function buildMap(){
  var find=document.createElement('div');find.id='appFind';
  var p2=document.querySelector('#mapSection .cols>.panel:nth-child(2)');
- find.innerHTML='<h3>Encontre seu capítulo</h3><div class="filters"></div>';
+ find.innerHTML='<h3 class="find-h">Encontre seu capítulo</h3><div class="filters"></div>';
  if(p2){var fl=p2.querySelector('.filters'),inp=$('findChapter');
   if(inp){inp.placeholder='Município ou capítulo';inp.type='search';find.querySelector('.filters').appendChild(inp)}
   var sel=$('publicCity');if(sel)find.querySelector('.filters').appendChild(sel);
   find.appendChild($('publicList'));find.appendChild($('publicDetail'))}
- var md=$('mapCityDetail');if(md)find.insertBefore(md,find.querySelector('.filters'));
+ var md=$('mapCityDetail');if(md){var fl2=find.querySelector('.filters');fl2.parentNode.insertBefore(md,fl2.nextSibling)}
  window.__adhFind=find;var pan=document.querySelector('#mapSection .cols>.panel:first-child');if(pan)pan.appendChild(find);
  var obs=new MutationObserver(syncFind);['publicDetail','mapCityDetail'].forEach(function(id){var e=$(id);if(e)obs.observe(e,{childList:true,subtree:true,characterData:true})});
  var inp2=$('findChapter');if(inp2)inp2.addEventListener('input',syncFind);

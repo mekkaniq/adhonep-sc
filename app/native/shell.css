@@ -103,7 +103,8 @@ html.in-app #eventsSection .head,html.in-app #publicEvents{display:none}
 .ev-title{display:flex;align-items:baseline;justify-content:space-between;padding:0 18px;margin-bottom:14px}
 .ev-title h2{font-size:26px;margin:0;color:var(--a-text);font-weight:600}
 .ev-title span{font-size:12.5px;color:var(--a-mut)}
-.ev-near{margin:0 18px 14px;padding:14px;border-radius:16px;background:var(--navy);color:#fff}
+.ev-near{margin:0 18px 14px;padding:86px 14px 14px;border-radius:16px;color:#fff;background:linear-gradient(180deg,rgba(9,20,44,.05) 0%,rgba(9,20,44,.55) 45%,rgba(9,20,44,.92) 100%),url(assets/fundo-hero.jpg) 50% 62%/cover no-repeat,var(--navy);box-shadow:0 10px 30px rgba(9,20,44,.25)} /* foto da Terra (claude v1.12) */
+html.in-app #eventsSection{min-height:100vh;min-height:100dvh}
 .ev-near label{display:block;font-size:12px;letter-spacing:.04em;color:var(--gold2);margin-bottom:8px;font-weight:600}
 .ev-near-row{display:flex;gap:8px}
 .ev-near input{flex:1;min-width:0;height:44px;border-radius:12px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.1);color:#fff;padding:0 14px;font-size:15px}
@@ -282,3 +283,7 @@ html.in-app #page-support td{display:flex;justify-content:space-between;align-it
 html.in-app #page-support td[data-l]::before{content:attr(data-l);color:var(--a-mut,#6b7a8c);font-size:12.5px;text-align:left}
 html.in-app #page-support td:first-child{display:block;text-align:left;font-size:16px;padding-bottom:6px}
 html.in-app #page-support td:last-child{justify-content:flex-start;padding-top:8px}
+
+/* busca de capítulo logo abaixo do mapa (claude v1.12) */
+#appFind .find-h{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+#appFind{padding-top:12px}
