@@ -1,0 +1,15 @@
+name: Chamar função do Supabase (manutenção)
+on:
+  workflow_dispatch:
+    inputs:
+      funcao:
+        description: 'Nome da função (ex.: importar-convites)'
+        required: true
+permissions:
+  contents: read
+jobs:
+  chamar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - run: curl -sS -m 120 -X POST "https://ayrdfetnscrfrlcssiua.supabase.co/functions/v1/${{ inputs.funcao }}" -H "apikey: sb_publishable_4q2FsB0DhzqgdR91JM0FDA_DMyuWNxs" | tee resposta.txt; echo; cat resposta.txt >> "$GITHUB_STEP_SUMMARY"
