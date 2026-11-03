@@ -12,4 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - run: curl -sS -m 120 -X POST "https://ayrdfetnscrfrlcssiua.supabase.co/functions/v1/${{ inputs.funcao }}" -H "apikey: sb_publishable_4q2FsB0DhzqgdR91JM0FDA_DMyuWNxs" | tee resposta.txt; echo; cat resposta.txt >> "$GITHUB_STEP_SUMMARY"
+      - name: Chamar
+        run: |
+          curl -sS -m 120 -X POST "https://ayrdfetnscrfrlcssiua.supabase.co/functions/v1/${{ inputs.funcao }}" -H "apikey: sb_publishable_4q2FsB0DhzqgdR91JM0FDA_DMyuWNxs" | tee resposta.txt
+          echo
+          cat resposta.txt >> "$GITHUB_STEP_SUMMARY"
