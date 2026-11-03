@@ -189,7 +189,7 @@ function renderEv(){
   var d=fmtDay(e.date),t=hhmm(e.id),ph=String(e.contact_whatsapp||'').replace(/\D/g,'');
   var img=e.image_data?'<img src="'+esc(e.image_data)+'" alt="Convite: '+esc(e.name)+'" loading="lazy">':ic('spark');
   return '<article class="ev-card" data-id="'+esc(e.id)+'"><div class="ev-img'+(e.image_data?' has-img':'')+'">'+img+'<div class="ev-date"><b>'+esc(d.d)+'</b><span>'+d.m+'</span></div>'+(e._km!=null?'<div class="ev-dist">'+Math.max(1,Math.round(e._km))+' km</div>':'')+'</div>'
-  +'<div class="ev-body"><h3>'+esc(e.name)+'</h3><div class="ev-meta">'+ic('building','xs')+'<span>'+esc([e._ch,e._city].filter(Boolean).join(' · '))+'</span></div>'
+  +'<div class="ev-body"><h3>'+esc(e.name)+'</h3>'+(e._city?'<div class="ev-city">'+ic('pin','xs')+'<span>'+esc(e._city)+'</span></div>':'')+'
   +'<div class="ev-meta">'+ic('clock','xs')+'<span>'+(t?t+' · ':'')+esc(e.location||'Local a confirmar')+'</span></div>'
   +(e.description?'<p class="ev-desc">'+esc(e.description)+'</p>':'')
   +'<div class="ev-acts"><button type="button" class="btn small primary" data-cal="'+esc(e.id)+'">'+ic('calendar','xs')+'Calendário</button><button type="button" class="btn small sq" data-inv="'+esc(e.id)+'" aria-label="Convidar">'+ic('share','xs')+'</button>'
