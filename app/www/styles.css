@@ -1195,3 +1195,19 @@ html.in-app #page-support td:last-child{justify-content:flex-start;padding-top:8
 /* busca de capítulo logo abaixo do mapa (claude v1.12) */
 #appFind .find-h{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 #appFind{padding-top:12px}
+
+/* Eventos com a identidade da ADHONEP no fundo todo (claude v1.12): foto da Terra no topo, azul-marinho até o fim; não muda no tema claro */
+html.in-app #eventsSection{--a-bg:#0b1b33;--a-card:#12233f;--a-text:#e7eef8;--a-mut:#a9bcd6;--a-line:#26406a;--a-soft:#182c4b;
+ background:linear-gradient(180deg,rgba(11,27,51,.25) 0,rgba(11,27,51,.6) 180px,rgba(11,27,51,.95) 420px,#0b1b33 560px),url(assets/fundo-hero.jpg) 50% 0/auto 600px no-repeat,#0b1b33!important;color:var(--a-text)}
+html.in-app #eventsSection .ev-title h2{color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.45)}
+html.in-app #eventsSection .ev-title span{color:#c9d6ea}
+html.in-app #eventsSection .ev-near{padding:14px;background:rgba(11,27,51,.5);border:1px solid rgba(255,255,255,.14);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.3)}
+html.in-app #eventsSection .ev-chip{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18);color:#e7eef8}
+html.in-app #eventsSection .ev-chip.on{background:var(--gold);border-color:var(--gold);color:#102b4e}
+html.in-app #eventsSection .ev-card{background:#12233f;border-color:#26406a;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+html.in-app #eventsSection .ev-acts .btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff}
+html.in-app #eventsSection .ev-acts .btn.primary{background:var(--gold);border-color:var(--gold);color:#102b4e}
+html.in-app #eventsSection .ev-empty{border-color:rgba(255,255,255,.22);color:#c9d6ea;background:rgba(11,27,51,.35)}
+/* convite inteiro aparece (convites são verticais) */
+.ev-img.has-img{height:auto;aspect-ratio:4/5;background:#0b1b33}
+.ev-img.has-img img{object-fit:contain}
