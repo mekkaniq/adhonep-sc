@@ -23,10 +23,10 @@
  function frame(ts){
   if(!run){raf=0;return}raf=requestAnimationFrame(frame);
   size();cx.setTransform(dpr,0,0,dpr,0,0);cx.clearRect(0,0,W,H);if(!ready)return;
-  var s=ts/1000,R2=90*90;
+  var s=ts/1000,RR=Math.max(16,Math.min(W,H)*.065),R2=RR*RR; /* bolinha pequena em volta do dedo (claude v1.12) */
   for(var i=0;i<P.length;i++){var p=P[i],tx=p.hx+Math.sin(s*.9+p.ph)*.5,ty=p.hy+Math.cos(s*.8+p.ph)*.5;
    p.vx=(p.vx+(tx-p.x)*p.k)*.8;p.vy=(p.vy+(ty-p.y)*p.k)*.8;
-   var dx=p.x-px,dy=p.y-py,d2=dx*dx+dy*dy;if(d2<R2&&d2>1){var f=(1-d2/R2)*8/Math.sqrt(d2);p.vx+=dx*f;p.vy+=dy*f}
+   var dx=p.x-px,dy=p.y-py,d2=dx*dx+dy*dy;if(d2<R2&&d2>1){var f=(1-d2/R2)*2.6/Math.sqrt(d2);p.vx+=dx*f;p.vy+=dy*f}
    p.x+=p.vx;p.y+=p.vy;
    if(p.g){var pu=.65+.35*Math.sin(s*2+p.ph);cx.globalAlpha=.55+.45*pu;cx.fillStyle='#e8c97e';cx.fillRect(p.x-1.5,p.y-1.5,3,3)}
    else{cx.globalAlpha=.55;cx.fillStyle='#a9c4ec';cx.fillRect(p.x-.9,p.y-.9,1.8,1.8)}}

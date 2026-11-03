@@ -91,10 +91,10 @@ function mount(){
  var pv=$('publicView');pv.dataset.tab='home';
  /* Início */
  var home=document.createElement('section');home.id='appHome';home.className='app-tab';
- home.innerHTML='<div class="ah-globe" data-v="sc"><canvas id="appSC" aria-label="Mapa de Santa Catarina em partículas"></canvas><canvas id="appGlobe" aria-label="Globo interativo"></canvas><div class="ah-sw" role="tablist"><button type="button" data-v="sc" class="on">Santa Catarina</button><button type="button" data-v="world">Mundo</button></div><div class="ah-hint">Toque e arraste</div></div><div class="ah-copy"><div class="ah-eyebrow">ADHONEP · Santa Catarina</div><h1>Conectando pessoas a <em>uma missão.</em></h1><p>Encontre um capítulo, acompanhe os eventos e fique perto da rede em Santa Catarina.</p><div class="ah-stats"><div><b id="ahChap">—</b><span>capítulos ativos</span></div><div><b id="ahCity">—</b><span>municípios com capítulo</span></div></div><div class="ah-actions"><button class="b b-gold" data-go="map">'+ic('pin','sm')+'Capítulos</button><button class="b b-line" data-go="events">'+ic('calendar','sm')+'Eventos</button></div></div>';
+ home.innerHTML='<div class="ah-globe" data-v="sc"><canvas id="appSC" aria-label="Mapa de Santa Catarina em partículas"></canvas><div class="ah-hint">Toque e arraste</div></div><div class="ah-copy"><div class="ah-eyebrow">ADHONEP · Santa Catarina</div><h1>Conectando pessoas a <em>uma missão.</em></h1><p>Encontre um capítulo, acompanhe os eventos e fique perto da rede em Santa Catarina.</p><div class="ah-stats"><div><b id="ahChap">—</b><span>capítulos ativos</span></div><div><b id="ahCity">—</b><span>municípios com capítulo</span></div></div><div class="ah-actions"><button class="b b-gold" data-go="map">'+ic('pin','sm')+'Capítulos</button><button class="b b-line" data-go="events">'+ic('calendar','sm')+'Eventos</button></div></div>';
  pv.insertBefore(home,pv.firstChild);
  home.querySelectorAll('[data-go]').forEach(function(x){x.onclick=function(){setTab(x.dataset.go)}});
- if(window.AdhGlobe)AdhGlobe.init($('appGlobe'));
+ if(window.AdhGlobe&&$('appGlobe'))AdhGlobe.init($('appGlobe'));
  if(window.AdhSC)AdhSC.init($('appSC'));
  (function(){var g=home.querySelector('.ah-globe');home.querySelectorAll('.ah-sw button').forEach(function(b){b.onclick=function(){g.dataset.v=b.dataset.v;home.querySelectorAll('.ah-sw button').forEach(function(x){x.classList.toggle('on',x===b)});homeAnim(S.tab==='home')}})})();
  /* demais abas */
@@ -357,7 +357,7 @@ function uploadImg(file){
 
 /* ===== configurações ===== */
 function homeAnim(on){var g=document.querySelector('#appHome .ah-globe'),v=g&&g.dataset.v;
- if(window.AdhGlobe){if(on&&v==='world')AdhGlobe.start();else AdhGlobe.stop()}
+ if(window.AdhGlobe&&document.getElementById('appGlobe')){if(on&&v==='world')AdhGlobe.start();else AdhGlobe.stop()}
  if(window.AdhSC){if(on&&v!=='world')AdhSC.start();else AdhSC.stop()}}
 function settingsHtml(){
  var p=null;try{p=adhProfile}catch(e){}
