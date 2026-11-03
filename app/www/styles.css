@@ -1216,3 +1216,6 @@ html.in-app #eventsSection .ev-empty{border-color:rgba(255,255,255,.22);color:#c
 .ev-img.has-img img{object-fit:contain}
 /* excluir conta em Configurações */
 .mr-r.st-del .lb{color:#b4424a}.mr-r.st-del .ic:first-child{color:#b4424a}
+/* cidade em destaque no cartão público do evento (sem nome do capítulo) */
+.ev-city{display:flex;align-items:center;gap:7px;font:600 15px/1.2 Poppins,Inter,sans-serif;color:var(--gold2);letter-spacing:.01em}
+.ev-city .ic{color:var(--gold)}
