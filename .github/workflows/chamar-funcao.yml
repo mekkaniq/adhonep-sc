@@ -16,4 +16,9 @@ jobs:
         run: |
           curl -sS -m 120 -X POST "https://ayrdfetnscrfrlcssiua.supabase.co/functions/v1/${{ inputs.funcao }}" -H "apikey: sb_publishable_4q2FsB0DhzqgdR91JM0FDA_DMyuWNxs" | tee resposta.txt
           echo
-          cat resposta.txt >> "$GITHUB_STEP_SUMMARY"
+          head -c 4000 resposta.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resposta-${{ inputs.funcao }}
+          path: resposta.txt
+          retention-days: 3

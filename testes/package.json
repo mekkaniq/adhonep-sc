@@ -1,0 +1,12 @@
+{
+  "name": "adhonep-sc-testes",
+  "private": true,
+  "description": "Testes do ADHONEP-SC (tela com Playwright). O teste do banco é testes/banco/rodar.sh.",
+  "scripts": {
+    "tela": "node tela/rodar.js",
+    "banco": "bash banco/rodar.sh"
+  },
+  "devDependencies": {
+    "playwright": "1.56.0"
+  }
+}

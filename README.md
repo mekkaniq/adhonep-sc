@@ -1,5 +1,9 @@
 # ADHONEP-SC claude v3.13
 
+> **Comece por aqui:** `CLAUDE.md` (como trabalhamos e roteiro de entrega) · `docs/BACKLOG.md` (pendências e prioridades) ·
+> `testes/LEIA-ME.md` (testes do banco e de tela, rodam no GitHub a cada push).
+
+
 Site estático (HTML + JS) com Supabase, para GitHub Pages (raiz do repositório).
 
 - `index.html`, `styles.css`, `js/`, `assets/`, `privacidade.html` (**modelo: preencher**), `404.html`, `robots.txt`, `.nojekyll`
