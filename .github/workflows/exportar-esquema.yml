@@ -1,0 +1,27 @@
+name: Exportar esquema do banco (manutenção)
+# Grava supabase/esquema/00-base.sql (só estrutura, sem dados) a partir da produção.
+# Só funciona enquanto a função temporária "exportar-esquema" estiver ligada no Supabase.
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  exportar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Baixar estrutura
+        run: |
+          mkdir -p supabase/esquema
+          curl -sS -f -m 120 -X POST "https://ayrdfetnscrfrlcssiua.supabase.co/functions/v1/exportar-esquema" -H "apikey: sb_publishable_4q2FsB0DhzqgdR91JM0FDA_DMyuWNxs" -o supabase/esquema/00-base.sql
+          head -1 supabase/esquema/00-base.sql | grep -q "^-- ADHONEP-SC · ESTRUTURA DO BANCO" || { echo "Resposta inesperada"; head -c 500 supabase/esquema/00-base.sql; exit 1; }
+          wc -c supabase/esquema/00-base.sql
+      - name: Gravar no repositório
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/esquema/00-base.sql
+          git diff --cached --quiet && { echo "Sem mudança"; exit 0; }
+          git commit -m "Esquema do banco exportado da produção (estrutura, sem dados)"
+          git push
