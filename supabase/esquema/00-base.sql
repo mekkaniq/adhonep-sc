@@ -1,0 +1,3327 @@
+-- ADHONEP-SC · ESTRUTURA DO BANCO (sem dados) exportada da produção em 04/11/2026 22:10
+-- Gerado por testes/banco/exportar-esquema.sql. Não editar à mão: mudanças novas entram em supabase/migracoes/.
+SET check_function_bodies = off;
+SET client_min_messages = warning;
+
+-- ===== SEQUÊNCIAS =====
+CREATE SEQUENCE public.ranking_grants_id_seq AS bigint START 1 INCREMENT 1 MINVALUE 1 MAXVALUE 9223372036854775807;
+
+-- ===== FUNÇÕES =====
+CREATE OR REPLACE FUNCTION public.adh_announcement_defaults()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  if new.status = 'published' and (tg_op = 'INSERT' or old.status is distinct from 'published') then
+    new.published_at := now(); new.decision_by := auth.uid(); new.decided_at := now();
+  end if;
+  return new;
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_audit_row()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare r jsonb; o jsonb; v_changed text[]; v_id text; v_sum text;
+begin
+  r := case when tg_op = 'DELETE' then to_jsonb(old) else to_jsonb(new) end;
+  o := case when tg_op = 'UPDATE' then to_jsonb(old) else '{}'::jsonb end;
+  v_id := coalesce(r->>'id', r->>'user_id');
+  v_sum := coalesce(r->>'name', r->>'title', r->>'full_name', r->>'role', v_id);
+  if tg_op = 'UPDATE' then
+    select array_agg(k order by k) into v_changed from jsonb_object_keys(r) k
+      where k <> 'updated_at' and (r->k) is distinct from (o->k);
+    if v_changed is null then return new; end if;
+  end if;
+  insert into public.admin_audit_log(actor_id, action, entity_type, entity_id, summary, metadata)
+  values (auth.uid(), 'db_' || lower(tg_op), tg_table_name, v_id, left(v_sum, 200),
+          jsonb_build_object('changed', to_jsonb(coalesce(v_changed, array[]::text[])), 'status', r->>'status'));
+  return case when tg_op = 'DELETE' then old else new end;
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_backup_export()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not public.adh_is_global_board() then raise exception 'Acesso negado.'; end if;
+  insert into public.admin_audit_log(action,entity_type,entity_id,summary) values ('backup_export','database','all','Backup completo exportado (JSON)');
+  return jsonb_build_object('generated_at',now(),'note','Backup provisório em JSON (sem geometria de municípios e sem senhas/auth). Contém dados pessoais: guardar com segurança.','tables',public.adh_dump_json());
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_backup_list()
+ RETURNS TABLE(id bigint, taken_at timestamp with time zone, kind text, row_counts jsonb)
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not public.adh_is_global_board() then raise exception 'Acesso negado.'; end if;
+  return query select b.id,b.taken_at,b.kind,b.row_counts from public.backup_snapshots b order by b.taken_at desc;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_backup_snapshot_now()
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not public.adh_is_global_board() then raise exception 'Acesso negado.'; end if;
+  return public.adh_take_snapshot('manual');
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_can_manage_speakers()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select public.adh_is_state_manager()
+      or exists (select 1 from public.speaker_editors e where e.user_id = auth.uid());
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_can_see_report_chapter(p_chapter bigint)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select public.is_state_admin()
+      or public.adh_has_role('state_director')
+      or public.adh_is_president_of(p_chapter)
+      or public.adh_is_regional_director_of(p_chapter);
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_can_see_support(p_chapter bigint, p_kind text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select public.is_state_admin() or public.adh_has_role('state_director')
+      or public.adh_is_regional_director_of(p_chapter)
+      or public.adh_is_president_of(p_chapter)
+      or public.adh_is_support_coord_of(p_chapter, p_kind)
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_can_submit_support(p_chapter bigint, p_kind text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select public.is_state_admin() or public.adh_is_president_of(p_chapter) or public.adh_is_support_coord_of(p_chapter, p_kind)
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_contact_stamp()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin new.updated_at := now(); new.updated_by := auth.uid(); return new; end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_dump_json()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare r record; out jsonb:='{}'; part jsonb;
+begin
+  for r in select c.relname from pg_class c where c.relnamespace='public'::regnamespace and c.relkind='r' and c.relname not in ('backup_snapshots','municipality_boundaries_import') order by 1 loop
+    execute format('select coalesce(jsonb_agg(to_jsonb(t) - ''boundary_geojson''),''[]''::jsonb) from public.%I t', r.relname) into part;
+    out:=out||jsonb_build_object(r.relname,part);
+  end loop;
+  return out;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_global_overview()
+ RETURNS TABLE(iso3 text, name text, chapters integer, chapters_public integer, states integer, directors integer, announcements integer)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not public.adh_is_global_board() then raise exception 'Acesso negado.'; end if;
+  return query select c.iso3, c.name,
+    (select count(*)::int from public.chapters x where x.country_iso3=c.iso3 and x.status='active'),
+    (select count(*)::int from public.chapters x where x.country_iso3=c.iso3 and x.status='active' and x.is_public),
+    (select count(*)::int from public.states s where s.country_iso3=c.iso3),
+    (select count(*)::int from public.scope_roles r where r.role='country_director' and r.country_iso3=c.iso3 and r.is_active),
+    (select count(*)::int from public.statewide_announcements a where a.country_iso3=c.iso3 and a.scope in ('country','global'))
+  from public.countries c where c.adhonep_present order by c.name;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_grant_scope_role(p_email text, p_role text, p_state text DEFAULT NULL::text, p_country text DEFAULT NULL::text)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare uid uuid; nid bigint;
+begin
+  if not public.adh_is_global_board() then raise exception 'Acesso negado.'; end if;
+  if p_role not in ('state_director','country_director') then raise exception 'Papel inválido.'; end if;
+  if p_role='state_director' and not exists(select 1 from public.states where code=p_state) then raise exception 'Estado inválido.'; end if;
+  if p_role='country_director' and not exists(select 1 from public.countries where iso3=p_country) then raise exception 'País inválido.'; end if;
+  select u.id into uid from auth.users u where lower(u.email)=lower(trim(p_email)) limit 1;
+  if uid is null then raise exception 'Esta pessoa ainda não tem conta. Ela precisa pedir acesso primeiro (solicitação de acesso).'; end if;
+  select s.id into nid from public.scope_roles s where s.user_id=uid and s.role=p_role and s.is_active and coalesce(s.state_code,'')=coalesce(case when p_role='state_director' then p_state end,'') and coalesce(s.country_iso3,'')=coalesce(case when p_role='country_director' then p_country end,'');
+  if nid is not null then return nid; end if;
+  insert into public.scope_roles(user_id,role,state_code,country_iso3,is_active)
+    values (uid,p_role,case when p_role='state_director' then p_state end,case when p_role='country_director' then p_country end,true) returning id into nid;
+  insert into public.admin_audit_log(action,entity_type,entity_id,summary) values ('grant_scope_role','scope_role',nid::text,'Acesso '||p_role||' concedido ('||coalesce(p_state,p_country)||')');
+  return nid;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_grant_speaker_editor(p_email text)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v uuid;
+begin
+  if not public.adh_is_state_manager() then raise exception 'Sem permissão.'; end if;
+  select id into v from auth.users where lower(email) = lower(trim(p_email)) limit 1;
+  if v is null then raise exception 'Não existe conta com este e-mail. Peça ao administrador para criar a conta antes.'; end if;
+  insert into public.speaker_editors(user_id, granted_by) values (v, auth.uid()) on conflict do nothing;
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_guard_access_request()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_email text := lower(trim(coalesce(new.email, '')));
+begin
+  if v_email !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' or length(v_email) > 254 then
+    raise exception 'Informe um e-mail válido.';
+  end if;
+  if length(trim(coalesce(new.full_name, ''))) < 3 or length(new.full_name) > 160 then
+    raise exception 'Informe o nome completo.';
+  end if;
+  if length(trim(coalesce(new.justification, ''))) < 10 or length(new.justification) > 2000 then
+    raise exception 'Descreva a justificativa (mínimo de 10 caracteres).';
+  end if;
+  if length(coalesce(new.city, '')) > 120 or length(coalesce(new.phone, '')) > 40 then
+    raise exception 'Dados muito longos.';
+  end if;
+  new.email := v_email;
+  new.status := 'pending';
+
+  -- 1) E-mail repetido: bloqueia se já há pedido PENDENTE (qualquer data) ou APROVADO
+  if exists (select 1 from public.access_requests r
+             where lower(r.email) = v_email and r.status in ('pending','approved')) then
+    raise exception 'Já existe uma solicitação para este e-mail. Aguarde o contato da diretoria.';
+  end if;
+  -- 2) Pedido rejeitado: só aceita outro depois de 7 dias
+  if exists (select 1 from public.access_requests r
+             where lower(r.email) = v_email and r.status = 'rejected' and r.created_at > now() - interval '7 days') then
+    raise exception 'Seu pedido anterior foi analisado recentemente. Fale com a diretoria antes de enviar outro.';
+  end if;
+  -- 3) Limite por MINUTO e por HORA no site inteiro (só contra inundação/robôs; folgado para um lançamento)
+  if (select count(*) from public.access_requests r where r.created_at > now() - interval '1 minute') >= 300 then
+    raise exception 'Muitos pedidos neste momento. Aguarde 1 minuto e tente novamente.';
+  end if;
+  if (select count(*) from public.access_requests r where r.created_at > now() - interval '1 hour') >= 3000 then
+    raise exception 'Muitos pedidos neste momento. Tente novamente mais tarde.';
+  end if;
+  return new;
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_guard_chapter_report()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin
+  if public.is_state_admin() then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if public.adh_is_president_of(new.chapter_id) then
+      if new.status not in ('Rascunho', 'Entregue') then
+        raise exception 'Presidente só pode criar relatório como Rascunho ou Entregue.';
+      end if;
+      new.reviewer_notes := null;
+      new.submitted_at := case when new.status = 'Entregue' then now() else null end;
+      new.created_by := auth.uid();
+      return new;
+    end if;
+    raise exception 'Sem permissão para criar relatório neste capítulo.';
+  end if;
+
+  -- UPDATE
+  if new.chapter_id is distinct from old.chapter_id then
+    raise exception 'O capítulo de um relatório não pode ser alterado.';
+  end if;
+
+  if public.adh_is_regional_director_of(old.chapter_id) then
+    if (to_jsonb(new) - 'status' - 'reviewer_notes' - 'updated_at')
+       is distinct from (to_jsonb(old) - 'status' - 'reviewer_notes' - 'updated_at') then
+      raise exception 'Diretor regional só pode alterar status e orientações da revisão.';
+    end if;
+    if not ((old.status = 'Entregue' and new.status = 'Em revisão')
+         or (old.status in ('Em revisão', 'Reenviado') and new.status in ('Correções solicitadas', 'Aprovado'))
+         or (old.status = 'Aprovado' and new.status = 'Encaminhado à sede')) then
+      raise exception 'Transição de status não permitida: % -> %', old.status, new.status;
+    end if;
+    if new.status = 'Correções solicitadas' and length(trim(coalesce(new.reviewer_notes, ''))) < 3 then
+      raise exception 'Informe as orientações ao solicitar correções.';
+    end if;
+    return new;
+  end if;
+
+  if public.adh_is_president_of(old.chapter_id) then
+    if old.status not in ('Rascunho', 'Correções solicitadas') then
+      raise exception 'Este relatório não pode mais ser editado pelo capítulo (status: %).', old.status;
+    end if;
+    if not ((old.status = 'Rascunho' and new.status in ('Rascunho', 'Entregue'))
+         or (old.status = 'Correções solicitadas' and new.status in ('Correções solicitadas', 'Reenviado'))) then
+      raise exception 'Transição de status não permitida: % -> %', old.status, new.status;
+    end if;
+    new.reviewer_notes := old.reviewer_notes;
+    new.submitted_at := case when new.status in ('Entregue', 'Reenviado') then now() else old.submitted_at end;
+    return new;
+  end if;
+
+  raise exception 'Sem permissão para alterar este relatório.';
+end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_guard_monthly_report()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare v_deadline timestamptz;
+begin
+  if tg_op = 'INSERT' then
+    if new.ref_month > date_trunc('month', now() at time zone 'America/Sao_Paulo')::date then
+      raise exception 'Não é possível enviar relatório de um mês que ainda não começou.';
+    end if;
+    v_deadline := ((new.ref_month + interval '1 month')::date + 5)::timestamp at time zone 'America/Sao_Paulo';
+    if public.is_state_admin() then
+      new.submitted_at := coalesce(new.submitted_at, now());
+      new.on_time := coalesce(new.on_time, now() < v_deadline);
+      return new;
+    end if;
+    if public.adh_is_president_of(new.chapter_id) then
+      new.status := 'Entregue';
+      new.reviewer_notes := null; new.reviewed_by := null; new.reviewed_at := null;
+      new.submitted_at := now();
+      new.on_time := now() < v_deadline;
+      new.created_by := auth.uid();
+      return new;
+    end if;
+    raise exception 'Sem permissão para enviar relatório deste capítulo.';
+  end if;
+
+  -- UPDATE
+  if new.chapter_id is distinct from old.chapter_id or new.ref_month is distinct from old.ref_month then
+    raise exception 'Capítulo e mês de um relatório não podem ser alterados.';
+  end if;
+  if public.is_state_admin() then
+    if new.status is distinct from old.status and new.status in ('Aprovado','Correções solicitadas') then
+      new.reviewed_by := auth.uid(); new.reviewed_at := now();
+    end if;
+    return new;
+  end if;
+
+  if public.adh_is_regional_director_of(old.chapter_id) then
+    if (to_jsonb(new) - 'status' - 'reviewer_notes' - 'reviewed_by' - 'reviewed_at' - 'updated_at')
+       is distinct from (to_jsonb(old) - 'status' - 'reviewer_notes' - 'reviewed_by' - 'reviewed_at' - 'updated_at') then
+      raise exception 'Diretor regional só pode alterar o status e as orientações da revisão.';
+    end if;
+    if not (old.status in ('Entregue','Reenviado') and new.status in ('Aprovado','Correções solicitadas')) then
+      raise exception 'Transição de status não permitida: % -> %', old.status, new.status;
+    end if;
+    if new.status = 'Correções solicitadas' and length(trim(coalesce(new.reviewer_notes, ''))) < 3 then
+      raise exception 'Informe as orientações ao solicitar correções.';
+    end if;
+    new.reviewed_by := auth.uid(); new.reviewed_at := now();
+    return new;
+  end if;
+
+  if public.adh_is_president_of(old.chapter_id) then
+    if old.status not in ('Entregue','Correções solicitadas') then
+      raise exception 'Este relatório não pode mais ser editado pelo capítulo (situação: %).', old.status;
+    end if;
+    if not ((old.status = 'Entregue' and new.status = 'Entregue')
+         or (old.status = 'Correções solicitadas' and new.status in ('Correções solicitadas','Reenviado'))) then
+      raise exception 'Transição de status não permitida: % -> %', old.status, new.status;
+    end if;
+    new.reviewer_notes := old.reviewer_notes; new.reviewed_by := old.reviewed_by; new.reviewed_at := old.reviewed_at;
+    new.on_time := old.on_time;
+    new.submitted_at := case when new.status = 'Reenviado' then now() else old.submitted_at end;
+    return new;
+  end if;
+  raise exception 'Sem permissão para alterar este relatório.';
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_guard_support_report()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+declare v_deadline timestamptz;
+begin
+  if tg_op = 'INSERT' then
+    if new.ref_month > date_trunc('month', now() at time zone 'America/Sao_Paulo')::date then
+      raise exception 'Não é possível enviar relatório de um mês que ainda não começou.';
+    end if;
+    v_deadline := ((new.ref_month + interval '1 month')::date + 5)::timestamp at time zone 'America/Sao_Paulo';
+    if public.is_state_admin() then
+      new.submitted_at := coalesce(new.submitted_at, now());
+      new.on_time := coalesce(new.on_time, now() < v_deadline);
+      return new;
+    end if;
+    if public.adh_can_submit_support(new.chapter_id, new.kind) then
+      new.status := 'Entregue';
+      new.reviewer_notes := null; new.reviewed_by := null; new.reviewed_at := null;
+      new.submitted_at := now();
+      new.on_time := now() < v_deadline;
+      new.created_by := auth.uid();
+      return new;
+    end if;
+    raise exception 'Sem permissão para enviar relatório deste apoio.';
+  end if;
+
+  if new.chapter_id is distinct from old.chapter_id or new.ref_month is distinct from old.ref_month or new.kind is distinct from old.kind then
+    raise exception 'Capítulo, apoio e mês de um relatório não podem ser alterados.';
+  end if;
+  if public.is_state_admin() then
+    if new.status is distinct from old.status and new.status in ('Aprovado','Correções solicitadas') then
+      new.reviewed_by := auth.uid(); new.reviewed_at := now();
+    end if;
+    return new;
+  end if;
+
+  if public.adh_is_regional_director_of(old.chapter_id) then
+    if (to_jsonb(new) - 'status' - 'reviewer_notes' - 'reviewed_by' - 'reviewed_at' - 'updated_at')
+       is distinct from (to_jsonb(old) - 'status' - 'reviewer_notes' - 'reviewed_by' - 'reviewed_at' - 'updated_at') then
+      raise exception 'Diretor regional só pode alterar o status e as orientações da revisão.';
+    end if;
+    if not (old.status in ('Entregue','Reenviado') and new.status in ('Aprovado','Correções solicitadas')) then
+      raise exception 'Transição de status não permitida: % -> %', old.status, new.status;
+    end if;
+    if new.status = 'Correções solicitadas' and length(trim(coalesce(new.reviewer_notes, ''))) < 3 then
+      raise exception 'Informe as orientações ao solicitar correções.';
+    end if;
+    new.reviewed_by := auth.uid(); new.reviewed_at := now();
+    return new;
+  end if;
+
+  if public.adh_can_submit_support(old.chapter_id, old.kind) then
+    if old.status not in ('Entregue','Correções solicitadas') then
+      raise exception 'Este relatório não pode mais ser editado (situação: %).', old.status;
+    end if;
+    if not ((old.status = 'Entregue' and new.status = 'Entregue')
+         or (old.status = 'Correções solicitadas' and new.status in ('Correções solicitadas','Reenviado'))) then
+      raise exception 'Transição de status não permitida: % -> %', old.status, new.status;
+    end if;
+    new.reviewer_notes := old.reviewer_notes; new.reviewed_by := old.reviewed_by; new.reviewed_at := old.reviewed_at;
+    new.on_time := old.on_time;
+    new.submitted_at := case when new.status = 'Reenviado' then now() else old.submitted_at end;
+    return new;
+  end if;
+  raise exception 'Sem permissão para alterar este relatório.';
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_has_role(p_role text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select exists (select 1 from public.user_roles ur
+                 where ur.user_id = auth.uid() and ur.is_active and ur.role = p_role);
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_info_stamp()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin new.updated_at := now(); new.updated_by := auth.uid(); return new; end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_active_user()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select exists(select 1 from public.user_roles ur where ur.user_id=(select auth.uid()) and ur.is_active)
+      or exists(select 1 from public.scope_roles s where s.user_id=(select auth.uid()) and s.is_active) $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_coordinator_of(p_chapter bigint)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select p_chapter is not null and exists (select 1 from public.user_roles ur
+    where ur.user_id = auth.uid() and ur.is_active and ur.chapter_id = p_chapter
+      and ur.role in ('youth_coordinator','women_coordinator'));
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_country_director(p_iso3 text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select public.adh_is_global_board() or exists(select 1 from public.scope_roles s where s.user_id=(select auth.uid()) and s.role='country_director' and s.country_iso3=p_iso3 and s.is_active) $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_global_board()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select public.is_state_admin() or exists(select 1 from public.scope_roles s where s.user_id=(select auth.uid()) and s.role='global_board' and s.is_active) $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_leader()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select exists (select 1 from public.user_roles ur where ur.user_id = auth.uid() and ur.is_active
+                   and ur.role in ('state_admin','state_director','regional_director','chapter_president'))
+      or exists (select 1 from public.speaker_editors e where e.user_id = auth.uid());
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_member()
+ RETURNS boolean
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  return exists (select 1 from public.user_roles ur where ur.user_id = auth.uid() and ur.is_active and ur.role::text = 'member');
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_president_of(p_chapter bigint)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select exists (select 1 from public.user_roles ur
+                 where ur.user_id = auth.uid() and ur.is_active
+                   and ur.role = 'chapter_president' and ur.chapter_id = p_chapter);
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_regional_director_of(p_chapter bigint)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select exists (select 1 from public.user_roles ur
+                 join public.chapters c on c.region_id = ur.region_id
+                 where ur.user_id = auth.uid() and ur.is_active
+                   and ur.role = 'regional_director' and ur.region_id is not null
+                   and c.id = p_chapter);
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_regional_director_of_region(p_region bigint)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select p_region is not null and exists (select 1 from public.user_roles ur
+    where ur.user_id = auth.uid() and ur.is_active and ur.role = 'regional_director' and ur.region_id = p_region);
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_state_director_of(p_uf text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select public.adh_is_global_board()
+   or exists(select 1 from public.scope_roles s where s.user_id=(select auth.uid()) and s.role='state_director' and s.state_code=p_uf and s.is_active)
+   or exists(select 1 from public.scope_roles s join public.states st on st.country_iso3=s.country_iso3 where s.user_id=(select auth.uid()) and s.role='country_director' and st.code=p_uf and s.is_active) $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_state_manager()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select public.is_state_admin() or public.adh_has_role('state_director');
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_state_manager_of(p_uf text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select public.is_state_admin()
+      or (p_uf is not null and ((p_uf='SC' and public.adh_has_role('state_director')) or public.adh_is_state_director_of(p_uf))) $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_is_support_coord_of(p_chapter bigint, p_kind text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select p_chapter is not null and exists (select 1 from public.user_roles ur
+    where ur.user_id = auth.uid() and ur.is_active and ur.chapter_id = p_chapter
+      and ur.role = (p_kind || '_coordinator'))
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_lgpd_anonymize(p_email text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_email text := lower(trim(p_email)); v_uid uuid; n_req int; n_prof int := 0; n_role int := 0;
+begin
+  if not public.is_state_admin() then raise exception 'Acesso negado.'; end if;
+  select id into v_uid from auth.users where lower(email)=v_email;
+  update public.access_requests set full_name='Titular anonimizado', email='anon-'||id::text||'@removido.invalid', phone=null, city=null, justification='[removido a pedido do titular]'
+    where lower(email)=v_email;
+  get diagnostics n_req = row_count;
+  if v_uid is not null then
+    update public.profiles set full_name='Titular anonimizado', phone=null where id=v_uid;
+    get diagnostics n_prof = row_count;
+    update public.user_roles set is_active=false where user_id=v_uid and is_active; get diagnostics n_role = row_count;
+    update public.scope_roles set is_active=false where user_id=v_uid and is_active;
+    update auth.users set email='anon-'||v_uid::text||'@removido.invalid', banned_until='infinity', raw_user_meta_data='{}'::jsonb where id=v_uid;
+  end if;
+  insert into public.admin_audit_log(action,entity_type,entity_id,summary) values ('lgpd_anonymize','titular',coalesce(v_uid::text,'sem-conta'),'Anonimização de titular (LGPD)');
+  return jsonb_build_object('solicitacoes_anonimizadas',n_req,'perfis_anonimizados',n_prof,'papeis_desativados',n_role,'conta_login_bloqueada',v_uid is not null,
+    'nao_alterado','Nomes digitados como texto livre (presidente/vice de capítulo, diretor de região, mandatos, preletores) não são ligados a e-mail: revisar manualmente pelo nome.');
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_lgpd_export(p_email text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_email text := lower(trim(p_email)); v_uid uuid; r jsonb;
+begin
+  if not public.is_state_admin() then raise exception 'Acesso negado.'; end if;
+  select id into v_uid from auth.users where lower(email)=v_email;
+  r := jsonb_build_object(
+    'gerado_em', now(), 'email', v_email,
+    'conta_login', (select jsonb_build_object('id',u.id,'criado_em',u.created_at,'ultimo_acesso',u.last_sign_in_at) from auth.users u where u.id=v_uid),
+    'perfil', (select to_jsonb(p) from public.profiles p where p.id=v_uid),
+    'papeis', coalesce((select jsonb_agg(to_jsonb(x)) from public.user_roles x where x.user_id=v_uid),'[]'),
+    'papeis_por_escopo', coalesce((select jsonb_agg(to_jsonb(x)) from public.scope_roles x where x.user_id=v_uid),'[]'),
+    'solicitacoes_de_acesso', coalesce((select jsonb_agg(to_jsonb(x)) from public.access_requests x where lower(x.email)=v_email),'[]'),
+    'relatorios_de_evento_criados', coalesce((select jsonb_agg(to_jsonb(x)) from public.chapter_reports x where x.created_by=v_uid),'[]'),
+    'relatorios_mensais_criados', coalesce((select jsonb_agg(to_jsonb(x)) from public.chapter_monthly_reports x where x.created_by=v_uid),'[]'),
+    'preletores_cadastrados_por_ele', coalesce((select jsonb_agg(to_jsonb(x)) from public.speakers x where x.created_by=v_uid),'[]'),
+    'documentos_enviados', coalesce((select jsonb_agg(to_jsonb(x)) from public.library_docs x where x.uploaded_by=v_uid),'[]'),
+    'acoes_registradas', coalesce((select jsonb_agg(jsonb_build_object('quando',a.created_at,'acao',a.action,'entidade',a.entity_type,'resumo',a.summary)) from public.admin_audit_log a where a.actor_id=v_uid),'[]'),
+    'observacao', 'Nomes citados como presidente, vice, diretor ou preletor em cadastros (sem e-mail) devem ser buscados pelo nome em capítulos, regiões, mandatos e preletores.');
+  insert into public.admin_audit_log(action,entity_type,entity_id,summary) values ('lgpd_export','titular',coalesce(v_uid::text,'sem-conta'),'Exportação de dados do titular (LGPD)');
+  return r;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_lib_has(roles text[])
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  select exists (select 1 from public.user_roles ur
+                 where ur.user_id = auth.uid() and ur.is_active = true and ur.role = any(roles))
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_lib_stamp()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+begin
+  new.uploaded_by := auth.uid();
+  new.uploaded_by_name := coalesce((select full_name from public.profiles where id = auth.uid()), 'Usuário');
+  new.uploaded_by_role := (select ur.role from public.user_roles ur where ur.user_id = auth.uid() and ur.is_active = true
+      order by array_position(array['state_admin','state_director','regional_director','chapter_president','youth_coordinator','women_coordinator'], ur.role) nulls last limit 1);
+  new.created_at := now();
+  return new;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_list_scope_roles()
+ RETURNS TABLE(id bigint, email text, role text, state_code text, country_iso3 text, is_active boolean)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not public.adh_is_global_board() then raise exception 'Acesso negado.'; end if;
+  return query select s.id, u.email::text, s.role, s.state_code, s.country_iso3, s.is_active from public.scope_roles s join auth.users u on u.id=s.user_id order by s.is_active desc, s.created_at desc;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_list_speaker_editors()
+ RETURNS TABLE(user_id uuid, email text, created_at timestamp with time zone)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select e.user_id, u.email::text, e.created_at from public.speaker_editors e
+  join auth.users u on u.id = e.user_id where public.adh_is_state_manager() order by e.created_at;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_log_chapter_status()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v_new text; v_old text;
+begin
+  v_new := coalesce(to_jsonb(new)->>'status', to_jsonb(new)->>'situation', to_jsonb(new)->>'situacao');
+  if tg_op = 'INSERT' then
+    if v_new is not null then
+      insert into public.chapter_status_history(chapter_id, old_status, new_status) values (new.id, null, v_new);
+    end if;
+  else
+    v_old := coalesce(to_jsonb(old)->>'status', to_jsonb(old)->>'situation', to_jsonb(old)->>'situacao');
+    if v_new is not null and v_new is distinct from v_old then
+      insert into public.chapter_status_history(chapter_id, old_status, new_status) values (new.id, v_old, v_new);
+    end if;
+  end if;
+  return new;
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_make_event_reminders()
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare n int;
+begin
+  insert into public.notifications(kind,title,body,audience,region_id,chapter_id,event_id,link_section,dedupe_key)
+  select 'event_reminder','Amanhã: '||left(e.title,90), to_char(e.starts_at at time zone 'America/Sao_Paulo','HH24:MI')||' · '||c.name,
+         case when c.region_id is null then 'state' else 'region' end, c.region_id, e.chapter_id, e.id,'eventsSection','ev-rem-'||e.id
+  from public.events e join public.chapters c on c.id=e.chapter_id
+  where e.notify_reminder and e.is_published and e.status='scheduled' and c.state_code='SC'
+    and (e.starts_at at time zone 'America/Sao_Paulo')::date = (now() at time zone 'America/Sao_Paulo')::date + 1
+  on conflict (dedupe_key) do nothing;
+  get diagnostics n = row_count; return n;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_mandate_stamp()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if tg_op = 'INSERT' then new.created_at := now(); new.created_by := auth.uid(); end if;
+  new.updated_at := now(); new.updated_by := auth.uid();
+  return new;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_mark_notifications_read(p_ids bigint[] DEFAULT NULL::bigint[])
+ RETURNS void
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  insert into public.notification_reads(user_id,notification_id)
+  select auth.uid(), n.id from public.notifications n
+  where auth.uid() is not null and public.adh_notif_visible(n,auth.uid()) and (p_ids is null or n.id = any(p_ids))
+  on conflict do nothing $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_meeting_guard()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if new.meeting_date > (now() at time zone 'America/Sao_Paulo')::date then
+    raise exception 'A data da reunião não pode estar no futuro.' using errcode = '23514';
+  end if;
+  if not public.adh_is_state_manager()
+     and new.meeting_date < (now() at time zone 'America/Sao_Paulo')::date - 60 then
+    raise exception 'Só é possível registrar reuniões dos últimos 60 dias. Fale com a diretoria estadual.' using errcode = '23514';
+  end if;
+  if tg_op = 'INSERT' then new.created_at := now(); new.created_by := auth.uid(); end if;
+  new.updated_at := now(); new.updated_by := auth.uid();
+  return new;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_member_region()
+ RETURNS bigint
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare r bigint;
+begin
+  select c.region_id into r from public.user_roles ur join public.chapters c on c.id = ur.chapter_id
+   where ur.user_id = auth.uid() and ur.is_active and ur.role::text = 'member' limit 1;
+  return r;
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_my_country_dirs()
+ RETURNS text[]
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$ select coalesce(array_agg(distinct s.country_iso3::text), '{}') from public.scope_roles s where s.user_id = (select auth.uid()) and s.role = 'country_director' and s.is_active and s.country_iso3 is not null $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_my_managed_ufs()
+ RETURNS text[]
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$ select coalesce(array_agg(distinct uf), '{}') from ( select 'SC'::text as uf where public.adh_has_role('state_director') union all select s.state_code::text from public.scope_roles s where s.user_id = (select auth.uid()) and s.role = 'state_director' and s.is_active and s.state_code is not null union all select st.code::text from public.scope_roles s join public.states st on st.country_iso3 = s.country_iso3 where s.user_id = (select auth.uid()) and s.role = 'country_director' and s.is_active ) x $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_my_notifications(p_limit integer DEFAULT 50)
+ RETURNS TABLE(id bigint, kind text, title text, body text, link_section text, created_at timestamp with time zone, is_read boolean, image_url text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select n.id, n.kind, n.title, n.body, n.link_section, n.created_at,
+         (r.notification_id is not null) as is_read, n.image_url
+  from public.notifications n
+  left join public.notification_reads r on r.notification_id = n.id and r.user_id = auth.uid()
+  where n.state_code = 'SC' and public.adh_notif_visible(n, auth.uid())
+  order by n.created_at desc limit least(coalesce(p_limit, 50), 100)
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_my_president_chapter_ids()
+ RETURNS bigint[]
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$ select coalesce(array_agg(ur.chapter_id), '{}') from public.user_roles ur where ur.user_id = (select auth.uid()) and ur.is_active and ur.role = 'chapter_president' and ur.chapter_id is not null $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_my_ranking_access()
+ RETURNS text
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if public.is_state_admin() or public.adh_has_role('state_director')
+     or exists (select 1 from public.ranking_grants g where g.user_id = auth.uid() and g.scope = 'state') then return 'state'; end if;
+  if exists (select 1 from public.user_roles ur where ur.user_id = auth.uid() and ur.is_active and ur.role::text = 'regional_director' and ur.region_id is not null)
+     or exists (select 1 from public.ranking_grants g where g.user_id = auth.uid() and g.scope = 'region') then return 'region'; end if;
+  return 'none';
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_my_rd_region_ids()
+ RETURNS bigint[]
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$ select coalesce(array_agg(ur.region_id), '{}') from public.user_roles ur where ur.user_id = (select auth.uid()) and ur.is_active and ur.role = 'regional_director' and ur.region_id is not null $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_my_scope_roles()
+ RETURNS TABLE(role text, state_code text, country_iso3 text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select s.role::text, s.state_code, s.country_iso3 from public.scope_roles s where s.user_id=(select auth.uid()) and s.is_active $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_national_overview()
+ RETURNS TABLE(code text, name text, municipalities integer, municipalities_with_chapter integer, regions integer, chapters integer, chapters_public integer, directors integer, announcements integer)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not (public.adh_is_global_board() or public.adh_is_country_director('BRA')) then raise exception 'Acesso negado.'; end if;
+  return query select s.code, s.name,
+    (select count(*)::int from public.municipalities m where m.state_code=s.code),
+    (select count(distinct c.municipality_id)::int from public.chapters c where c.state_code=s.code and c.status='active' and c.municipality_id is not null),
+    (select count(*)::int from public.regions r where r.state_code=s.code),
+    (select count(*)::int from public.chapters c where c.state_code=s.code and c.status='active'),
+    (select count(*)::int from public.chapters c where c.state_code=s.code and c.status='active' and c.is_public),
+    (select count(*)::int from public.scope_roles x where x.role='state_director' and x.state_code=s.code and x.is_active),
+    (select count(*)::int from public.statewide_announcements a where a.state_code=s.code)
+  from public.states s where s.country_iso3='BRA' order by s.name;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_notif_visible(n public.notifications, u uuid)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select case
+    when n.send_at > now() then false
+    when n.audience='state' then true
+    when u is null then false
+    when n.audience='managers' then public.adh_is_state_manager_of(n.state_code)
+    when n.audience='chapter' then exists(select 1 from public.user_roles ur where ur.user_id=u and ur.is_active and ur.chapter_id=n.chapter_id)
+      or public.adh_is_state_manager_of(n.state_code)
+    when n.audience='region' then exists(select 1 from public.user_roles ur left join public.chapters c on c.id=ur.chapter_id
+        where ur.user_id=u and ur.is_active and (ur.region_id=n.region_id or c.region_id=n.region_id))
+      or public.adh_is_state_manager_of(n.state_code)
+    else false end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_president_chapters()
+ RETURNS SETOF bigint
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  return query select ur.chapter_id from public.user_roles ur
+    where ur.user_id = auth.uid() and ur.is_active and ur.role::text = 'chapter_president' and ur.chapter_id is not null;
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_public_chapters_br()
+ RETURNS TABLE(state_code text, name text, chapter_number integer, president_name text, ibge_code text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select c.state_code, c.name, c.chapter_number, c.president_name, m.ibge_code
+  from public.chapters c left join public.municipalities m on m.id=c.municipality_id
+  where c.status='active' and c.is_public and c.country_iso3='BRA' and c.state_code is not null
+  order by c.state_code, c.name $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_public_foreign_chapters()
+ RETURNS TABLE(id bigint, name text, city text, country_iso3 text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select c.id, c.name, c.city, c.country_iso3 from public.chapters c
+  where c.status='active' and c.is_public and c.country_iso3<>'BRA' order by c.name $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_ranking(p_month date)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare
+  v_m date := date_trunc('month', p_month)::date;
+  v_start timestamptz := v_m::timestamp at time zone 'America/Sao_Paulo';
+  v_end timestamptz := ((v_m + interval '1 month')::date)::timestamp at time zone 'America/Sao_Paulo';
+  v_prev timestamptz := ((v_m - interval '1 month')::date)::timestamp at time zone 'America/Sao_Paulo';
+  v_deadline timestamptz := ((v_m + interval '1 month')::date + 5)::timestamp at time zone 'America/Sao_Paulo';
+  v_all boolean; v_regions bigint[]; s jsonb;
+  w_ce numeric; w_se numeric; cap_e numeric; w_cm numeric; w_sm numeric; cap_m numeric;
+  w_pr numeric; w_ot numeric; w_mb numeric; w_ms numeric; w_op numeric; w_re numeric; w_in numeric; w_if numeric;
+  v_chapters jsonb; v_regions_out jsonb;
+begin
+  v_all := public.is_state_admin() or public.adh_has_role('state_director') or exists (select 1 from public.ranking_grants g where g.user_id = auth.uid() and g.scope = 'state');
+  if not v_all then
+    select array_agg(distinct ur.region_id) into v_regions from public.user_roles ur
+     where ur.user_id = auth.uid() and ur.is_active and ur.role::text = 'regional_director' and ur.region_id is not null;
+    select coalesce(v_regions, '{}'::bigint[]) || coalesce((select array_agg(g.region_id) from public.ranking_grants g where g.user_id = auth.uid() and g.scope = 'region' and g.region_id is not null), '{}'::bigint[]) into v_regions; if coalesce(array_length(v_regions, 1), 0) = 0 then raise exception 'Sem permissão para consultar o ranking.'; end if;
+  end if;
+
+  select jsonb_object_agg(key, value) into s from public.ranking_settings;
+  w_ce := (s->>'w_chapter_event')::numeric;  w_se := (s->>'w_support_event')::numeric; cap_e := (s->>'cap_events')::numeric;
+  w_cm := (s->>'w_chapter_meeting')::numeric; w_sm := (s->>'w_support_meeting')::numeric; cap_m := (s->>'cap_meetings')::numeric;
+  w_pr := (s->>'w_prison')::numeric; w_ot := (s->>'w_ontime')::numeric; w_mb := (s->>'w_member')::numeric; w_ms := (s->>'w_missing')::numeric;
+  w_op := (s->>'w_open')::numeric; w_re := (s->>'w_react')::numeric; w_in := (s->>'w_inact')::numeric; w_if := (s->>'w_inact_follow')::numeric;
+
+  with base as (
+    select c.id, c.name, c.region_id,
+      coalesce(
+        (select h.new_status from public.chapter_status_history h where h.chapter_id = c.id and h.changed_at < v_end order by h.changed_at desc, h.id desc limit 1),
+        (select h.old_status from public.chapter_status_history h where h.chapter_id = c.id and h.changed_at >= v_end and h.old_status is not null order by h.changed_at asc, h.id asc limit 1),
+        coalesce(to_jsonb(c)->>'status', to_jsonb(c)->>'situation', to_jsonb(c)->>'situacao', 'inactive')
+      ) as st
+    from public.chapters c
+    where v_all or c.region_id = any(v_regions)
+  ), act as (
+    select * from base where st = 'active'
+  ), calc as (
+    select a.id, a.name, a.region_id, r.id as rep_id, r.status as rep_status, r.on_time,
+      case when r.status = 'Aprovado' then
+        least(r.chapter_events, cap_e) * w_ce + least(r.women_events + r.youth_events, cap_e) * w_se
+      else 0 end as p_events,
+      case when r.status = 'Aprovado' then
+        least(r.chapter_meetings, cap_m) * w_cm + (least(r.women_meetings, cap_m) + least(r.youth_meetings, cap_m)) * w_sm
+      else 0 end as p_meetings,
+      case when r.status = 'Aprovado' and r.prison_ministry_active then w_pr else 0 end as p_prison,
+      case when r.status = 'Aprovado' and coalesce(r.on_time, false) then w_ot else 0 end as p_ontime,
+      (select count(*) from public.user_roles ur
+        where ur.chapter_id = a.id and ur.role::text = 'member'
+          and (to_jsonb(ur)->>'created_at')::timestamptz >= v_start and (to_jsonb(ur)->>'created_at')::timestamptz < v_end) * w_mb as p_members,
+      case when r.id is null and now() >= v_deadline then -w_ms else 0 end as p_missing
+    from act a
+    left join public.chapter_monthly_reports r on r.chapter_id = a.id and r.ref_month = v_m
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'chapter_id', c.id, 'name', c.name, 'region_id', c.region_id, 'region_name', rg.name,
+      'report_status', c.rep_status, 'on_time', c.on_time,
+      'p_events', c.p_events, 'p_meetings', c.p_meetings, 'p_prison', c.p_prison, 'p_ontime', c.p_ontime,
+      'p_members', c.p_members, 'p_missing', c.p_missing,
+      'points', c.p_events + c.p_meetings + c.p_prison + c.p_ontime + c.p_members + c.p_missing
+    ) order by (c.p_events + c.p_meetings + c.p_prison + c.p_ontime + c.p_members + c.p_missing) desc, c.name), '[]'::jsonb)
+  into v_chapters
+  from calc c left join public.regions rg on rg.id = c.region_id;
+
+  with mv as (
+    select h.chapter_id, h.changed_at, h.old_status, h.new_status, c.region_id
+    from public.chapter_status_history h join public.chapters c on c.id = h.chapter_id
+    where h.changed_at >= v_prev and h.changed_at < v_end
+  ), reg_mv as (
+    select region_id,
+      sum(case when changed_at >= v_start and old_status is null and new_status in ('active','in_activation') then w_op else 0 end) as opened,
+      sum(case when changed_at >= v_start and new_status = 'active' and old_status in ('inactive','reactivation') then w_re else 0 end) as reactivated,
+      sum(case when new_status = 'inactive' and old_status in ('active','in_activation','reactivation') then
+            case when changed_at >= v_start then -w_in else -w_if end
+          else 0 end) as inactivated
+    from mv group by region_id
+  ), avg_ch as (
+    select (x->>'region_id')::bigint as region_id, avg((x->>'points')::numeric) as avg_pts, count(*) as n
+    from jsonb_array_elements(v_chapters) x group by 1
+  )
+  select coalesce(jsonb_agg(jsonb_build_object(
+      'region_id', rg.id, 'name', rg.name, 'active_chapters', coalesce(a.n, 0),
+      'avg_points', round(coalesce(a.avg_pts, 0), 1),
+      'opened', coalesce(m.opened, 0), 'reactivated', coalesce(m.reactivated, 0), 'inactivated', coalesce(m.inactivated, 0),
+      'points', round(coalesce(a.avg_pts, 0) + coalesce(m.opened, 0) + coalesce(m.reactivated, 0) + coalesce(m.inactivated, 0), 1)
+    ) order by (coalesce(a.avg_pts, 0) + coalesce(m.opened, 0) + coalesce(m.reactivated, 0) + coalesce(m.inactivated, 0)) desc, rg.name), '[]'::jsonb)
+  into v_regions_out
+  from public.regions rg
+  left join avg_ch a on a.region_id = rg.id
+  left join reg_mv m on m.region_id = rg.id
+  where v_all or rg.id = any(v_regions);
+
+  return jsonb_build_object('month', v_m, 'chapters', v_chapters, 'regions', v_regions_out, 'settings', s);
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_ranking_access_list()
+ RETURNS TABLE(id bigint, email text, scope text, region_id bigint, region_name text)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not public.is_state_admin() then raise exception 'Somente o administrador estadual.'; end if;
+  return query
+    select g.id, u.email::text, g.scope, g.region_id, r.name::text
+    from public.ranking_grants g
+    join auth.users u on u.id = g.user_id
+    left join public.regions r on r.id = g.region_id
+    order by u.email;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_ranking_access_set(p_email text, p_scope text, p_region bigint DEFAULT NULL::bigint, p_on boolean DEFAULT true)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare v uuid;
+begin
+  if not public.is_state_admin() then raise exception 'Somente o administrador estadual.'; end if;
+  if p_scope not in ('state','region') then raise exception 'Nível inválido.'; end if;
+  if p_scope = 'region' and p_region is null then raise exception 'Informe a região.'; end if;
+  select id into v from auth.users where lower(email) = lower(btrim(p_email));
+  if v is null then raise exception 'Nenhuma conta com este e-mail.'; end if;
+  if p_on then
+    insert into public.ranking_grants(user_id, scope, region_id, created_by)
+    select v, p_scope, case when p_scope = 'region' then p_region end, auth.uid()
+    where not exists (select 1 from public.ranking_grants g
+                      where g.user_id = v and g.scope = p_scope and g.region_id is not distinct from (case when p_scope = 'region' then p_region end));
+  else
+    delete from public.ranking_grants g
+     where g.user_id = v and g.scope = p_scope and g.region_id is not distinct from (case when p_scope = 'region' then p_region end);
+  end if;
+  return true;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_register_device(p_token text, p_platform text)
+ RETURNS void
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  insert into public.device_tokens(token,user_id,platform,state_code) values (p_token,auth.uid(),p_platform,'SC')
+  on conflict (token) do update set user_id=coalesce(auth.uid(),public.device_tokens.user_id),platform=excluded.platform,updated_at=now() $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_request_account_deletion()
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare u uuid := auth.uid(); adm boolean;
+begin
+  if u is null then raise exception 'Faça login para solicitar a exclusão.'; end if;
+  adm := exists(select 1 from public.user_roles where user_id=u and role='state_admin' and is_active) or exists(select 1 from public.scope_roles where user_id=u and is_active);
+  if not exists(select 1 from public.account_deletion_requests where user_id=u and status='pending') then
+    insert into public.account_deletion_requests(user_id,email) values (u,(auth.jwt()->>'email'));
+  end if;
+  if not adm then update public.user_roles set is_active=false where user_id=u; end if;
+  return jsonb_build_object('ok',true,'admin',adm);
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_revoke_scope_role(p_id bigint)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not public.adh_is_global_board() then raise exception 'Acesso negado.'; end if;
+  update public.scope_roles set is_active=false where id=p_id;
+  insert into public.admin_audit_log(action,entity_type,entity_id,summary) values ('revoke_scope_role','scope_role',p_id::text,'Acesso de escopo revogado');
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_revoke_speaker_editor(p_user uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not public.adh_is_state_manager() then raise exception 'Sem permissão.'; end if;
+  delete from public.speaker_editors where user_id = p_user;
+end; $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_seed_state_chapters(p_uf text, p_rows jsonb)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare n int:=0; x jsonb; mid bigint; rid bigint; num int;
+begin
+  if not public.adh_is_global_board() then raise exception 'Acesso negado.'; end if;
+  if p_uf is null or p_uf='SC' or not exists(select 1 from public.states where code=p_uf and country_iso3='BRA') then raise exception 'Estado inválido para importação.'; end if;
+  for x in select * from jsonb_array_elements(p_rows) loop
+    mid:=null; rid:=null;
+    select m.id into mid from jsonb_array_elements_text(coalesce(x->'m','[]'::jsonb)) j(v) join public.municipalities m on m.ibge_code=j.v and m.state_code=p_uf limit 1;
+    if mid is not null then select rm.region_id into rid from public.region_municipalities rm where rm.municipality_id=mid and rm.valid_until is null limit 1; end if;
+    num:=nullif(regexp_replace(coalesce(x->>'c',''),'\D','','g'),'')::int;
+    if length(trim(coalesce(x->>'n','')))<2 then continue; end if;
+    if exists(select 1 from public.chapters c where c.state_code=p_uf and lower(c.name)=lower(x->>'n')) then continue; end if;
+    insert into public.chapters(name,chapter_number,municipality_id,region_id,status,is_public,president_name,notes,country_iso3,state_code)
+      values (x->>'n',num,mid,rid,'active',false,nullif(trim(coalesce(x->>'p','')),''),'Importado da lista oficial adhonep.com/capitulos. Confirmar com o diretor estadual antes de publicar.','BRA',p_uf);
+    n:=n+1;
+  end loop;
+  insert into public.admin_audit_log(action,entity_type,entity_id,summary) values ('seed_state_chapters','state',p_uf,'Capítulos importados da lista oficial: '||n);
+  return n;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_seed_state_municipalities(p_uf text, p_rows jsonb)
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare n integer;
+begin
+  if not public.adh_is_global_board() then raise exception 'Acesso negado.'; end if;
+  if not exists(select 1 from public.states where code=p_uf) then raise exception 'Estado desconhecido.'; end if;
+  insert into public.municipalities(ibge_code,name,state_code)
+    select x->>'c', x->>'n', p_uf from jsonb_array_elements(p_rows) x
+    on conflict (ibge_code) do nothing;
+  get diagnostics n = row_count;
+  insert into public.admin_audit_log(action,entity_type,entity_id,summary) values ('seed_state','state',p_uf,'Municípios do estado carregados: '||n);
+  return n;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_send_notification(p_kind text, p_title text, p_body text, p_audience text, p_region bigint DEFAULT NULL::bigint, p_chapter bigint DEFAULT NULL::bigint, p_send_at timestamp with time zone DEFAULT now(), p_image text DEFAULT NULL::text)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare u uuid := auth.uid(); ok boolean := false; reg bigint; nid bigint;
+begin
+  if u is null then raise exception 'Faça login.'; end if;
+  if p_kind not in ('meeting','message') then raise exception 'Tipo inválido.'; end if;
+  if p_audience not in ('state','region','chapter') then raise exception 'Público inválido.'; end if;
+  if p_kind = 'meeting' and p_audience <> 'chapter' then raise exception 'Reunião é enviada somente para um capítulo.'; end if;
+  if p_audience = 'region' and p_region is null then raise exception 'Informe a região.'; end if;
+  if p_audience = 'chapter' and p_chapter is null then raise exception 'Informe o capítulo.'; end if;
+  if p_image is not null and p_image !~ '^https://ayrdfetnscrfrlcssiua\.supabase\.co/storage/v1/object/public/notification-images/' then
+    raise exception 'Imagem inválida.'; end if;
+
+  if public.adh_is_state_manager_of('SC') then ok := true;
+  elsif p_audience = 'region' then
+    ok := exists (select 1 from public.user_roles where user_id = u and is_active and role = 'regional_director' and region_id = p_region);
+  elsif p_audience = 'chapter' then
+    select region_id into reg from public.chapters where id = p_chapter and state_code = 'SC';
+    ok := exists (select 1 from public.user_roles where user_id = u and is_active and role = 'chapter_president' and chapter_id = p_chapter)
+       or exists (select 1 from public.user_roles where user_id = u and is_active and role = 'regional_director' and region_id = reg and reg is not null);
+  end if;
+  if not ok then raise exception 'Você não tem permissão para enviar a este público.'; end if;
+
+  insert into public.notifications(kind, title, body, audience, region_id, chapter_id, created_by, send_at, link_section, image_url)
+  values (p_kind, btrim(p_title), coalesce(btrim(p_body), ''), p_audience, p_region, p_chapter, u,
+          coalesce(p_send_at, now()), case when p_kind = 'meeting' then 'eventsSection' else null end, p_image)
+  returning id into nid;
+  return nid;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_set_chapter_support(p_chapter bigint, p_kind text, p_value boolean)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if auth.uid() is null then raise exception 'Faça login.'; end if;
+  if p_kind not in ('youth','women') then raise exception 'Apoio inválido.'; end if;
+  if not (public.is_state_admin() or public.adh_is_president_of(p_chapter) or public.adh_is_regional_director_of(p_chapter)) then
+    raise exception 'Sem permissão para alterar os apoios deste capítulo.'; end if;
+  insert into public.chapter_supports(chapter_id, has_youth, has_women, updated_by)
+  values (p_chapter, case when p_kind = 'youth' then p_value else true end, case when p_kind = 'women' then p_value else true end, auth.uid())
+  on conflict (chapter_id) do update set
+    has_youth = case when p_kind = 'youth' then p_value else public.chapter_supports.has_youth end,
+    has_women = case when p_kind = 'women' then p_value else public.chapter_supports.has_women end,
+    updated_by = auth.uid(), updated_at = now();
+  return true;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_set_state_chapter()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if new.country_iso3 is distinct from 'BRA' then new.state_code := null; return new; end if;
+  new.state_code := coalesce((select state_code from public.regions where id=new.region_id),
+                             (select state_code::text from public.municipalities where id=new.municipality_id),
+                             new.state_code, 'SC');
+  return new;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_set_state_regmun()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  new.state_code := coalesce((select state_code from public.regions where id=new.region_id), 'SC');
+  return new;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_stamp_consent()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if new.consent_version is null or char_length(trim(new.consent_version))=0 then
+    raise exception 'É necessário aceitar a Política de Privacidade para enviar a solicitação.';
+  end if;
+  new.consent_at := now();
+  return new;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_state_overview()
+ RETURNS TABLE(code text, name text, municipalities integer, regions integer, chapters integer, directors integer)
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  if not public.adh_is_global_board() then raise exception 'Acesso negado.'; end if;
+  return query select s.code, s.name,
+    (select count(*)::int from public.municipalities m where m.state_code=s.code),
+    (select count(*)::int from public.regions r where r.state_code=s.code),
+    (select count(*)::int from public.chapters c where c.state_code=s.code),
+    (select count(*)::int from public.scope_roles x where x.role='state_director' and x.state_code=s.code and x.is_active)
+  from public.states s where s.country_iso3='BRA' order by s.name;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_states_list()
+ RETURNS TABLE(code text, name text, country_iso3 text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select s.code::text, s.name::text, s.country_iso3::text from public.states s where (select auth.uid()) is not null order by s.name $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_suggest_regions(p_uf text, p_names jsonb, p_map jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare nr int:=0; nl int:=0; k int; rid bigint; i int;
+begin
+  if not (public.adh_is_global_board() or public.adh_is_state_manager_of(p_uf)) then raise exception 'Acesso negado.'; end if;
+  if p_uf is null or p_uf !~ '^[A-Z]{2}$' or p_uf='SC' then raise exception 'Estado inválido para sugestão.'; end if;
+  if not exists(select 1 from public.states where code=p_uf) then raise exception 'Estado desconhecido.'; end if;
+  if exists(select 1 from public.regions where state_code=p_uf) then raise exception 'Este estado já tem regiões cadastradas. A sugestão só vale para estado sem regiões.'; end if;
+  if not exists(select 1 from public.municipalities where state_code=p_uf) then raise exception 'Ative o estado (carregar municípios) antes de sugerir regiões.'; end if;
+  for i in 0..jsonb_array_length(p_names)-1 loop
+    if exists(select 1 from jsonb_each_text(p_map) e join public.municipalities m on m.ibge_code=e.key and m.state_code=p_uf where e.value::int=i) then
+      insert into public.regions(name,description,is_active,state_code)
+        values (p_names->>i,'HIPÓTESE inicial (microrregião IBGE 2000). Não é a divisão oficial da ADHONEP; o diretor estadual deve ajustar.',true,p_uf) returning id into rid;
+      nr:=nr+1;
+      insert into public.region_municipalities(region_id,municipality_id,valid_from,state_code)
+        select rid,m.id,current_date,p_uf from jsonb_each_text(p_map) e join public.municipalities m on m.ibge_code=e.key and m.state_code=p_uf where e.value::int=i;
+      get diagnostics k = row_count; nl:=nl+k;
+    end if;
+  end loop;
+  insert into public.admin_audit_log(action,entity_type,entity_id,summary) values ('suggest_regions','state',p_uf,'Regiões sugeridas (hipótese IBGE 2000): '||nr||' regiões, '||nl||' municípios');
+  return jsonb_build_object('regions',nr,'links',nl);
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_take_snapshot(p_kind text DEFAULT 'auto'::text)
+ RETURNS bigint
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare d jsonb; cnt jsonb; nid bigint;
+begin
+  d:=public.adh_dump_json();
+  select jsonb_object_agg(k, jsonb_array_length(v)) into cnt from jsonb_each(d) e(k,v);
+  insert into public.backup_snapshots(kind,row_counts,data) values (p_kind,cnt,d) returning id into nid;
+  delete from public.backup_snapshots where id not in (select id from public.backup_snapshots order by taken_at desc limit 8);
+  return nid;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_trg_event_notify()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+declare reg bigint; cn text;
+begin
+  if new.is_published and new.status='scheduled' and (tg_op='INSERT' or coalesce(old.is_published,false)=false) then
+    select c.region_id,c.name into reg,cn from public.chapters c where c.id=new.chapter_id and c.state_code='SC';
+    if cn is not null then
+      insert into public.notifications(kind,title,body,audience,region_id,chapter_id,event_id,link_section,dedupe_key)
+      values('event_new','Novo evento: '||left(new.title,90),
+        to_char(new.starts_at at time zone 'America/Sao_Paulo','DD/MM "às" HH24:MI')||' · '||cn,
+        case when reg is null then 'state' else 'region' end,reg,new.chapter_id,new.id,'eventsSection','ev-new-'||new.id)
+      on conflict (dedupe_key) do nothing;
+    end if;
+  end if;
+  return new;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_trg_request_notify()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+begin
+  insert into public.notifications(kind,title,body,audience,dedupe_key)
+  values('pending','Nova solicitação de cadastro','Há uma solicitação aguardando análise no painel.','managers','ar-'||new.id) on conflict (dedupe_key) do nothing;
+  return new;
+end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_uf_of_chapter(p_chapter bigint)
+ RETURNS text
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select c.state_code from public.chapters c where c.id=p_chapter $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_uf_of_mandate(p_chapter bigint, p_region bigint)
+ RETURNS text
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select case when p_chapter is not null then public.adh_uf_of_chapter(p_chapter)
+              else coalesce((select state_code from public.regions where id=p_region),'SC') end $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_user_countries()
+ RETURNS text[]
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select coalesce(array_agg(distinct x),'{}') from (
+    select c.country_iso3 x from public.user_roles ur join public.chapters c on c.id=ur.chapter_id where ur.user_id=(select auth.uid()) and ur.is_active
+    union select s.country_iso3 from public.scope_roles s where s.user_id=(select auth.uid()) and s.is_active and s.country_iso3 is not null
+    union select st.country_iso3 from public.scope_roles s join public.states st on st.code=s.state_code where s.user_id=(select auth.uid()) and s.is_active
+    union select 'BRA' from public.user_roles ur where ur.user_id=(select auth.uid()) and ur.is_active and ur.role in ('state_admin','state_director')
+  ) q where x is not null $function$
+;
+
+CREATE OR REPLACE FUNCTION public.adh_user_states()
+ RETURNS text[]
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+  select coalesce(array_agg(distinct x),'{}') from (
+    select c.state_code x from public.user_roles ur join public.chapters c on c.id=ur.chapter_id where ur.user_id=(select auth.uid()) and ur.is_active
+    union select s.state_code from public.scope_roles s where s.user_id=(select auth.uid()) and s.is_active
+  ) q where x is not null $function$
+;
+
+CREATE OR REPLACE FUNCTION public.is_state_admin()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+    SELECT EXISTS (
+        SELECT 1
+        FROM public.user_roles ur
+        WHERE ur.user_id = (SELECT auth.uid())
+          AND ur.role = 'state_admin'
+          AND ur.is_active = true
+    );
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.review_access_request(p_request_id uuid, p_decision text, p_notes text DEFAULT NULL::text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+DECLARE
+    v_request public.access_requests%ROWTYPE;
+    v_user_id uuid;
+    v_email text;
+BEGIN
+    -- Exige usuário autenticado e ADM ativo.
+    IF (SELECT auth.uid()) IS NULL
+       OR NOT public.is_state_admin() THEN
+        RAISE EXCEPTION 'Sem permissão para revisar solicitações.';
+    END IF;
+
+    IF p_decision NOT IN ('approved', 'rejected') THEN
+        RAISE EXCEPTION 'Decisão inválida.';
+    END IF;
+
+    -- Bloqueia a solicitação durante a revisão.
+    SELECT *
+      INTO v_request
+      FROM public.access_requests
+     WHERE id = p_request_id
+     FOR UPDATE;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Solicitação não encontrada.';
+    END IF;
+
+    IF v_request.status <> 'pending' THEN
+        RAISE EXCEPTION 'Esta solicitação já foi revisada.';
+    END IF;
+
+    IF p_decision = 'approved' THEN
+        -- A conta precisa existir e usar o e-mail solicitado.
+        SELECT u.id, lower(u.email)
+          INTO v_user_id, v_email
+          FROM auth.users AS u
+         WHERE lower(u.email) = lower(v_request.email)
+         LIMIT 1;
+
+        IF v_user_id IS NULL THEN
+            RAISE EXCEPTION
+                'A conta ainda não existe no Supabase Auth.';
+        END IF;
+
+        -- Confere o escopo exigido para cada cargo.
+        IF (
+            v_request.requested_role = 'state_director'
+            AND (
+                v_request.region_id IS NOT NULL
+                OR v_request.chapter_id IS NOT NULL
+            )
+        ) OR (
+            v_request.requested_role IN (
+                'regional_director', 'field_representative'
+            )
+            AND (
+                v_request.region_id IS NULL
+                OR v_request.chapter_id IS NOT NULL
+            )
+        ) OR (
+            v_request.requested_role IN (
+                'chapter_president',
+                'youth_coordinator',
+                'women_coordinator'
+            )
+            AND (
+                v_request.chapter_id IS NULL
+                OR v_request.region_id IS NOT NULL
+            )
+        ) THEN
+            RAISE EXCEPTION
+                'O cargo e a região/capítulo informados são incompatíveis.';
+        END IF;
+
+        -- Cria ou atualiza o perfil básico.
+        INSERT INTO public.profiles (id, full_name, phone)
+        VALUES (v_user_id, v_request.full_name, v_request.phone)
+        ON CONFLICT (id) DO UPDATE
+        SET full_name = EXCLUDED.full_name,
+            phone = EXCLUDED.phone,
+            updated_at = now();
+
+        -- Ativa o cargo ou cria a atribuição.
+        INSERT INTO public.user_roles (
+            user_id, role, region_id, chapter_id,
+            is_active, granted_at, granted_by
+        )
+        VALUES (
+            v_user_id,
+            v_request.requested_role,
+            v_request.region_id,
+            v_request.chapter_id,
+            true,
+            now(),
+            (SELECT auth.uid())
+        )
+        ON CONFLICT DO NOTHING;
+    END IF;
+
+    UPDATE public.access_requests
+       SET status = p_decision,
+           reviewed_by = (SELECT auth.uid()),
+           reviewed_at = now(),
+           review_notes = p_notes
+     WHERE id = p_request_id;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'decision', p_decision,
+        'request_id', p_request_id
+    );
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.rls_auto_enable()
+ RETURNS event_trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $function$
+DECLARE
+  cmd record;
+  tbl name;
+BEGIN
+  FOR cmd IN
+    SELECT *
+    FROM pg_event_trigger_ddl_commands()
+    WHERE command_tag IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')
+      AND object_type IN ('table','partitioned table')
+  LOOP
+     IF cmd.schema_name IS NOT NULL AND cmd.schema_name IN ('public') AND cmd.schema_name NOT IN ('pg_catalog','information_schema') AND cmd.schema_name NOT LIKE 'pg_toast%' AND cmd.schema_name NOT LIKE 'pg_temp%' THEN
+      BEGIN
+        SELECT c.relname INTO tbl FROM pg_catalog.pg_class c WHERE c.oid = cmd.objid;
+        EXECUTE format('alter table if exists %I.%I enable row level security', cmd.schema_name, tbl);
+        RAISE LOG 'rls_auto_enable: enabled RLS on %', cmd.object_identity;
+      EXCEPTION
+        WHEN OTHERS THEN
+          RAISE LOG 'rls_auto_enable: failed to enable RLS on %', cmd.object_identity;
+      END;
+     ELSE
+        RAISE LOG 'rls_auto_enable: skip % (either system schema or not in enforced list: %.)', cmd.object_identity, cmd.schema_name;
+     END IF;
+  END LOOP;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.set_adhonep_updated_at()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO ''
+AS $function$
+begin new.updated_at = now(); return new; end; $function$
+;
+
+-- ===== TABELAS =====
+CREATE TABLE public.access_requests (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  full_name text NOT NULL,
+  email text NOT NULL,
+  phone text NOT NULL,
+  city text NOT NULL,
+  chapter_id bigint,
+  requested_role text NOT NULL,
+  region_id bigint,
+  justification text,
+  status text DEFAULT 'pending'::text NOT NULL,
+  reviewed_by uuid,
+  reviewed_at timestamp with time zone,
+  review_notes text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  consent_version text,
+  consent_at timestamp with time zone
+);
+
+CREATE TABLE public.account_deletion_requests (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  user_id uuid NOT NULL,
+  email text,
+  status text DEFAULT 'pending'::text NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  done_at timestamp with time zone
+);
+
+CREATE TABLE public.admin_audit_log (
+  id bigint GENERATED BY DEFAULT AS IDENTITY NOT NULL,
+  actor_id uuid DEFAULT auth.uid(),
+  action text NOT NULL,
+  entity_type text NOT NULL,
+  entity_id text,
+  summary text,
+  metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.approval_delegations (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  approver_user_id uuid NOT NULL,
+  granted_by uuid NOT NULL,
+  role_scope text NOT NULL,
+  region_id bigint,
+  chapter_id bigint,
+  is_active boolean DEFAULT true NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.backup_snapshots (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  taken_at timestamp with time zone DEFAULT now() NOT NULL,
+  kind text DEFAULT 'auto'::text NOT NULL,
+  row_counts jsonb NOT NULL,
+  data jsonb NOT NULL
+);
+
+CREATE TABLE public.chapter_contacts (
+  chapter_id bigint NOT NULL,
+  president_phone text,
+  show_public boolean DEFAULT false NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_by uuid DEFAULT auth.uid()
+);
+
+CREATE TABLE public.chapter_meeting_log (
+  id bigint GENERATED BY DEFAULT AS IDENTITY NOT NULL,
+  chapter_id bigint NOT NULL,
+  meeting_date date NOT NULL,
+  held boolean DEFAULT true NOT NULL,
+  attendance integer,
+  visitors integer,
+  notes text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by uuid DEFAULT auth.uid(),
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_by uuid DEFAULT auth.uid()
+);
+
+CREATE TABLE public.chapter_monthly_reports (
+  id bigint GENERATED BY DEFAULT AS IDENTITY NOT NULL,
+  chapter_id bigint NOT NULL,
+  ref_month date NOT NULL,
+  chapter_meetings integer DEFAULT 0 NOT NULL,
+  women_meetings integer DEFAULT 0 NOT NULL,
+  youth_meetings integer DEFAULT 0 NOT NULL,
+  avg_attendance integer,
+  visitors integer DEFAULT 0 NOT NULL,
+  visitors_notes text,
+  chapter_events integer DEFAULT 0 NOT NULL,
+  women_events integer DEFAULT 0 NOT NULL,
+  youth_events integer DEFAULT 0 NOT NULL,
+  events_notes text,
+  prison_ministry_active boolean DEFAULT false NOT NULL,
+  prison_activities integer DEFAULT 0 NOT NULL,
+  considerations text,
+  status text DEFAULT 'Entregue'::text NOT NULL,
+  submitted_at timestamp with time zone,
+  on_time boolean,
+  reviewer_notes text,
+  reviewed_by uuid,
+  reviewed_at timestamp with time zone,
+  created_by uuid DEFAULT auth.uid(),
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.chapter_public_info (
+  chapter_id bigint NOT NULL,
+  meeting_place text,
+  address text,
+  maps_url text,
+  frequency text,
+  meeting_day text,
+  meeting_time text,
+  notes text,
+  photo_path text,
+  show_public boolean DEFAULT false NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_by uuid DEFAULT auth.uid()
+);
+
+CREATE TABLE public.chapter_reports (
+  id bigint GENERATED BY DEFAULT AS IDENTITY NOT NULL,
+  event_id bigint,
+  chapter_id bigint NOT NULL,
+  event_name text NOT NULL,
+  report_kind text DEFAULT 'Andamento mensal'::text NOT NULL,
+  responsible_name text NOT NULL,
+  attendee_count integer,
+  summary text NOT NULL,
+  notes text,
+  status text DEFAULT 'Entregue'::text NOT NULL,
+  submitted_at timestamp with time zone,
+  reviewer_notes text,
+  created_by uuid DEFAULT auth.uid(),
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  event_date date
+);
+
+CREATE TABLE public.chapter_status_history (
+  id bigint GENERATED BY DEFAULT AS IDENTITY NOT NULL,
+  chapter_id bigint NOT NULL,
+  old_status text,
+  new_status text NOT NULL,
+  changed_at timestamp with time zone DEFAULT now() NOT NULL,
+  changed_by uuid DEFAULT auth.uid()
+);
+
+CREATE TABLE public.chapter_support_reports (
+  id bigint GENERATED BY DEFAULT AS IDENTITY NOT NULL,
+  chapter_id bigint NOT NULL,
+  kind text NOT NULL,
+  ref_month date NOT NULL,
+  meetings integer DEFAULT 0 NOT NULL,
+  avg_attendance integer,
+  new_participants integer DEFAULT 0 NOT NULL,
+  visitors integer DEFAULT 0 NOT NULL,
+  visitors_notes text,
+  events_count integer DEFAULT 0 NOT NULL,
+  events_notes text,
+  highlights text,
+  support_requests text,
+  considerations text,
+  status text DEFAULT 'Entregue'::text NOT NULL,
+  submitted_at timestamp with time zone,
+  on_time boolean,
+  reviewer_notes text,
+  reviewed_by uuid,
+  reviewed_at timestamp with time zone,
+  created_by uuid DEFAULT auth.uid(),
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.chapter_supports (
+  chapter_id bigint NOT NULL,
+  has_youth boolean DEFAULT true NOT NULL,
+  has_women boolean DEFAULT true NOT NULL,
+  updated_by uuid DEFAULT auth.uid(),
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.chapters (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  name text NOT NULL,
+  chapter_number integer,
+  municipality_id bigint,
+  region_id bigint,
+  address text,
+  status text DEFAULT 'in_activation'::text NOT NULL,
+  is_public boolean DEFAULT false NOT NULL,
+  notes text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  president_name text,
+  vice_president_name text,
+  state_code text DEFAULT 'SC'::text,
+  country_iso3 text DEFAULT 'BRA'::text NOT NULL,
+  city text
+);
+
+CREATE TABLE public.countries (
+  iso3 text NOT NULL,
+  name text NOT NULL,
+  adhonep_present boolean DEFAULT false NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.device_tokens (
+  token text NOT NULL,
+  user_id uuid,
+  platform text NOT NULL,
+  state_code text DEFAULT 'SC'::text NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.events (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  chapter_id bigint NOT NULL,
+  title text NOT NULL,
+  event_type text DEFAULT 'other'::text NOT NULL,
+  description text,
+  starts_at timestamp with time zone NOT NULL,
+  ends_at timestamp with time zone,
+  venue_name text,
+  address text,
+  municipality_id bigint,
+  status text DEFAULT 'scheduled'::text NOT NULL,
+  is_published boolean DEFAULT false NOT NULL,
+  public_contact text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  image_url text,
+  notify_reminder boolean DEFAULT false NOT NULL
+);
+
+CREATE TABLE public.leader_mandates (
+  id bigint GENERATED BY DEFAULT AS IDENTITY NOT NULL,
+  chapter_id bigint,
+  region_id bigint,
+  role_label text NOT NULL,
+  person_name text NOT NULL,
+  start_date date,
+  end_date date NOT NULL,
+  notes text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_by uuid DEFAULT auth.uid(),
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_by uuid DEFAULT auth.uid()
+);
+
+CREATE TABLE public.library_docs (
+  id uuid DEFAULT gen_random_uuid() NOT NULL,
+  title text NOT NULL,
+  description text,
+  category text DEFAULT 'Outros'::text NOT NULL,
+  audience text DEFAULT 'members'::text NOT NULL,
+  file_path text NOT NULL,
+  file_name text NOT NULL,
+  mime_type text,
+  size_bytes bigint,
+  uploaded_by uuid,
+  uploaded_by_name text,
+  uploaded_by_role text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.municipalities (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  ibge_code text NOT NULL,
+  name text NOT NULL,
+  state_code character(2) DEFAULT 'SC'::bpchar NOT NULL,
+  boundary_geojson jsonb,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.municipality_boundaries_import (
+  ibge_code text NOT NULL,
+  boundary_geojson jsonb NOT NULL
+);
+
+CREATE TABLE public.notification_reads (
+  user_id uuid NOT NULL,
+  notification_id bigint NOT NULL,
+  read_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.notifications (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  kind text NOT NULL,
+  title text NOT NULL,
+  body text DEFAULT ''::text NOT NULL,
+  state_code text DEFAULT 'SC'::text NOT NULL,
+  audience text NOT NULL,
+  region_id bigint,
+  chapter_id bigint,
+  event_id bigint,
+  link_section text,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  send_at timestamp with time zone DEFAULT now() NOT NULL,
+  push_sent_at timestamp with time zone,
+  dedupe_key text,
+  image_url text
+);
+
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  full_name text NOT NULL,
+  phone text,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.ranking_grants (
+  id bigint DEFAULT nextval('public.ranking_grants_id_seq'::regclass) NOT NULL,
+  user_id uuid NOT NULL,
+  scope text NOT NULL,
+  region_id bigint,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.ranking_settings (
+  key text NOT NULL,
+  label text NOT NULL,
+  value numeric NOT NULL,
+  sort_order integer DEFAULT 0 NOT NULL
+);
+
+CREATE TABLE public.region_municipalities (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  region_id bigint NOT NULL,
+  municipality_id bigint NOT NULL,
+  valid_from date DEFAULT CURRENT_DATE NOT NULL,
+  valid_until date,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  state_code text DEFAULT 'SC'::text NOT NULL
+);
+
+CREATE TABLE public.regions (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  name text NOT NULL,
+  description text,
+  is_active boolean DEFAULT true NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  director_name text,
+  field_representatives text,
+  director_phone text,
+  state_code text DEFAULT 'SC'::text NOT NULL
+);
+
+CREATE TABLE public.scope_roles (
+  id bigint GENERATED ALWAYS AS IDENTITY NOT NULL,
+  user_id uuid NOT NULL,
+  role text NOT NULL,
+  function_label text,
+  country_iso3 text,
+  state_code text,
+  is_active boolean DEFAULT true NOT NULL,
+  granted_by uuid DEFAULT auth.uid(),
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.speaker_editors (
+  user_id uuid NOT NULL,
+  granted_by uuid DEFAULT auth.uid(),
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.speakers (
+  id bigint GENERATED BY DEFAULT AS IDENTITY NOT NULL,
+  full_name text NOT NULL,
+  profession text,
+  chapter_name text,
+  testimony_type text DEFAULT 'Capítulo'::text NOT NULL,
+  status text DEFAULT 'Ativo'::text NOT NULL,
+  phone_private text,
+  biography text,
+  created_by uuid DEFAULT auth.uid(),
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.states (
+  code text NOT NULL,
+  country_iso3 text NOT NULL,
+  name text NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE TABLE public.statewide_announcements (
+  id bigint GENERATED BY DEFAULT AS IDENTITY NOT NULL,
+  title text NOT NULL,
+  category text DEFAULT 'Institucional'::text NOT NULL,
+  priority text DEFAULT 'normal'::text NOT NULL,
+  summary text NOT NULL,
+  body text NOT NULL,
+  starts_at timestamp with time zone DEFAULT now() NOT NULL,
+  ends_at timestamp with time zone,
+  action_label text,
+  action_url text,
+  show_popup boolean DEFAULT false NOT NULL,
+  status text DEFAULT 'draft'::text NOT NULL,
+  created_by uuid DEFAULT auth.uid(),
+  submitted_at timestamp with time zone,
+  decision_by uuid,
+  decided_at timestamp with time zone,
+  feedback text,
+  published_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now() NOT NULL,
+  updated_at timestamp with time zone DEFAULT now() NOT NULL,
+  scope text DEFAULT 'state'::text NOT NULL,
+  region_id bigint,
+  state_code text DEFAULT 'SC'::text,
+  country_iso3 text,
+  is_public boolean DEFAULT false NOT NULL
+);
+
+CREATE TABLE public.user_roles (
+  id bigint GENERATED BY DEFAULT AS IDENTITY NOT NULL,
+  user_id uuid NOT NULL,
+  role text NOT NULL,
+  region_id bigint,
+  chapter_id bigint,
+  is_active boolean DEFAULT true NOT NULL,
+  granted_at timestamp with time zone DEFAULT now() NOT NULL,
+  granted_by uuid,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+ALTER SEQUENCE public.ranking_grants_id_seq OWNED BY public.ranking_grants.id;
+
+-- ===== RESTRIÇÕES =====
+ALTER TABLE ONLY public.access_requests ADD CONSTRAINT access_requests_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.account_deletion_requests ADD CONSTRAINT account_deletion_requests_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.admin_audit_log ADD CONSTRAINT admin_audit_log_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.approval_delegations ADD CONSTRAINT approval_delegations_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.backup_snapshots ADD CONSTRAINT backup_snapshots_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.chapter_contacts ADD CONSTRAINT chapter_contacts_pkey PRIMARY KEY (chapter_id);
+ALTER TABLE ONLY public.chapter_meeting_log ADD CONSTRAINT chapter_meeting_log_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.chapter_public_info ADD CONSTRAINT chapter_public_info_pkey PRIMARY KEY (chapter_id);
+ALTER TABLE ONLY public.chapter_reports ADD CONSTRAINT chapter_reports_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.chapter_status_history ADD CONSTRAINT chapter_status_history_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.chapter_supports ADD CONSTRAINT chapter_supports_pkey PRIMARY KEY (chapter_id);
+ALTER TABLE ONLY public.chapters ADD CONSTRAINT chapters_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.countries ADD CONSTRAINT countries_pkey PRIMARY KEY (iso3);
+ALTER TABLE ONLY public.device_tokens ADD CONSTRAINT device_tokens_pkey PRIMARY KEY (token);
+ALTER TABLE ONLY public.events ADD CONSTRAINT events_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.leader_mandates ADD CONSTRAINT leader_mandates_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.library_docs ADD CONSTRAINT library_docs_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.municipalities ADD CONSTRAINT municipalities_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.municipality_boundaries_import ADD CONSTRAINT municipality_boundaries_import_pkey PRIMARY KEY (ibge_code);
+ALTER TABLE ONLY public.notification_reads ADD CONSTRAINT notification_reads_pkey PRIMARY KEY (user_id, notification_id);
+ALTER TABLE ONLY public.notifications ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.profiles ADD CONSTRAINT profiles_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.ranking_grants ADD CONSTRAINT ranking_grants_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.ranking_settings ADD CONSTRAINT ranking_settings_pkey PRIMARY KEY (key);
+ALTER TABLE ONLY public.region_municipalities ADD CONSTRAINT region_municipalities_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.regions ADD CONSTRAINT regions_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.scope_roles ADD CONSTRAINT scope_roles_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.speaker_editors ADD CONSTRAINT speaker_editors_pkey PRIMARY KEY (user_id);
+ALTER TABLE ONLY public.speakers ADD CONSTRAINT speakers_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.states ADD CONSTRAINT states_pkey PRIMARY KEY (code);
+ALTER TABLE ONLY public.statewide_announcements ADD CONSTRAINT statewide_announcements_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.user_roles ADD CONSTRAINT user_roles_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.chapter_meeting_log ADD CONSTRAINT chapter_meeting_log_chapter_id_meeting_date_key UNIQUE (chapter_id, meeting_date);
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_chapter_id_ref_month_key UNIQUE (chapter_id, ref_month);
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_chapter_id_kind_ref_month_key UNIQUE (chapter_id, kind, ref_month);
+ALTER TABLE ONLY public.library_docs ADD CONSTRAINT library_docs_file_path_key UNIQUE (file_path);
+ALTER TABLE ONLY public.municipalities ADD CONSTRAINT municipalities_ibge_code_key UNIQUE (ibge_code);
+ALTER TABLE ONLY public.notifications ADD CONSTRAINT notifications_dedupe_key_key UNIQUE (dedupe_key);
+ALTER TABLE ONLY public.ranking_grants ADD CONSTRAINT ranking_grants_user_id_scope_region_id_key UNIQUE (user_id, scope, region_id);
+ALTER TABLE ONLY public.regions ADD CONSTRAINT regions_state_name_key UNIQUE (state_code, name);
+ALTER TABLE ONLY public.user_roles ADD CONSTRAINT user_roles_assignment_unique UNIQUE (user_id, role, region_id, chapter_id);
+ALTER TABLE ONLY public.access_requests ADD CONSTRAINT access_requests_consent_version_check CHECK (((consent_version IS NULL) OR (char_length(consent_version) <= 40)));
+ALTER TABLE ONLY public.access_requests ADD CONSTRAINT access_requests_requested_role_check CHECK ((requested_role = ANY (ARRAY['state_director'::text, 'regional_director'::text, 'field_representative'::text, 'chapter_president'::text, 'member'::text, 'youth_coordinator'::text, 'women_coordinator'::text])));
+ALTER TABLE ONLY public.access_requests ADD CONSTRAINT access_requests_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'cancelled'::text])));
+ALTER TABLE ONLY public.account_deletion_requests ADD CONSTRAINT account_deletion_requests_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'done'::text])));
+ALTER TABLE ONLY public.approval_delegations ADD CONSTRAINT approval_delegations_check CHECK ((NOT ((region_id IS NOT NULL) AND (chapter_id IS NOT NULL))));
+ALTER TABLE ONLY public.approval_delegations ADD CONSTRAINT approval_delegations_role_scope_check CHECK ((role_scope = ANY (ARRAY['state_director'::text, 'regional_director'::text, 'field_representative'::text, 'chapter_president'::text, 'youth_coordinator'::text, 'women_coordinator'::text])));
+ALTER TABLE ONLY public.approval_delegations ADD CONSTRAINT approval_delegations_scope_check CHECK ((((role_scope = 'state_director'::text) AND (region_id IS NULL) AND (chapter_id IS NULL)) OR ((role_scope = ANY (ARRAY['regional_director'::text, 'field_representative'::text])) AND (region_id IS NOT NULL) AND (chapter_id IS NULL)) OR ((role_scope = ANY (ARRAY['chapter_president'::text, 'youth_coordinator'::text, 'women_coordinator'::text])) AND (chapter_id IS NOT NULL) AND (region_id IS NULL))));
+ALTER TABLE ONLY public.chapter_contacts ADD CONSTRAINT chapter_contacts_president_phone_check CHECK (((president_phone IS NULL) OR (president_phone ~ '^55[0-9]{10,11}$'::text)));
+ALTER TABLE ONLY public.chapter_meeting_log ADD CONSTRAINT chapter_meeting_log_attendance_check CHECK (((attendance IS NULL) OR ((attendance >= 0) AND (attendance <= 5000))));
+ALTER TABLE ONLY public.chapter_meeting_log ADD CONSTRAINT chapter_meeting_log_notes_check CHECK (((notes IS NULL) OR (char_length(notes) <= 500)));
+ALTER TABLE ONLY public.chapter_meeting_log ADD CONSTRAINT chapter_meeting_log_visitors_check CHECK (((visitors IS NULL) OR ((visitors >= 0) AND (visitors <= 5000))));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_avg_attendance_check CHECK (((avg_attendance IS NULL) OR ((avg_attendance >= 0) AND (avg_attendance <= 5000))));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_chapter_events_check CHECK (((chapter_events >= 0) AND (chapter_events <= 40)));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_chapter_meetings_check CHECK (((chapter_meetings >= 0) AND (chapter_meetings <= 40)));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_considerations_check CHECK (((considerations IS NULL) OR (length(considerations) <= 3000)));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_events_notes_check CHECK (((events_notes IS NULL) OR (length(events_notes) <= 1500)));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_prison_activities_check CHECK (((prison_activities >= 0) AND (prison_activities <= 200)));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_ref_month_check CHECK ((ref_month = (date_trunc('month'::text, (ref_month)::timestamp with time zone))::date));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_status_check CHECK ((status = ANY (ARRAY['Entregue'::text, 'Correções solicitadas'::text, 'Reenviado'::text, 'Aprovado'::text])));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_visitors_check CHECK (((visitors >= 0) AND (visitors <= 5000)));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_visitors_notes_check CHECK (((visitors_notes IS NULL) OR (length(visitors_notes) <= 1000)));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_women_events_check CHECK (((women_events >= 0) AND (women_events <= 40)));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_women_meetings_check CHECK (((women_meetings >= 0) AND (women_meetings <= 40)));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_youth_events_check CHECK (((youth_events >= 0) AND (youth_events <= 40)));
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_youth_meetings_check CHECK (((youth_meetings >= 0) AND (youth_meetings <= 40)));
+ALTER TABLE ONLY public.chapter_public_info ADD CONSTRAINT chapter_public_info_address_check CHECK ((char_length(address) <= 300));
+ALTER TABLE ONLY public.chapter_public_info ADD CONSTRAINT chapter_public_info_frequency_check CHECK ((char_length(frequency) <= 80));
+ALTER TABLE ONLY public.chapter_public_info ADD CONSTRAINT chapter_public_info_maps_url_check CHECK (((maps_url IS NULL) OR (maps_url ~* '^https://'::text)));
+ALTER TABLE ONLY public.chapter_public_info ADD CONSTRAINT chapter_public_info_meeting_day_check CHECK ((char_length(meeting_day) <= 80));
+ALTER TABLE ONLY public.chapter_public_info ADD CONSTRAINT chapter_public_info_meeting_place_check CHECK ((char_length(meeting_place) <= 160));
+ALTER TABLE ONLY public.chapter_public_info ADD CONSTRAINT chapter_public_info_meeting_time_check CHECK ((char_length(meeting_time) <= 40));
+ALTER TABLE ONLY public.chapter_public_info ADD CONSTRAINT chapter_public_info_notes_check CHECK ((char_length(notes) <= 1000));
+ALTER TABLE ONLY public.chapter_public_info ADD CONSTRAINT chapter_public_info_photo_path_check CHECK (((photo_path IS NULL) OR (photo_path ~ '^[0-9]+/[A-Za-z0-9._-]+$'::text)));
+ALTER TABLE ONLY public.chapter_reports ADD CONSTRAINT chapter_reports_attendee_count_check CHECK (((attendee_count IS NULL) OR (attendee_count >= 0)));
+ALTER TABLE ONLY public.chapter_reports ADD CONSTRAINT chapter_reports_status_check CHECK ((status = ANY (ARRAY['Rascunho'::text, 'Entregue'::text, 'Em revisão'::text, 'Correções solicitadas'::text, 'Reenviado'::text, 'Aprovado'::text, 'Encaminhado à sede'::text])));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_avg_attendance_check CHECK (((avg_attendance IS NULL) OR ((avg_attendance >= 0) AND (avg_attendance <= 5000))));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_considerations_check CHECK (((considerations IS NULL) OR (length(considerations) <= 3000)));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_events_count_check CHECK (((events_count >= 0) AND (events_count <= 40)));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_events_notes_check CHECK (((events_notes IS NULL) OR (length(events_notes) <= 1500)));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_highlights_check CHECK (((highlights IS NULL) OR (length(highlights) <= 3000)));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_kind_check CHECK ((kind = ANY (ARRAY['youth'::text, 'women'::text])));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_meetings_check CHECK (((meetings >= 0) AND (meetings <= 40)));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_new_participants_check CHECK (((new_participants >= 0) AND (new_participants <= 5000)));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_ref_month_check CHECK ((ref_month = (date_trunc('month'::text, (ref_month)::timestamp with time zone))::date));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_status_check CHECK ((status = ANY (ARRAY['Entregue'::text, 'Correções solicitadas'::text, 'Reenviado'::text, 'Aprovado'::text])));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_support_requests_check CHECK (((support_requests IS NULL) OR (length(support_requests) <= 2000)));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_visitors_check CHECK (((visitors >= 0) AND (visitors <= 5000)));
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_visitors_notes_check CHECK (((visitors_notes IS NULL) OR (length(visitors_notes) <= 1000)));
+ALTER TABLE ONLY public.chapters ADD CONSTRAINT chapters_scope_chk CHECK ((((country_iso3 = 'BRA'::text) AND (state_code IS NOT NULL)) OR ((country_iso3 <> 'BRA'::text) AND (state_code IS NULL) AND (region_id IS NULL) AND (municipality_id IS NULL))));
+ALTER TABLE ONLY public.chapters ADD CONSTRAINT chapters_status_check CHECK ((status = ANY (ARRAY['active'::text, 'inactive'::text, 'in_activation'::text, 'reactivation'::text])));
+ALTER TABLE ONLY public.countries ADD CONSTRAINT countries_iso3_check CHECK ((iso3 ~ '^[A-Z]{3}$'::text));
+ALTER TABLE ONLY public.device_tokens ADD CONSTRAINT device_tokens_platform_check CHECK ((platform = ANY (ARRAY['ios'::text, 'android'::text])));
+ALTER TABLE ONLY public.events ADD CONSTRAINT events_check CHECK (((ends_at IS NULL) OR (ends_at >= starts_at)));
+ALTER TABLE ONLY public.events ADD CONSTRAINT events_event_type_check CHECK ((event_type = ANY (ARRAY['dinner'::text, 'plenary'::text, 'lecture'::text, 'youth'::text, 'women'::text, 'other'::text])));
+ALTER TABLE ONLY public.events ADD CONSTRAINT events_status_check CHECK ((status = ANY (ARRAY['scheduled'::text, 'completed'::text, 'canceled'::text])));
+ALTER TABLE ONLY public.leader_mandates ADD CONSTRAINT leader_mandates_check CHECK (((chapter_id IS NOT NULL) <> (region_id IS NOT NULL)));
+ALTER TABLE ONLY public.leader_mandates ADD CONSTRAINT leader_mandates_check1 CHECK (((start_date IS NULL) OR (end_date >= start_date)));
+ALTER TABLE ONLY public.leader_mandates ADD CONSTRAINT leader_mandates_notes_check CHECK (((notes IS NULL) OR (char_length(notes) <= 500)));
+ALTER TABLE ONLY public.leader_mandates ADD CONSTRAINT leader_mandates_person_name_check CHECK (((char_length(person_name) >= 2) AND (char_length(person_name) <= 160)));
+ALTER TABLE ONLY public.leader_mandates ADD CONSTRAINT leader_mandates_role_label_check CHECK (((char_length(role_label) >= 2) AND (char_length(role_label) <= 60)));
+ALTER TABLE ONLY public.library_docs ADD CONSTRAINT library_docs_audience_check CHECK ((audience = ANY (ARRAY['members'::text, 'directors'::text])));
+ALTER TABLE ONLY public.library_docs ADD CONSTRAINT library_docs_description_check CHECK (((description IS NULL) OR (char_length(description) <= 600)));
+ALTER TABLE ONLY public.library_docs ADD CONSTRAINT library_docs_title_check CHECK (((char_length(title) >= 3) AND (char_length(title) <= 160)));
+ALTER TABLE ONLY public.municipalities ADD CONSTRAINT municipalities_ibge_code_check CHECK ((ibge_code ~ '^[0-9]{7}$'::text));
+ALTER TABLE ONLY public.municipalities ADD CONSTRAINT municipalities_state_code_fmt CHECK ((state_code ~ '^[A-Z]{2}$'::text));
+ALTER TABLE ONLY public.notifications ADD CONSTRAINT notifications_audience_check CHECK ((audience = ANY (ARRAY['state'::text, 'region'::text, 'chapter'::text, 'managers'::text])));
+ALTER TABLE ONLY public.notifications ADD CONSTRAINT notifications_body_check CHECK ((char_length(body) <= 600));
+ALTER TABLE ONLY public.notifications ADD CONSTRAINT notifications_kind_check CHECK ((kind = ANY (ARRAY['event_new'::text, 'event_reminder'::text, 'meeting'::text, 'message'::text, 'pending'::text])));
+ALTER TABLE ONLY public.notifications ADD CONSTRAINT notifications_title_check CHECK (((char_length(title) >= 1) AND (char_length(title) <= 120)));
+ALTER TABLE ONLY public.ranking_grants ADD CONSTRAINT ranking_grants_scope_check CHECK ((scope = ANY (ARRAY['state'::text, 'region'::text])));
+ALTER TABLE ONLY public.region_municipalities ADD CONSTRAINT region_municipalities_check CHECK (((valid_until IS NULL) OR (valid_until >= valid_from)));
+ALTER TABLE ONLY public.regions ADD CONSTRAINT regions_director_phone_check CHECK (((director_phone IS NULL) OR (char_length(director_phone) <= 30)));
+ALTER TABLE ONLY public.scope_roles ADD CONSTRAINT scope_roles_function_label_check CHECK (((function_label IS NULL) OR ((char_length(function_label) >= 2) AND (char_length(function_label) <= 60))));
+ALTER TABLE ONLY public.scope_roles ADD CONSTRAINT scope_roles_role_check CHECK ((role = ANY (ARRAY['global_board'::text, 'country_director'::text, 'state_director'::text])));
+ALTER TABLE ONLY public.scope_roles ADD CONSTRAINT scope_roles_scope_ck CHECK ((((role = 'global_board'::text) AND (country_iso3 IS NULL) AND (state_code IS NULL)) OR ((role = 'country_director'::text) AND (country_iso3 IS NOT NULL) AND (state_code IS NULL)) OR ((role = 'state_director'::text) AND (state_code IS NOT NULL) AND (country_iso3 IS NULL))));
+ALTER TABLE ONLY public.speakers ADD CONSTRAINT speakers_full_name_check CHECK (((length(TRIM(BOTH FROM full_name)) >= 2) AND (length(TRIM(BOTH FROM full_name)) <= 180)));
+ALTER TABLE ONLY public.speakers ADD CONSTRAINT speakers_status_check CHECK ((status = ANY (ARRAY['Ativo'::text, 'Inativo'::text])));
+ALTER TABLE ONLY public.states ADD CONSTRAINT states_code_check CHECK ((code ~ '^[A-Z]{2}$'::text));
+ALTER TABLE ONLY public.statewide_announcements ADD CONSTRAINT announcements_scope_chk CHECK ((((scope = 'global'::text) AND (country_iso3 IS NULL) AND (state_code IS NULL) AND (region_id IS NULL)) OR ((scope = 'country'::text) AND (country_iso3 IS NOT NULL) AND (state_code IS NULL) AND (region_id IS NULL)) OR ((scope = 'state'::text) AND (state_code IS NOT NULL) AND (region_id IS NULL)) OR ((scope = 'regional'::text) AND (state_code IS NOT NULL) AND (region_id IS NOT NULL))));
+ALTER TABLE ONLY public.statewide_announcements ADD CONSTRAINT statewide_announcements_action_url_check CHECK (((action_url IS NULL) OR (action_url ~ '^https?://'::text)));
+ALTER TABLE ONLY public.statewide_announcements ADD CONSTRAINT statewide_announcements_check CHECK (((ends_at IS NULL) OR (ends_at >= starts_at)));
+ALTER TABLE ONLY public.statewide_announcements ADD CONSTRAINT statewide_announcements_priority_check CHECK ((priority = ANY (ARRAY['normal'::text, 'important'::text, 'urgent'::text])));
+ALTER TABLE ONLY public.statewide_announcements ADD CONSTRAINT statewide_announcements_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'pending'::text, 'changes'::text, 'approved'::text, 'published'::text, 'archived'::text])));
+ALTER TABLE ONLY public.statewide_announcements ADD CONSTRAINT statewide_announcements_title_check CHECK (((length(TRIM(BOTH FROM title)) >= 3) AND (length(TRIM(BOTH FROM title)) <= 180)));
+ALTER TABLE ONLY public.user_roles ADD CONSTRAINT user_roles_role_check CHECK ((role = ANY (ARRAY['state_admin'::text, 'member'::text, 'state_director'::text, 'regional_director'::text, 'field_representative'::text, 'chapter_president'::text, 'youth_coordinator'::text, 'women_coordinator'::text])));
+ALTER TABLE ONLY public.user_roles ADD CONSTRAINT user_roles_scope_check CHECK ((((role = ANY (ARRAY['state_admin'::text, 'state_director'::text])) AND (region_id IS NULL) AND (chapter_id IS NULL)) OR ((role = ANY (ARRAY['regional_director'::text, 'field_representative'::text])) AND (region_id IS NOT NULL) AND (chapter_id IS NULL)) OR ((role = ANY (ARRAY['chapter_president'::text, 'youth_coordinator'::text, 'women_coordinator'::text])) AND (chapter_id IS NOT NULL) AND (region_id IS NULL)) OR ((role = 'member'::text) AND (region_id IS NULL))));
+ALTER TABLE ONLY public.access_requests ADD CONSTRAINT access_requests_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id);
+ALTER TABLE ONLY public.access_requests ADD CONSTRAINT access_requests_region_id_fkey FOREIGN KEY (region_id) REFERENCES public.regions(id);
+ALTER TABLE ONLY public.access_requests ADD CONSTRAINT access_requests_reviewed_by_fkey FOREIGN KEY (reviewed_by) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.admin_audit_log ADD CONSTRAINT admin_audit_log_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.approval_delegations ADD CONSTRAINT approval_delegations_approver_user_id_fkey FOREIGN KEY (approver_user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.approval_delegations ADD CONSTRAINT approval_delegations_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id);
+ALTER TABLE ONLY public.approval_delegations ADD CONSTRAINT approval_delegations_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.approval_delegations ADD CONSTRAINT approval_delegations_region_id_fkey FOREIGN KEY (region_id) REFERENCES public.regions(id);
+ALTER TABLE ONLY public.chapter_contacts ADD CONSTRAINT chapter_contacts_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.chapter_contacts ADD CONSTRAINT chapter_contacts_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.chapter_meeting_log ADD CONSTRAINT chapter_meeting_log_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.chapter_meeting_log ADD CONSTRAINT chapter_meeting_log_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.chapter_meeting_log ADD CONSTRAINT chapter_meeting_log_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.chapter_monthly_reports ADD CONSTRAINT chapter_monthly_reports_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.chapter_public_info ADD CONSTRAINT chapter_public_info_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.chapter_public_info ADD CONSTRAINT chapter_public_info_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.chapter_reports ADD CONSTRAINT chapter_reports_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.chapter_reports ADD CONSTRAINT chapter_reports_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.chapter_reports ADD CONSTRAINT chapter_reports_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.chapter_support_reports ADD CONSTRAINT chapter_support_reports_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.chapter_supports ADD CONSTRAINT chapter_supports_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.chapters ADD CONSTRAINT chapters_country_iso3_fkey FOREIGN KEY (country_iso3) REFERENCES public.countries(iso3);
+ALTER TABLE ONLY public.chapters ADD CONSTRAINT chapters_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.chapters ADD CONSTRAINT chapters_region_id_fkey FOREIGN KEY (region_id) REFERENCES public.regions(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.chapters ADD CONSTRAINT chapters_state_code_fkey FOREIGN KEY (state_code) REFERENCES public.states(code);
+ALTER TABLE ONLY public.device_tokens ADD CONSTRAINT device_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.events ADD CONSTRAINT events_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.events ADD CONSTRAINT events_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.leader_mandates ADD CONSTRAINT leader_mandates_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.leader_mandates ADD CONSTRAINT leader_mandates_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.leader_mandates ADD CONSTRAINT leader_mandates_region_id_fkey FOREIGN KEY (region_id) REFERENCES public.regions(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.leader_mandates ADD CONSTRAINT leader_mandates_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.library_docs ADD CONSTRAINT library_docs_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.notification_reads ADD CONSTRAINT notification_reads_notification_id_fkey FOREIGN KEY (notification_id) REFERENCES public.notifications(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.notification_reads ADD CONSTRAINT notification_reads_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.profiles ADD CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.ranking_grants ADD CONSTRAINT ranking_grants_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.region_municipalities ADD CONSTRAINT region_municipalities_municipality_id_fkey FOREIGN KEY (municipality_id) REFERENCES public.municipalities(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.region_municipalities ADD CONSTRAINT region_municipalities_region_id_fkey FOREIGN KEY (region_id) REFERENCES public.regions(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.region_municipalities ADD CONSTRAINT region_municipalities_state_code_fkey FOREIGN KEY (state_code) REFERENCES public.states(code);
+ALTER TABLE ONLY public.regions ADD CONSTRAINT regions_state_code_fkey FOREIGN KEY (state_code) REFERENCES public.states(code);
+ALTER TABLE ONLY public.scope_roles ADD CONSTRAINT scope_roles_country_iso3_fkey FOREIGN KEY (country_iso3) REFERENCES public.countries(iso3);
+ALTER TABLE ONLY public.scope_roles ADD CONSTRAINT scope_roles_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES auth.users(id);
+ALTER TABLE ONLY public.scope_roles ADD CONSTRAINT scope_roles_state_code_fkey FOREIGN KEY (state_code) REFERENCES public.states(code);
+ALTER TABLE ONLY public.scope_roles ADD CONSTRAINT scope_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.speaker_editors ADD CONSTRAINT speaker_editors_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.speaker_editors ADD CONSTRAINT speaker_editors_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+ALTER TABLE ONLY public.speakers ADD CONSTRAINT speakers_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.states ADD CONSTRAINT states_country_iso3_fkey FOREIGN KEY (country_iso3) REFERENCES public.countries(iso3);
+ALTER TABLE ONLY public.statewide_announcements ADD CONSTRAINT statewide_announcements_country_iso3_fkey FOREIGN KEY (country_iso3) REFERENCES public.countries(iso3);
+ALTER TABLE ONLY public.statewide_announcements ADD CONSTRAINT statewide_announcements_created_by_fkey FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.statewide_announcements ADD CONSTRAINT statewide_announcements_decision_by_fkey FOREIGN KEY (decision_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.statewide_announcements ADD CONSTRAINT statewide_announcements_state_code_fkey FOREIGN KEY (state_code) REFERENCES public.states(code);
+ALTER TABLE ONLY public.user_roles ADD CONSTRAINT user_roles_chapter_id_fkey FOREIGN KEY (chapter_id) REFERENCES public.chapters(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.user_roles ADD CONSTRAINT user_roles_granted_by_fkey FOREIGN KEY (granted_by) REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE ONLY public.user_roles ADD CONSTRAINT user_roles_region_id_fkey FOREIGN KEY (region_id) REFERENCES public.regions(id) ON DELETE RESTRICT;
+ALTER TABLE ONLY public.user_roles ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- ===== ÍNDICES =====
+CREATE INDEX access_requests_created_idx ON public.access_requests USING btree (created_at);
+CREATE INDEX access_requests_email_status_idx ON public.access_requests USING btree (lower(email), status);
+CREATE INDEX audit_created_idx ON public.admin_audit_log USING btree (created_at DESC);
+CREATE INDEX chapter_meeting_log_idx ON public.chapter_meeting_log USING btree (chapter_id, meeting_date DESC);
+CREATE INDEX cmr_month_idx ON public.chapter_monthly_reports USING btree (ref_month, status);
+CREATE INDEX chapter_reports_chapter_created_idx ON public.chapter_reports USING btree (chapter_id, created_at DESC);
+CREATE INDEX chapter_reports_status_idx ON public.chapter_reports USING btree (status, created_at DESC);
+CREATE INDEX chapter_status_history_idx ON public.chapter_status_history USING btree (chapter_id, changed_at);
+CREATE INDEX csr_month_idx ON public.chapter_support_reports USING btree (ref_month, kind, status);
+CREATE INDEX chapters_state_code_idx ON public.chapters USING btree (state_code);
+CREATE INDEX idx_chapters_municipality ON public.chapters USING btree (municipality_id);
+CREATE INDEX idx_chapters_region ON public.chapters USING btree (region_id);
+CREATE INDEX idx_chapters_status ON public.chapters USING btree (status);
+CREATE INDEX idx_events_chapter ON public.events USING btree (chapter_id);
+CREATE INDEX idx_events_public_schedule ON public.events USING btree (starts_at) WHERE ((is_published = true) AND (status = 'scheduled'::text));
+CREATE INDEX idx_events_starts_at ON public.events USING btree (starts_at);
+CREATE INDEX leader_mandates_chapter_idx ON public.leader_mandates USING btree (chapter_id, end_date);
+CREATE INDEX leader_mandates_region_idx ON public.leader_mandates USING btree (region_id, end_date);
+CREATE INDEX library_docs_created_idx ON public.library_docs USING btree (created_at DESC);
+CREATE INDEX municipalities_state_code_idx ON public.municipalities USING btree (state_code);
+CREATE INDEX notifications_send_idx ON public.notifications USING btree (send_at DESC);
+CREATE INDEX region_municipalities_state_code_idx ON public.region_municipalities USING btree (state_code);
+CREATE UNIQUE INDEX uq_region_municipality_current ON public.region_municipalities USING btree (municipality_id) WHERE (valid_until IS NULL);
+CREATE INDEX regions_state_code_idx ON public.regions USING btree (state_code);
+CREATE UNIQUE INDEX scope_roles_uni ON public.scope_roles USING btree (user_id, role, COALESCE(country_iso3, ''::text), COALESCE(state_code, ''::text)) WHERE is_active;
+CREATE INDEX speakers_name_idx ON public.speakers USING btree (full_name);
+CREATE INDEX speakers_status_idx ON public.speakers USING btree (status);
+CREATE INDEX announcements_public_idx ON public.statewide_announcements USING btree (status, starts_at, ends_at);
+CREATE UNIQUE INDEX user_roles_unique_chapter_scope ON public.user_roles USING btree (user_id, role, chapter_id) WHERE ((chapter_id IS NOT NULL) AND (region_id IS NULL));
+CREATE UNIQUE INDEX user_roles_unique_global_scope ON public.user_roles USING btree (user_id, role) WHERE ((region_id IS NULL) AND (chapter_id IS NULL));
+CREATE UNIQUE INDEX user_roles_unique_region_scope ON public.user_roles USING btree (user_id, role, region_id) WHERE ((region_id IS NOT NULL) AND (chapter_id IS NULL));
+
+-- ===== VISÕES =====
+CREATE VIEW public.public_announcements WITH (security_invoker=false) AS
+ SELECT id,
+    title,
+    category,
+    priority,
+    summary,
+    body,
+    starts_at,
+    ends_at,
+    action_label,
+    action_url,
+    show_popup,
+    published_at,
+    scope,
+    region_id,
+    state_code
+   FROM public.statewide_announcements
+  WHERE status = 'published'::text AND starts_at <= now() AND (ends_at IS NULL OR ends_at >= now());
+
+CREATE VIEW public.public_chapter_contacts AS
+ SELECT cc.chapter_id,
+    cc.president_phone
+   FROM public.chapter_contacts cc
+     JOIN public.chapters c ON c.id = cc.chapter_id
+  WHERE cc.show_public = true AND cc.president_phone IS NOT NULL AND c.is_public = true AND c.status = 'active'::text;
+
+CREATE VIEW public.public_chapter_info AS
+ SELECT i.chapter_id,
+    i.meeting_place,
+    i.address,
+    i.maps_url,
+    i.frequency,
+    i.meeting_day,
+    i.meeting_time,
+    i.notes,
+    i.photo_path
+   FROM public.chapter_public_info i
+     JOIN public.chapters c ON c.id = i.chapter_id
+  WHERE i.show_public = true AND c.is_public = true AND c.status = 'active'::text;
+
+-- ===== GATILHOS =====
+CREATE TRIGGER access_requests_audit AFTER UPDATE ON public.access_requests FOR EACH ROW EXECUTE FUNCTION public.adh_audit_row();
+CREATE TRIGGER access_requests_guard BEFORE INSERT ON public.access_requests FOR EACH ROW EXECUTE FUNCTION public.adh_guard_access_request();
+CREATE TRIGGER adh_request_notify AFTER INSERT ON public.access_requests FOR EACH ROW EXECUTE FUNCTION public.adh_trg_request_notify();
+CREATE TRIGGER adh_stamp_consent_trg BEFORE INSERT ON public.access_requests FOR EACH ROW EXECUTE FUNCTION public.adh_stamp_consent();
+CREATE TRIGGER chapter_contacts_stamp BEFORE INSERT OR UPDATE ON public.chapter_contacts FOR EACH ROW EXECUTE FUNCTION public.adh_contact_stamp();
+CREATE TRIGGER chapter_meeting_log_guard BEFORE INSERT OR UPDATE ON public.chapter_meeting_log FOR EACH ROW EXECUTE FUNCTION public.adh_meeting_guard();
+CREATE TRIGGER cmr_audit AFTER INSERT OR DELETE OR UPDATE ON public.chapter_monthly_reports FOR EACH ROW EXECUTE FUNCTION public.adh_audit_row();
+CREATE TRIGGER cmr_guard BEFORE INSERT OR UPDATE ON public.chapter_monthly_reports FOR EACH ROW EXECUTE FUNCTION public.adh_guard_monthly_report();
+CREATE TRIGGER cmr_updated_at BEFORE UPDATE ON public.chapter_monthly_reports FOR EACH ROW EXECUTE FUNCTION public.set_adhonep_updated_at();
+CREATE TRIGGER chapter_public_info_stamp BEFORE INSERT OR UPDATE ON public.chapter_public_info FOR EACH ROW EXECUTE FUNCTION public.adh_info_stamp();
+CREATE TRIGGER chapter_reports_guard BEFORE INSERT OR UPDATE ON public.chapter_reports FOR EACH ROW EXECUTE FUNCTION public.adh_guard_chapter_report();
+CREATE TRIGGER chapter_reports_updated_at BEFORE UPDATE ON public.chapter_reports FOR EACH ROW EXECUTE FUNCTION public.set_adhonep_updated_at();
+CREATE TRIGGER csr_audit AFTER INSERT OR DELETE OR UPDATE ON public.chapter_support_reports FOR EACH ROW EXECUTE FUNCTION public.adh_audit_row();
+CREATE TRIGGER csr_guard BEFORE INSERT OR UPDATE ON public.chapter_support_reports FOR EACH ROW EXECUTE FUNCTION public.adh_guard_support_report();
+CREATE TRIGGER csr_updated_at BEFORE UPDATE ON public.chapter_support_reports FOR EACH ROW EXECUTE FUNCTION public.set_adhonep_updated_at();
+CREATE TRIGGER adh_set_state_chapter_trg BEFORE INSERT OR UPDATE OF region_id, municipality_id, country_iso3 ON public.chapters FOR EACH ROW EXECUTE FUNCTION public.adh_set_state_chapter();
+CREATE TRIGGER chapters_audit AFTER INSERT OR DELETE OR UPDATE ON public.chapters FOR EACH ROW EXECUTE FUNCTION public.adh_audit_row();
+CREATE TRIGGER chapters_status_history AFTER INSERT OR UPDATE ON public.chapters FOR EACH ROW EXECUTE FUNCTION public.adh_log_chapter_status();
+CREATE TRIGGER adh_event_notify AFTER INSERT OR UPDATE OF is_published ON public.events FOR EACH ROW EXECUTE FUNCTION public.adh_trg_event_notify();
+CREATE TRIGGER events_audit AFTER INSERT OR DELETE OR UPDATE ON public.events FOR EACH ROW EXECUTE FUNCTION public.adh_audit_row();
+CREATE TRIGGER leader_mandates_stamp BEFORE INSERT OR UPDATE ON public.leader_mandates FOR EACH ROW EXECUTE FUNCTION public.adh_mandate_stamp();
+CREATE TRIGGER adh_lib_stamp_t BEFORE INSERT ON public.library_docs FOR EACH ROW EXECUTE FUNCTION public.adh_lib_stamp();
+CREATE TRIGGER adh_set_state_regmun_trg BEFORE INSERT OR UPDATE OF region_id ON public.region_municipalities FOR EACH ROW EXECUTE FUNCTION public.adh_set_state_regmun();
+CREATE TRIGGER regions_audit AFTER INSERT OR DELETE OR UPDATE ON public.regions FOR EACH ROW EXECUTE FUNCTION public.adh_audit_row();
+CREATE TRIGGER speaker_editors_audit AFTER INSERT OR DELETE ON public.speaker_editors FOR EACH ROW EXECUTE FUNCTION public.adh_audit_row();
+CREATE TRIGGER speakers_audit AFTER INSERT OR DELETE OR UPDATE ON public.speakers FOR EACH ROW EXECUTE FUNCTION public.adh_audit_row();
+CREATE TRIGGER speakers_updated_at BEFORE UPDATE ON public.speakers FOR EACH ROW EXECUTE FUNCTION public.set_adhonep_updated_at();
+CREATE TRIGGER announcements_defaults BEFORE INSERT OR UPDATE ON public.statewide_announcements FOR EACH ROW EXECUTE FUNCTION public.adh_announcement_defaults();
+CREATE TRIGGER announcements_updated_at BEFORE UPDATE ON public.statewide_announcements FOR EACH ROW EXECUTE FUNCTION public.set_adhonep_updated_at();
+CREATE TRIGGER statewide_announcements_audit AFTER INSERT OR DELETE OR UPDATE ON public.statewide_announcements FOR EACH ROW EXECUTE FUNCTION public.adh_audit_row();
+CREATE TRIGGER user_roles_audit AFTER INSERT OR DELETE OR UPDATE ON public.user_roles FOR EACH ROW EXECUTE FUNCTION public.adh_audit_row();
+
+-- ===== RLS =====
+ALTER TABLE public.access_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.account_deletion_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.admin_audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.approval_delegations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.backup_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chapter_contacts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chapter_meeting_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chapter_monthly_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chapter_public_info ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chapter_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chapter_status_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chapter_support_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chapter_supports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.chapters ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.countries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.device_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.leader_mandates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.library_docs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.municipalities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.municipality_boundaries_import ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notification_reads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ranking_grants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ranking_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.region_municipalities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.regions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.scope_roles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.speaker_editors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.speakers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.states ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.statewide_announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+-- ===== POLÍTICAS =====
+CREATE POLICY "Public can submit access requests" ON public.access_requests AS PERMISSIVE FOR INSERT TO anon, authenticated
+  WITH CHECK (((status = 'pending'::text) AND (reviewed_by IS NULL) AND (reviewed_at IS NULL) AND (review_notes IS NULL)));
+CREATE POLICY "State admins can view access requests" ON public.access_requests AS PERMISSIVE FOR SELECT TO authenticated
+  USING (( SELECT public.is_state_admin() AS is_state_admin));
+CREATE POLICY access_requests_admin_select ON public.access_requests AS PERMISSIVE FOR SELECT TO authenticated
+  USING (public.is_state_admin());
+CREATE POLICY access_requests_admin_update ON public.access_requests AS PERMISSIVE FOR UPDATE TO authenticated
+  USING (public.is_state_admin())
+  WITH CHECK (public.is_state_admin());
+CREATE POLICY access_requests_public_insert ON public.access_requests AS PERMISSIVE FOR INSERT TO anon, authenticated
+  WITH CHECK ((status = 'pending'::text));
+CREATE POLICY deletion_requests_admin_read ON public.account_deletion_requests AS PERMISSIVE FOR SELECT TO authenticated
+  USING (public.is_state_admin());
+CREATE POLICY deletion_requests_admin_update ON public.account_deletion_requests AS PERMISSIVE FOR UPDATE TO authenticated
+  USING (public.is_state_admin())
+  WITH CHECK (public.is_state_admin());
+CREATE POLICY audit_admin_insert ON public.admin_audit_log AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((public.adh_is_leader() AND ((actor_id IS NULL) OR (actor_id = auth.uid()))));
+CREATE POLICY audit_admin_select ON public.admin_audit_log AS PERMISSIVE FOR SELECT TO authenticated
+  USING (public.adh_is_state_manager());
+CREATE POLICY cc_delete ON public.chapter_contacts AS PERMISSIVE FOR DELETE TO authenticated
+  USING (public.is_state_admin());
+CREATE POLICY cc_insert ON public.chapter_contacts AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY cc_select ON public.chapter_contacts AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY cc_update ON public.chapter_contacts AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_president_of(chapter_id)))
+  WITH CHECK ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY cml_delete ON public.chapter_meeting_log AS PERMISSIVE FOR DELETE TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY cml_insert ON public.chapter_meeting_log AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY cml_select ON public.chapter_meeting_log AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY cml_update ON public.chapter_meeting_log AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_president_of(chapter_id)))
+  WITH CHECK ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY cmr_delete ON public.chapter_monthly_reports AS PERMISSIVE FOR DELETE TO authenticated
+  USING (public.is_state_admin());
+CREATE POLICY cmr_insert ON public.chapter_monthly_reports AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((public.is_state_admin() OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY cmr_select ON public.chapter_monthly_reports AS PERMISSIVE FOR SELECT TO authenticated
+  USING (public.adh_can_see_report_chapter(chapter_id));
+CREATE POLICY cmr_update ON public.chapter_monthly_reports AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((public.is_state_admin() OR public.adh_is_president_of(chapter_id) OR public.adh_is_regional_director_of(chapter_id)))
+  WITH CHECK ((public.is_state_admin() OR public.adh_is_president_of(chapter_id) OR public.adh_is_regional_director_of(chapter_id)));
+CREATE POLICY cpi_delete ON public.chapter_public_info AS PERMISSIVE FOR DELETE TO authenticated
+  USING (public.is_state_admin());
+CREATE POLICY cpi_insert ON public.chapter_public_info AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY cpi_select ON public.chapter_public_info AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY cpi_update ON public.chapter_public_info AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_president_of(chapter_id)))
+  WITH CHECK ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY chapter_reports_delete ON public.chapter_reports AS PERMISSIVE FOR DELETE TO authenticated
+  USING (public.is_state_admin());
+CREATE POLICY chapter_reports_insert ON public.chapter_reports AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((public.is_state_admin() OR public.adh_is_president_of(chapter_id)));
+CREATE POLICY chapter_reports_select ON public.chapter_reports AS PERMISSIVE FOR SELECT TO authenticated
+  USING (public.adh_can_see_report_chapter(chapter_id));
+CREATE POLICY chapter_reports_update ON public.chapter_reports AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((public.is_state_admin() OR public.adh_is_president_of(chapter_id) OR public.adh_is_regional_director_of(chapter_id)))
+  WITH CHECK ((public.is_state_admin() OR public.adh_is_president_of(chapter_id) OR public.adh_is_regional_director_of(chapter_id)));
+CREATE POLICY csh_select ON public.chapter_status_history AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((public.is_state_admin() OR public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_regional_director_of(chapter_id)));
+CREATE POLICY csr_delete ON public.chapter_support_reports AS PERMISSIVE FOR DELETE TO authenticated
+  USING (public.is_state_admin());
+CREATE POLICY csr_insert ON public.chapter_support_reports AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK (public.adh_can_submit_support(chapter_id, kind));
+CREATE POLICY csr_select ON public.chapter_support_reports AS PERMISSIVE FOR SELECT TO authenticated
+  USING (public.adh_can_see_support(chapter_id, kind));
+CREATE POLICY csr_update ON public.chapter_support_reports AS PERMISSIVE FOR UPDATE TO authenticated
+  USING (public.adh_can_see_support(chapter_id, kind))
+  WITH CHECK (public.adh_can_see_support(chapter_id, kind));
+CREATE POLICY csp_select ON public.chapter_supports AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((public.adh_can_see_report_chapter(chapter_id) OR public.adh_is_coordinator_of(chapter_id)));
+CREATE POLICY "Public can read published chapters" ON public.chapters AS PERMISSIVE FOR SELECT TO anon, authenticated
+  USING (((status = 'active'::text) AND is_public AND (country_iso3 = 'BRA'::text) AND (state_code = 'SC'::text)));
+CREATE POLICY chapters_admin_delete ON public.chapters AS PERMISSIVE FOR DELETE TO authenticated
+  USING (public.is_state_admin());
+CREATE POLICY chapters_global_read ON public.chapters AS PERMISSIVE FOR SELECT TO authenticated
+  USING (( SELECT public.adh_is_global_board() AS adh_is_global_board));
+CREATE POLICY chapters_regional_update ON public.chapters AS PERMISSIVE FOR UPDATE TO authenticated
+  USING (public.adh_is_regional_director_of(id))
+  WITH CHECK (public.adh_is_regional_director_of_region(region_id));
+CREATE POLICY chapters_scoped_insert ON public.chapters AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((((country_iso3 = 'BRA'::text) AND public.adh_is_state_manager_of(state_code)) OR ((country_iso3 <> 'BRA'::text) AND public.adh_is_country_director(country_iso3))));
+CREATE POLICY chapters_scoped_read ON public.chapters AS PERMISSIVE FOR SELECT TO authenticated
+  USING (((id = ANY (( SELECT public.adh_my_president_chapter_ids() AS adh_my_president_chapter_ids)::bigint[])) OR (region_id = ANY (( SELECT public.adh_my_rd_region_ids() AS adh_my_rd_region_ids)::bigint[])) OR (state_code = ANY (( SELECT public.adh_my_managed_ufs() AS adh_my_managed_ufs)::text[])) OR (country_iso3 = ANY (( SELECT public.adh_my_country_dirs() AS adh_my_country_dirs)::text[]))));
+CREATE POLICY chapters_select_state_admin ON public.chapters AS PERMISSIVE FOR SELECT TO authenticated
+  USING (((state_code = 'SC'::text) AND (EXISTS ( SELECT 1
+   FROM public.user_roles ur
+  WHERE ((ur.user_id = ( SELECT auth.uid() AS uid)) AND (ur.role = 'state_admin'::text) AND (ur.is_active = true))))));
+CREATE POLICY chapters_state_manager_update ON public.chapters AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(id)) OR public.adh_is_country_director(country_iso3)))
+  WITH CHECK ((((country_iso3 = 'BRA'::text) AND public.adh_is_state_manager_of(state_code)) OR ((country_iso3 <> 'BRA'::text) AND public.adh_is_country_director(country_iso3))));
+CREATE POLICY countries_read ON public.countries AS PERMISSIVE FOR SELECT TO public
+  USING (true);
+CREATE POLICY countries_write ON public.countries AS PERMISSIVE FOR ALL TO authenticated
+  USING (public.adh_is_global_board())
+  WITH CHECK (public.adh_is_global_board());
+CREATE POLICY "Public can view upcoming published events" ON public.events AS PERMISSIVE FOR SELECT TO anon, authenticated
+  USING ((is_published AND (status = 'scheduled'::text) AND (starts_at > now()) AND (EXISTS ( SELECT 1
+   FROM public.chapters c
+  WHERE ((c.id = events.chapter_id) AND (c.status = 'active'::text) AND c.is_public AND (c.state_code = 'SC'::text))))));
+CREATE POLICY events_delete_admin ON public.events AS PERMISSIVE FOR DELETE TO authenticated
+  USING (public.is_state_admin());
+CREATE POLICY events_insert_managers ON public.events AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_president_of(chapter_id) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_coordinator_of(chapter_id)));
+CREATE POLICY events_member_read ON public.events AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((is_published = true));
+CREATE POLICY events_scoped_read ON public.events AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_president_of(chapter_id) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_coordinator_of(chapter_id)));
+CREATE POLICY events_update_managers ON public.events AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_president_of(chapter_id) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_coordinator_of(chapter_id)))
+  WITH CHECK ((public.adh_is_state_manager_of(public.adh_uf_of_chapter(chapter_id)) OR public.adh_is_president_of(chapter_id) OR public.adh_is_regional_director_of(chapter_id) OR public.adh_is_coordinator_of(chapter_id)));
+CREATE POLICY lm_delete ON public.leader_mandates AS PERMISSIVE FOR DELETE TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_mandate(chapter_id, region_id)) OR ((chapter_id IS NOT NULL) AND public.adh_is_regional_director_of(chapter_id)) OR ((chapter_id IS NOT NULL) AND public.adh_is_president_of(chapter_id) AND (role_label !~* '^presidente'::text))));
+CREATE POLICY lm_insert ON public.leader_mandates AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((public.adh_is_state_manager_of(public.adh_uf_of_mandate(chapter_id, region_id)) OR ((chapter_id IS NOT NULL) AND public.adh_is_regional_director_of(chapter_id)) OR ((chapter_id IS NOT NULL) AND public.adh_is_president_of(chapter_id) AND (role_label !~* '^presidente'::text))));
+CREATE POLICY lm_select ON public.leader_mandates AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_mandate(chapter_id, region_id)) OR ((chapter_id IS NOT NULL) AND (public.adh_is_regional_director_of(chapter_id) OR public.adh_is_president_of(chapter_id))) OR ((region_id IS NOT NULL) AND public.adh_is_regional_director_of_region(region_id))));
+CREATE POLICY lm_update ON public.leader_mandates AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((public.adh_is_state_manager_of(public.adh_uf_of_mandate(chapter_id, region_id)) OR ((chapter_id IS NOT NULL) AND public.adh_is_regional_director_of(chapter_id)) OR ((chapter_id IS NOT NULL) AND public.adh_is_president_of(chapter_id) AND (role_label !~* '^presidente'::text))))
+  WITH CHECK ((public.adh_is_state_manager_of(public.adh_uf_of_mandate(chapter_id, region_id)) OR ((chapter_id IS NOT NULL) AND public.adh_is_regional_director_of(chapter_id)) OR ((chapter_id IS NOT NULL) AND public.adh_is_president_of(chapter_id) AND (role_label !~* '^presidente'::text))));
+CREATE POLICY lib_delete ON public.library_docs AS PERMISSIVE FOR DELETE TO authenticated
+  USING ((public.adh_lib_has(ARRAY['state_admin'::text]) OR (uploaded_by = auth.uid())));
+CREATE POLICY lib_insert ON public.library_docs AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((((audience = 'members'::text) AND public.adh_lib_has(ARRAY['state_admin'::text, 'state_director'::text, 'regional_director'::text, 'chapter_president'::text, 'youth_coordinator'::text, 'women_coordinator'::text])) OR ((audience = 'directors'::text) AND public.adh_lib_has(ARRAY['state_admin'::text, 'state_director'::text, 'regional_director'::text]))));
+CREATE POLICY lib_select ON public.library_docs AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((((audience = 'members'::text) AND public.adh_lib_has(ARRAY['state_admin'::text, 'state_director'::text, 'regional_director'::text, 'field_representative'::text, 'chapter_president'::text, 'youth_coordinator'::text, 'women_coordinator'::text, 'member'::text])) OR ((audience = 'directors'::text) AND public.adh_lib_has(ARRAY['state_admin'::text, 'state_director'::text, 'regional_director'::text]))));
+CREATE POLICY lib_update ON public.library_docs AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((public.adh_lib_has(ARRAY['state_admin'::text]) OR (uploaded_by = auth.uid())))
+  WITH CHECK ((((audience = 'members'::text) AND public.adh_lib_has(ARRAY['state_admin'::text, 'state_director'::text, 'regional_director'::text, 'chapter_president'::text, 'youth_coordinator'::text, 'women_coordinator'::text])) OR ((audience = 'directors'::text) AND public.adh_lib_has(ARRAY['state_admin'::text, 'state_director'::text, 'regional_director'::text]))));
+CREATE POLICY "Public can read municipalities" ON public.municipalities AS PERMISSIVE FOR SELECT TO anon, authenticated
+  USING ((state_code = 'SC'::bpchar));
+CREATE POLICY municipalities_scoped_read ON public.municipalities AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((( SELECT public.adh_is_global_board() AS adh_is_global_board) OR ((state_code)::text = ANY (( SELECT public.adh_my_managed_ufs() AS adh_my_managed_ufs)::text[]))));
+CREATE POLICY "State admins can insert profiles" ON public.profiles AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK (( SELECT public.is_state_admin() AS is_state_admin));
+CREATE POLICY "State admins can update profiles" ON public.profiles AS PERMISSIVE FOR UPDATE TO authenticated
+  USING (( SELECT public.is_state_admin() AS is_state_admin))
+  WITH CHECK (( SELECT public.is_state_admin() AS is_state_admin));
+CREATE POLICY "State admins can view profiles" ON public.profiles AS PERMISSIVE FOR SELECT TO authenticated
+  USING (( SELECT public.is_state_admin() AS is_state_admin));
+CREATE POLICY "Users can update own profile" ON public.profiles AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((id = ( SELECT auth.uid() AS uid)))
+  WITH CHECK ((id = ( SELECT auth.uid() AS uid)));
+CREATE POLICY "Users can view own profile" ON public.profiles AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((id = ( SELECT auth.uid() AS uid)));
+CREATE POLICY profiles_president_sees_members ON public.profiles AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((EXISTS ( SELECT 1
+   FROM public.user_roles ur
+  WHERE ((ur.user_id = profiles.id) AND (ur.role = 'member'::text) AND (ur.chapter_id IN ( SELECT public.adh_president_chapters() AS adh_president_chapters))))));
+CREATE POLICY profiles_self_select ON public.profiles AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((id = auth.uid()));
+CREATE POLICY profiles_self_update ON public.profiles AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((id = auth.uid()))
+  WITH CHECK ((id = auth.uid()));
+CREATE POLICY rs_select ON public.ranking_settings AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((public.is_state_admin() OR public.adh_has_role('state_director'::text) OR public.adh_has_role('regional_director'::text)));
+CREATE POLICY rs_update ON public.ranking_settings AS PERMISSIVE FOR UPDATE TO authenticated
+  USING (public.is_state_admin())
+  WITH CHECK (public.is_state_admin());
+CREATE POLICY "Public can read current region municipality links" ON public.region_municipalities AS PERMISSIVE FOR SELECT TO anon, authenticated
+  USING ((valid_until IS NULL));
+CREATE POLICY "Public can view region municipality links" ON public.region_municipalities AS PERMISSIVE FOR SELECT TO anon, authenticated
+  USING (((valid_from <= CURRENT_DATE) AND ((valid_until IS NULL) OR (valid_until >= CURRENT_DATE))));
+CREATE POLICY "Public can read regions" ON public.regions AS PERMISSIVE FOR SELECT TO anon, authenticated
+  USING (((is_active = true) AND (state_code = 'SC'::text)));
+CREATE POLICY regions_scoped_read ON public.regions AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((( SELECT public.adh_is_global_board() AS adh_is_global_board) OR (state_code = ANY (( SELECT public.adh_my_managed_ufs() AS adh_my_managed_ufs)::text[]))));
+CREATE POLICY regions_update_contacts ON public.regions AS PERMISSIVE FOR UPDATE TO authenticated
+  USING (public.adh_is_state_manager_of(state_code))
+  WITH CHECK (public.adh_is_state_manager_of(state_code));
+CREATE POLICY scope_roles_read_own ON public.scope_roles AS PERMISSIVE FOR SELECT TO authenticated
+  USING (((user_id = ( SELECT auth.uid() AS uid)) OR public.adh_is_global_board()));
+CREATE POLICY scope_roles_write ON public.scope_roles AS PERMISSIVE FOR ALL TO authenticated
+  USING (public.is_state_admin())
+  WITH CHECK (public.is_state_admin());
+CREATE POLICY speaker_editors_read ON public.speaker_editors AS PERMISSIVE FOR SELECT TO authenticated
+  USING (((user_id = auth.uid()) OR public.adh_is_state_manager()));
+CREATE POLICY speakers_admin_delete ON public.speakers AS PERMISSIVE FOR DELETE TO authenticated
+  USING (public.is_state_admin());
+CREATE POLICY speakers_leaders_read ON public.speakers AS PERMISSIVE FOR SELECT TO authenticated
+  USING (public.adh_is_leader());
+CREATE POLICY speakers_managers_insert ON public.speakers AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((public.adh_can_manage_speakers() AND ((created_by IS NULL) OR (created_by = auth.uid()))));
+CREATE POLICY speakers_managers_update ON public.speakers AS PERMISSIVE FOR UPDATE TO authenticated
+  USING (public.adh_can_manage_speakers())
+  WITH CHECK (public.adh_can_manage_speakers());
+CREATE POLICY states_read ON public.states AS PERMISSIVE FOR SELECT TO public
+  USING (true);
+CREATE POLICY states_write ON public.states AS PERMISSIVE FOR ALL TO authenticated
+  USING (public.adh_is_global_board())
+  WITH CHECK (public.adh_is_global_board());
+CREATE POLICY announcements_admin_delete ON public.statewide_announcements AS PERMISSIVE FOR DELETE TO authenticated
+  USING (public.is_state_admin());
+CREATE POLICY announcements_levels_insert ON public.statewide_announcements AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK ((((scope = 'global'::text) AND public.adh_is_global_board()) OR ((scope = 'country'::text) AND public.adh_is_country_director(country_iso3))));
+CREATE POLICY announcements_levels_select ON public.statewide_announcements AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((((scope = 'global'::text) AND public.adh_is_global_board()) OR ((scope = 'country'::text) AND public.adh_is_country_director(country_iso3))));
+CREATE POLICY announcements_levels_update ON public.statewide_announcements AS PERMISSIVE FOR UPDATE TO authenticated
+  USING ((((scope = 'global'::text) AND public.adh_is_global_board()) OR ((scope = 'country'::text) AND public.adh_is_country_director(country_iso3))))
+  WITH CHECK ((((scope = 'global'::text) AND public.adh_is_global_board()) OR ((scope = 'country'::text) AND public.adh_is_country_director(country_iso3))));
+CREATE POLICY announcements_managers_insert ON public.statewide_announcements AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK (((scope = ANY (ARRAY['state'::text, 'regional'::text])) AND public.adh_is_state_manager_of(state_code)));
+CREATE POLICY announcements_managers_select ON public.statewide_announcements AS PERMISSIVE FOR SELECT TO authenticated
+  USING (((scope = ANY (ARRAY['state'::text, 'regional'::text])) AND public.adh_is_state_manager_of(state_code)));
+CREATE POLICY announcements_managers_update ON public.statewide_announcements AS PERMISSIVE FOR UPDATE TO authenticated
+  USING (((scope = ANY (ARRAY['state'::text, 'regional'::text])) AND public.adh_is_state_manager_of(state_code)))
+  WITH CHECK (((scope = ANY (ARRAY['state'::text, 'regional'::text])) AND public.adh_is_state_manager_of(state_code)));
+CREATE POLICY announcements_member_select ON public.statewide_announcements AS PERMISSIVE FOR SELECT TO authenticated
+  USING (((status = 'published'::text) AND public.adh_is_active_user() AND ((scope = 'global'::text) OR ((scope = 'country'::text) AND (country_iso3 = ANY (public.adh_user_countries()))) OR ((scope = 'state'::text) AND (state_code = ANY (public.adh_user_states()))) OR ((scope = 'regional'::text) AND (region_id = public.adh_member_region())))));
+CREATE POLICY announcements_public_read ON public.statewide_announcements AS PERMISSIVE FOR SELECT TO anon, authenticated
+  USING (((status = 'published'::text) AND is_public AND (scope = ANY (ARRAY['global'::text, 'country'::text])) AND (starts_at <= now()) AND ((ends_at IS NULL) OR (ends_at > now()))));
+CREATE POLICY announcements_regional_insert ON public.statewide_announcements AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK (((scope = 'regional'::text) AND public.adh_is_regional_director_of_region(region_id)));
+CREATE POLICY announcements_regional_select ON public.statewide_announcements AS PERMISSIVE FOR SELECT TO authenticated
+  USING (((scope = 'regional'::text) AND public.adh_is_regional_director_of_region(region_id)));
+CREATE POLICY announcements_regional_update ON public.statewide_announcements AS PERMISSIVE FOR UPDATE TO authenticated
+  USING (((scope = 'regional'::text) AND public.adh_is_regional_director_of_region(region_id)))
+  WITH CHECK (((scope = 'regional'::text) AND public.adh_is_regional_director_of_region(region_id)));
+CREATE POLICY "State admins can delete roles" ON public.user_roles AS PERMISSIVE FOR DELETE TO authenticated
+  USING (( SELECT public.is_state_admin() AS is_state_admin));
+CREATE POLICY "State admins can insert roles" ON public.user_roles AS PERMISSIVE FOR INSERT TO authenticated
+  WITH CHECK (( SELECT public.is_state_admin() AS is_state_admin));
+CREATE POLICY "State admins can update roles" ON public.user_roles AS PERMISSIVE FOR UPDATE TO authenticated
+  USING (( SELECT public.is_state_admin() AS is_state_admin))
+  WITH CHECK (( SELECT public.is_state_admin() AS is_state_admin));
+CREATE POLICY "State admins can view all roles" ON public.user_roles AS PERMISSIVE FOR SELECT TO authenticated
+  USING (( SELECT public.is_state_admin() AS is_state_admin));
+CREATE POLICY "Users can view own role" ON public.user_roles AS PERMISSIVE FOR SELECT TO authenticated
+  USING ((user_id = ( SELECT auth.uid() AS uid)));
+CREATE POLICY user_roles_president_sees_members ON public.user_roles AS PERMISSIVE FOR SELECT TO authenticated
+  USING (((role = 'member'::text) AND (chapter_id IN ( SELECT public.adh_president_chapters() AS adh_president_chapters))));
+
+-- ===== PERMISSÕES =====
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC, anon, authenticated;
+GRANT INSERT ON TABLE public.access_requests TO anon;
+GRANT INSERT ON TABLE public.access_requests TO authenticated;
+GRANT SELECT ON TABLE public.access_requests TO authenticated;
+GRANT UPDATE ON TABLE public.access_requests TO authenticated;
+GRANT DELETE ON TABLE public.access_requests TO service_role;
+GRANT INSERT ON TABLE public.access_requests TO service_role;
+GRANT REFERENCES ON TABLE public.access_requests TO service_role;
+GRANT SELECT ON TABLE public.access_requests TO service_role;
+GRANT TRIGGER ON TABLE public.access_requests TO service_role;
+GRANT TRUNCATE ON TABLE public.access_requests TO service_role;
+GRANT UPDATE ON TABLE public.access_requests TO service_role;
+GRANT REFERENCES ON TABLE public.account_deletion_requests TO anon;
+GRANT TRIGGER ON TABLE public.account_deletion_requests TO anon;
+GRANT TRUNCATE ON TABLE public.account_deletion_requests TO anon;
+GRANT REFERENCES ON TABLE public.account_deletion_requests TO authenticated;
+GRANT TRIGGER ON TABLE public.account_deletion_requests TO authenticated;
+GRANT TRUNCATE ON TABLE public.account_deletion_requests TO authenticated;
+GRANT DELETE ON TABLE public.account_deletion_requests TO service_role;
+GRANT INSERT ON TABLE public.account_deletion_requests TO service_role;
+GRANT REFERENCES ON TABLE public.account_deletion_requests TO service_role;
+GRANT SELECT ON TABLE public.account_deletion_requests TO service_role;
+GRANT TRIGGER ON TABLE public.account_deletion_requests TO service_role;
+GRANT TRUNCATE ON TABLE public.account_deletion_requests TO service_role;
+GRANT UPDATE ON TABLE public.account_deletion_requests TO service_role;
+GRANT INSERT ON TABLE public.admin_audit_log TO authenticated;
+GRANT SELECT ON TABLE public.admin_audit_log TO authenticated;
+GRANT DELETE ON TABLE public.admin_audit_log TO service_role;
+GRANT INSERT ON TABLE public.admin_audit_log TO service_role;
+GRANT REFERENCES ON TABLE public.admin_audit_log TO service_role;
+GRANT SELECT ON TABLE public.admin_audit_log TO service_role;
+GRANT TRIGGER ON TABLE public.admin_audit_log TO service_role;
+GRANT TRUNCATE ON TABLE public.admin_audit_log TO service_role;
+GRANT UPDATE ON TABLE public.admin_audit_log TO service_role;
+GRANT DELETE ON TABLE public.approval_delegations TO service_role;
+GRANT INSERT ON TABLE public.approval_delegations TO service_role;
+GRANT REFERENCES ON TABLE public.approval_delegations TO service_role;
+GRANT SELECT ON TABLE public.approval_delegations TO service_role;
+GRANT TRIGGER ON TABLE public.approval_delegations TO service_role;
+GRANT TRUNCATE ON TABLE public.approval_delegations TO service_role;
+GRANT UPDATE ON TABLE public.approval_delegations TO service_role;
+GRANT DELETE ON TABLE public.backup_snapshots TO service_role;
+GRANT INSERT ON TABLE public.backup_snapshots TO service_role;
+GRANT REFERENCES ON TABLE public.backup_snapshots TO service_role;
+GRANT SELECT ON TABLE public.backup_snapshots TO service_role;
+GRANT TRIGGER ON TABLE public.backup_snapshots TO service_role;
+GRANT TRUNCATE ON TABLE public.backup_snapshots TO service_role;
+GRANT UPDATE ON TABLE public.backup_snapshots TO service_role;
+GRANT DELETE ON TABLE public.chapter_contacts TO authenticated;
+GRANT INSERT ON TABLE public.chapter_contacts TO authenticated;
+GRANT REFERENCES ON TABLE public.chapter_contacts TO authenticated;
+GRANT SELECT ON TABLE public.chapter_contacts TO authenticated;
+GRANT TRIGGER ON TABLE public.chapter_contacts TO authenticated;
+GRANT TRUNCATE ON TABLE public.chapter_contacts TO authenticated;
+GRANT UPDATE ON TABLE public.chapter_contacts TO authenticated;
+GRANT DELETE ON TABLE public.chapter_contacts TO service_role;
+GRANT INSERT ON TABLE public.chapter_contacts TO service_role;
+GRANT REFERENCES ON TABLE public.chapter_contacts TO service_role;
+GRANT SELECT ON TABLE public.chapter_contacts TO service_role;
+GRANT TRIGGER ON TABLE public.chapter_contacts TO service_role;
+GRANT TRUNCATE ON TABLE public.chapter_contacts TO service_role;
+GRANT UPDATE ON TABLE public.chapter_contacts TO service_role;
+GRANT DELETE ON TABLE public.chapter_meeting_log TO authenticated;
+GRANT INSERT ON TABLE public.chapter_meeting_log TO authenticated;
+GRANT REFERENCES ON TABLE public.chapter_meeting_log TO authenticated;
+GRANT SELECT ON TABLE public.chapter_meeting_log TO authenticated;
+GRANT TRIGGER ON TABLE public.chapter_meeting_log TO authenticated;
+GRANT TRUNCATE ON TABLE public.chapter_meeting_log TO authenticated;
+GRANT UPDATE ON TABLE public.chapter_meeting_log TO authenticated;
+GRANT DELETE ON TABLE public.chapter_meeting_log TO service_role;
+GRANT INSERT ON TABLE public.chapter_meeting_log TO service_role;
+GRANT REFERENCES ON TABLE public.chapter_meeting_log TO service_role;
+GRANT SELECT ON TABLE public.chapter_meeting_log TO service_role;
+GRANT TRIGGER ON TABLE public.chapter_meeting_log TO service_role;
+GRANT TRUNCATE ON TABLE public.chapter_meeting_log TO service_role;
+GRANT UPDATE ON TABLE public.chapter_meeting_log TO service_role;
+GRANT DELETE ON TABLE public.chapter_monthly_reports TO authenticated;
+GRANT INSERT ON TABLE public.chapter_monthly_reports TO authenticated;
+GRANT REFERENCES ON TABLE public.chapter_monthly_reports TO authenticated;
+GRANT SELECT ON TABLE public.chapter_monthly_reports TO authenticated;
+GRANT TRIGGER ON TABLE public.chapter_monthly_reports TO authenticated;
+GRANT TRUNCATE ON TABLE public.chapter_monthly_reports TO authenticated;
+GRANT UPDATE ON TABLE public.chapter_monthly_reports TO authenticated;
+GRANT DELETE ON TABLE public.chapter_monthly_reports TO service_role;
+GRANT INSERT ON TABLE public.chapter_monthly_reports TO service_role;
+GRANT REFERENCES ON TABLE public.chapter_monthly_reports TO service_role;
+GRANT SELECT ON TABLE public.chapter_monthly_reports TO service_role;
+GRANT TRIGGER ON TABLE public.chapter_monthly_reports TO service_role;
+GRANT TRUNCATE ON TABLE public.chapter_monthly_reports TO service_role;
+GRANT UPDATE ON TABLE public.chapter_monthly_reports TO service_role;
+GRANT DELETE ON TABLE public.chapter_public_info TO authenticated;
+GRANT INSERT ON TABLE public.chapter_public_info TO authenticated;
+GRANT REFERENCES ON TABLE public.chapter_public_info TO authenticated;
+GRANT SELECT ON TABLE public.chapter_public_info TO authenticated;
+GRANT TRIGGER ON TABLE public.chapter_public_info TO authenticated;
+GRANT TRUNCATE ON TABLE public.chapter_public_info TO authenticated;
+GRANT UPDATE ON TABLE public.chapter_public_info TO authenticated;
+GRANT DELETE ON TABLE public.chapter_public_info TO service_role;
+GRANT INSERT ON TABLE public.chapter_public_info TO service_role;
+GRANT REFERENCES ON TABLE public.chapter_public_info TO service_role;
+GRANT SELECT ON TABLE public.chapter_public_info TO service_role;
+GRANT TRIGGER ON TABLE public.chapter_public_info TO service_role;
+GRANT TRUNCATE ON TABLE public.chapter_public_info TO service_role;
+GRANT UPDATE ON TABLE public.chapter_public_info TO service_role;
+GRANT DELETE ON TABLE public.chapter_reports TO authenticated;
+GRANT INSERT ON TABLE public.chapter_reports TO authenticated;
+GRANT SELECT ON TABLE public.chapter_reports TO authenticated;
+GRANT UPDATE ON TABLE public.chapter_reports TO authenticated;
+GRANT DELETE ON TABLE public.chapter_reports TO service_role;
+GRANT INSERT ON TABLE public.chapter_reports TO service_role;
+GRANT REFERENCES ON TABLE public.chapter_reports TO service_role;
+GRANT SELECT ON TABLE public.chapter_reports TO service_role;
+GRANT TRIGGER ON TABLE public.chapter_reports TO service_role;
+GRANT TRUNCATE ON TABLE public.chapter_reports TO service_role;
+GRANT UPDATE ON TABLE public.chapter_reports TO service_role;
+GRANT REFERENCES ON TABLE public.chapter_status_history TO authenticated;
+GRANT SELECT ON TABLE public.chapter_status_history TO authenticated;
+GRANT TRIGGER ON TABLE public.chapter_status_history TO authenticated;
+GRANT TRUNCATE ON TABLE public.chapter_status_history TO authenticated;
+GRANT DELETE ON TABLE public.chapter_status_history TO service_role;
+GRANT INSERT ON TABLE public.chapter_status_history TO service_role;
+GRANT REFERENCES ON TABLE public.chapter_status_history TO service_role;
+GRANT SELECT ON TABLE public.chapter_status_history TO service_role;
+GRANT TRIGGER ON TABLE public.chapter_status_history TO service_role;
+GRANT TRUNCATE ON TABLE public.chapter_status_history TO service_role;
+GRANT UPDATE ON TABLE public.chapter_status_history TO service_role;
+GRANT DELETE ON TABLE public.chapter_support_reports TO authenticated;
+GRANT INSERT ON TABLE public.chapter_support_reports TO authenticated;
+GRANT REFERENCES ON TABLE public.chapter_support_reports TO authenticated;
+GRANT SELECT ON TABLE public.chapter_support_reports TO authenticated;
+GRANT TRIGGER ON TABLE public.chapter_support_reports TO authenticated;
+GRANT TRUNCATE ON TABLE public.chapter_support_reports TO authenticated;
+GRANT UPDATE ON TABLE public.chapter_support_reports TO authenticated;
+GRANT DELETE ON TABLE public.chapter_support_reports TO service_role;
+GRANT INSERT ON TABLE public.chapter_support_reports TO service_role;
+GRANT REFERENCES ON TABLE public.chapter_support_reports TO service_role;
+GRANT SELECT ON TABLE public.chapter_support_reports TO service_role;
+GRANT TRIGGER ON TABLE public.chapter_support_reports TO service_role;
+GRANT TRUNCATE ON TABLE public.chapter_support_reports TO service_role;
+GRANT UPDATE ON TABLE public.chapter_support_reports TO service_role;
+GRANT SELECT ON TABLE public.chapter_supports TO authenticated;
+GRANT DELETE ON TABLE public.chapter_supports TO service_role;
+GRANT INSERT ON TABLE public.chapter_supports TO service_role;
+GRANT REFERENCES ON TABLE public.chapter_supports TO service_role;
+GRANT SELECT ON TABLE public.chapter_supports TO service_role;
+GRANT TRIGGER ON TABLE public.chapter_supports TO service_role;
+GRANT TRUNCATE ON TABLE public.chapter_supports TO service_role;
+GRANT UPDATE ON TABLE public.chapter_supports TO service_role;
+GRANT SELECT ON TABLE public.chapters TO anon;
+GRANT DELETE ON TABLE public.chapters TO authenticated;
+GRANT INSERT ON TABLE public.chapters TO authenticated;
+GRANT SELECT ON TABLE public.chapters TO authenticated;
+GRANT UPDATE ON TABLE public.chapters TO authenticated;
+GRANT DELETE ON TABLE public.chapters TO service_role;
+GRANT INSERT ON TABLE public.chapters TO service_role;
+GRANT REFERENCES ON TABLE public.chapters TO service_role;
+GRANT SELECT ON TABLE public.chapters TO service_role;
+GRANT TRIGGER ON TABLE public.chapters TO service_role;
+GRANT TRUNCATE ON TABLE public.chapters TO service_role;
+GRANT UPDATE ON TABLE public.chapters TO service_role;
+GRANT DELETE ON TABLE public.countries TO service_role;
+GRANT INSERT ON TABLE public.countries TO service_role;
+GRANT REFERENCES ON TABLE public.countries TO service_role;
+GRANT SELECT ON TABLE public.countries TO service_role;
+GRANT TRIGGER ON TABLE public.countries TO service_role;
+GRANT TRUNCATE ON TABLE public.countries TO service_role;
+GRANT UPDATE ON TABLE public.countries TO service_role;
+GRANT REFERENCES ON TABLE public.device_tokens TO anon;
+GRANT TRIGGER ON TABLE public.device_tokens TO anon;
+GRANT TRUNCATE ON TABLE public.device_tokens TO anon;
+GRANT REFERENCES ON TABLE public.device_tokens TO authenticated;
+GRANT TRIGGER ON TABLE public.device_tokens TO authenticated;
+GRANT TRUNCATE ON TABLE public.device_tokens TO authenticated;
+GRANT DELETE ON TABLE public.device_tokens TO service_role;
+GRANT INSERT ON TABLE public.device_tokens TO service_role;
+GRANT REFERENCES ON TABLE public.device_tokens TO service_role;
+GRANT SELECT ON TABLE public.device_tokens TO service_role;
+GRANT TRIGGER ON TABLE public.device_tokens TO service_role;
+GRANT TRUNCATE ON TABLE public.device_tokens TO service_role;
+GRANT UPDATE ON TABLE public.device_tokens TO service_role;
+GRANT SELECT ON TABLE public.events TO anon;
+GRANT DELETE ON TABLE public.events TO authenticated;
+GRANT INSERT ON TABLE public.events TO authenticated;
+GRANT SELECT ON TABLE public.events TO authenticated;
+GRANT UPDATE ON TABLE public.events TO authenticated;
+GRANT DELETE ON TABLE public.events TO service_role;
+GRANT INSERT ON TABLE public.events TO service_role;
+GRANT REFERENCES ON TABLE public.events TO service_role;
+GRANT SELECT ON TABLE public.events TO service_role;
+GRANT TRIGGER ON TABLE public.events TO service_role;
+GRANT TRUNCATE ON TABLE public.events TO service_role;
+GRANT UPDATE ON TABLE public.events TO service_role;
+GRANT DELETE ON TABLE public.leader_mandates TO authenticated;
+GRANT INSERT ON TABLE public.leader_mandates TO authenticated;
+GRANT REFERENCES ON TABLE public.leader_mandates TO authenticated;
+GRANT SELECT ON TABLE public.leader_mandates TO authenticated;
+GRANT TRIGGER ON TABLE public.leader_mandates TO authenticated;
+GRANT TRUNCATE ON TABLE public.leader_mandates TO authenticated;
+GRANT UPDATE ON TABLE public.leader_mandates TO authenticated;
+GRANT DELETE ON TABLE public.leader_mandates TO service_role;
+GRANT INSERT ON TABLE public.leader_mandates TO service_role;
+GRANT REFERENCES ON TABLE public.leader_mandates TO service_role;
+GRANT SELECT ON TABLE public.leader_mandates TO service_role;
+GRANT TRIGGER ON TABLE public.leader_mandates TO service_role;
+GRANT TRUNCATE ON TABLE public.leader_mandates TO service_role;
+GRANT UPDATE ON TABLE public.leader_mandates TO service_role;
+GRANT DELETE ON TABLE public.library_docs TO authenticated;
+GRANT INSERT ON TABLE public.library_docs TO authenticated;
+GRANT SELECT ON TABLE public.library_docs TO authenticated;
+GRANT UPDATE ON TABLE public.library_docs TO authenticated;
+GRANT DELETE ON TABLE public.library_docs TO service_role;
+GRANT INSERT ON TABLE public.library_docs TO service_role;
+GRANT REFERENCES ON TABLE public.library_docs TO service_role;
+GRANT SELECT ON TABLE public.library_docs TO service_role;
+GRANT TRIGGER ON TABLE public.library_docs TO service_role;
+GRANT TRUNCATE ON TABLE public.library_docs TO service_role;
+GRANT UPDATE ON TABLE public.library_docs TO service_role;
+GRANT SELECT ON TABLE public.municipalities TO anon;
+GRANT SELECT ON TABLE public.municipalities TO authenticated;
+GRANT DELETE ON TABLE public.municipalities TO service_role;
+GRANT INSERT ON TABLE public.municipalities TO service_role;
+GRANT REFERENCES ON TABLE public.municipalities TO service_role;
+GRANT SELECT ON TABLE public.municipalities TO service_role;
+GRANT TRIGGER ON TABLE public.municipalities TO service_role;
+GRANT TRUNCATE ON TABLE public.municipalities TO service_role;
+GRANT UPDATE ON TABLE public.municipalities TO service_role;
+GRANT DELETE ON TABLE public.municipality_boundaries_import TO service_role;
+GRANT INSERT ON TABLE public.municipality_boundaries_import TO service_role;
+GRANT REFERENCES ON TABLE public.municipality_boundaries_import TO service_role;
+GRANT SELECT ON TABLE public.municipality_boundaries_import TO service_role;
+GRANT TRIGGER ON TABLE public.municipality_boundaries_import TO service_role;
+GRANT TRUNCATE ON TABLE public.municipality_boundaries_import TO service_role;
+GRANT UPDATE ON TABLE public.municipality_boundaries_import TO service_role;
+GRANT REFERENCES ON TABLE public.notification_reads TO anon;
+GRANT TRIGGER ON TABLE public.notification_reads TO anon;
+GRANT TRUNCATE ON TABLE public.notification_reads TO anon;
+GRANT REFERENCES ON TABLE public.notification_reads TO authenticated;
+GRANT TRIGGER ON TABLE public.notification_reads TO authenticated;
+GRANT TRUNCATE ON TABLE public.notification_reads TO authenticated;
+GRANT DELETE ON TABLE public.notification_reads TO service_role;
+GRANT INSERT ON TABLE public.notification_reads TO service_role;
+GRANT REFERENCES ON TABLE public.notification_reads TO service_role;
+GRANT SELECT ON TABLE public.notification_reads TO service_role;
+GRANT TRIGGER ON TABLE public.notification_reads TO service_role;
+GRANT TRUNCATE ON TABLE public.notification_reads TO service_role;
+GRANT UPDATE ON TABLE public.notification_reads TO service_role;
+GRANT REFERENCES ON TABLE public.notifications TO anon;
+GRANT TRIGGER ON TABLE public.notifications TO anon;
+GRANT TRUNCATE ON TABLE public.notifications TO anon;
+GRANT REFERENCES ON TABLE public.notifications TO authenticated;
+GRANT TRIGGER ON TABLE public.notifications TO authenticated;
+GRANT TRUNCATE ON TABLE public.notifications TO authenticated;
+GRANT DELETE ON TABLE public.notifications TO service_role;
+GRANT INSERT ON TABLE public.notifications TO service_role;
+GRANT REFERENCES ON TABLE public.notifications TO service_role;
+GRANT SELECT ON TABLE public.notifications TO service_role;
+GRANT TRIGGER ON TABLE public.notifications TO service_role;
+GRANT TRUNCATE ON TABLE public.notifications TO service_role;
+GRANT UPDATE ON TABLE public.notifications TO service_role;
+GRANT INSERT ON TABLE public.profiles TO authenticated;
+GRANT SELECT ON TABLE public.profiles TO authenticated;
+GRANT UPDATE ON TABLE public.profiles TO authenticated;
+GRANT DELETE ON TABLE public.profiles TO service_role;
+GRANT INSERT ON TABLE public.profiles TO service_role;
+GRANT REFERENCES ON TABLE public.profiles TO service_role;
+GRANT SELECT ON TABLE public.profiles TO service_role;
+GRANT TRIGGER ON TABLE public.profiles TO service_role;
+GRANT TRUNCATE ON TABLE public.profiles TO service_role;
+GRANT UPDATE ON TABLE public.profiles TO service_role;
+GRANT SELECT ON TABLE public.public_announcements TO anon;
+GRANT SELECT ON TABLE public.public_announcements TO authenticated;
+GRANT DELETE ON TABLE public.public_announcements TO service_role;
+GRANT INSERT ON TABLE public.public_announcements TO service_role;
+GRANT REFERENCES ON TABLE public.public_announcements TO service_role;
+GRANT SELECT ON TABLE public.public_announcements TO service_role;
+GRANT TRIGGER ON TABLE public.public_announcements TO service_role;
+GRANT TRUNCATE ON TABLE public.public_announcements TO service_role;
+GRANT UPDATE ON TABLE public.public_announcements TO service_role;
+GRANT REFERENCES ON TABLE public.public_chapter_contacts TO anon;
+GRANT SELECT ON TABLE public.public_chapter_contacts TO anon;
+GRANT TRIGGER ON TABLE public.public_chapter_contacts TO anon;
+GRANT TRUNCATE ON TABLE public.public_chapter_contacts TO anon;
+GRANT REFERENCES ON TABLE public.public_chapter_contacts TO authenticated;
+GRANT SELECT ON TABLE public.public_chapter_contacts TO authenticated;
+GRANT TRIGGER ON TABLE public.public_chapter_contacts TO authenticated;
+GRANT TRUNCATE ON TABLE public.public_chapter_contacts TO authenticated;
+GRANT DELETE ON TABLE public.public_chapter_contacts TO service_role;
+GRANT INSERT ON TABLE public.public_chapter_contacts TO service_role;
+GRANT REFERENCES ON TABLE public.public_chapter_contacts TO service_role;
+GRANT SELECT ON TABLE public.public_chapter_contacts TO service_role;
+GRANT TRIGGER ON TABLE public.public_chapter_contacts TO service_role;
+GRANT TRUNCATE ON TABLE public.public_chapter_contacts TO service_role;
+GRANT UPDATE ON TABLE public.public_chapter_contacts TO service_role;
+GRANT REFERENCES ON TABLE public.public_chapter_info TO anon;
+GRANT SELECT ON TABLE public.public_chapter_info TO anon;
+GRANT TRIGGER ON TABLE public.public_chapter_info TO anon;
+GRANT TRUNCATE ON TABLE public.public_chapter_info TO anon;
+GRANT REFERENCES ON TABLE public.public_chapter_info TO authenticated;
+GRANT SELECT ON TABLE public.public_chapter_info TO authenticated;
+GRANT TRIGGER ON TABLE public.public_chapter_info TO authenticated;
+GRANT TRUNCATE ON TABLE public.public_chapter_info TO authenticated;
+GRANT DELETE ON TABLE public.public_chapter_info TO service_role;
+GRANT INSERT ON TABLE public.public_chapter_info TO service_role;
+GRANT REFERENCES ON TABLE public.public_chapter_info TO service_role;
+GRANT SELECT ON TABLE public.public_chapter_info TO service_role;
+GRANT TRIGGER ON TABLE public.public_chapter_info TO service_role;
+GRANT TRUNCATE ON TABLE public.public_chapter_info TO service_role;
+GRANT UPDATE ON TABLE public.public_chapter_info TO service_role;
+GRANT DELETE ON TABLE public.ranking_grants TO service_role;
+GRANT INSERT ON TABLE public.ranking_grants TO service_role;
+GRANT REFERENCES ON TABLE public.ranking_grants TO service_role;
+GRANT SELECT ON TABLE public.ranking_grants TO service_role;
+GRANT TRIGGER ON TABLE public.ranking_grants TO service_role;
+GRANT TRUNCATE ON TABLE public.ranking_grants TO service_role;
+GRANT UPDATE ON TABLE public.ranking_grants TO service_role;
+GRANT REFERENCES ON TABLE public.ranking_settings TO authenticated;
+GRANT SELECT ON TABLE public.ranking_settings TO authenticated;
+GRANT TRIGGER ON TABLE public.ranking_settings TO authenticated;
+GRANT TRUNCATE ON TABLE public.ranking_settings TO authenticated;
+GRANT UPDATE ON TABLE public.ranking_settings TO authenticated;
+GRANT DELETE ON TABLE public.ranking_settings TO service_role;
+GRANT INSERT ON TABLE public.ranking_settings TO service_role;
+GRANT REFERENCES ON TABLE public.ranking_settings TO service_role;
+GRANT SELECT ON TABLE public.ranking_settings TO service_role;
+GRANT TRIGGER ON TABLE public.ranking_settings TO service_role;
+GRANT TRUNCATE ON TABLE public.ranking_settings TO service_role;
+GRANT UPDATE ON TABLE public.ranking_settings TO service_role;
+GRANT SELECT ON TABLE public.region_municipalities TO anon;
+GRANT SELECT ON TABLE public.region_municipalities TO authenticated;
+GRANT DELETE ON TABLE public.region_municipalities TO service_role;
+GRANT INSERT ON TABLE public.region_municipalities TO service_role;
+GRANT REFERENCES ON TABLE public.region_municipalities TO service_role;
+GRANT SELECT ON TABLE public.region_municipalities TO service_role;
+GRANT TRIGGER ON TABLE public.region_municipalities TO service_role;
+GRANT TRUNCATE ON TABLE public.region_municipalities TO service_role;
+GRANT UPDATE ON TABLE public.region_municipalities TO service_role;
+GRANT SELECT ON TABLE public.regions TO authenticated;
+GRANT DELETE ON TABLE public.regions TO service_role;
+GRANT INSERT ON TABLE public.regions TO service_role;
+GRANT REFERENCES ON TABLE public.regions TO service_role;
+GRANT SELECT ON TABLE public.regions TO service_role;
+GRANT TRIGGER ON TABLE public.regions TO service_role;
+GRANT TRUNCATE ON TABLE public.regions TO service_role;
+GRANT UPDATE ON TABLE public.regions TO service_role;
+GRANT DELETE ON TABLE public.scope_roles TO service_role;
+GRANT INSERT ON TABLE public.scope_roles TO service_role;
+GRANT REFERENCES ON TABLE public.scope_roles TO service_role;
+GRANT SELECT ON TABLE public.scope_roles TO service_role;
+GRANT TRIGGER ON TABLE public.scope_roles TO service_role;
+GRANT TRUNCATE ON TABLE public.scope_roles TO service_role;
+GRANT UPDATE ON TABLE public.scope_roles TO service_role;
+GRANT SELECT ON TABLE public.speaker_editors TO authenticated;
+GRANT DELETE ON TABLE public.speaker_editors TO service_role;
+GRANT INSERT ON TABLE public.speaker_editors TO service_role;
+GRANT REFERENCES ON TABLE public.speaker_editors TO service_role;
+GRANT SELECT ON TABLE public.speaker_editors TO service_role;
+GRANT TRIGGER ON TABLE public.speaker_editors TO service_role;
+GRANT TRUNCATE ON TABLE public.speaker_editors TO service_role;
+GRANT UPDATE ON TABLE public.speaker_editors TO service_role;
+GRANT DELETE ON TABLE public.speakers TO authenticated;
+GRANT INSERT ON TABLE public.speakers TO authenticated;
+GRANT SELECT ON TABLE public.speakers TO authenticated;
+GRANT UPDATE ON TABLE public.speakers TO authenticated;
+GRANT DELETE ON TABLE public.speakers TO service_role;
+GRANT INSERT ON TABLE public.speakers TO service_role;
+GRANT REFERENCES ON TABLE public.speakers TO service_role;
+GRANT SELECT ON TABLE public.speakers TO service_role;
+GRANT TRIGGER ON TABLE public.speakers TO service_role;
+GRANT TRUNCATE ON TABLE public.speakers TO service_role;
+GRANT UPDATE ON TABLE public.speakers TO service_role;
+GRANT DELETE ON TABLE public.states TO service_role;
+GRANT INSERT ON TABLE public.states TO service_role;
+GRANT REFERENCES ON TABLE public.states TO service_role;
+GRANT SELECT ON TABLE public.states TO service_role;
+GRANT TRIGGER ON TABLE public.states TO service_role;
+GRANT TRUNCATE ON TABLE public.states TO service_role;
+GRANT UPDATE ON TABLE public.states TO service_role;
+GRANT DELETE ON TABLE public.statewide_announcements TO authenticated;
+GRANT INSERT ON TABLE public.statewide_announcements TO authenticated;
+GRANT SELECT ON TABLE public.statewide_announcements TO authenticated;
+GRANT UPDATE ON TABLE public.statewide_announcements TO authenticated;
+GRANT DELETE ON TABLE public.statewide_announcements TO service_role;
+GRANT INSERT ON TABLE public.statewide_announcements TO service_role;
+GRANT REFERENCES ON TABLE public.statewide_announcements TO service_role;
+GRANT SELECT ON TABLE public.statewide_announcements TO service_role;
+GRANT TRIGGER ON TABLE public.statewide_announcements TO service_role;
+GRANT TRUNCATE ON TABLE public.statewide_announcements TO service_role;
+GRANT UPDATE ON TABLE public.statewide_announcements TO service_role;
+GRANT DELETE ON TABLE public.user_roles TO authenticated;
+GRANT INSERT ON TABLE public.user_roles TO authenticated;
+GRANT SELECT ON TABLE public.user_roles TO authenticated;
+GRANT UPDATE ON TABLE public.user_roles TO authenticated;
+GRANT DELETE ON TABLE public.user_roles TO service_role;
+GRANT INSERT ON TABLE public.user_roles TO service_role;
+GRANT REFERENCES ON TABLE public.user_roles TO service_role;
+GRANT SELECT ON TABLE public.user_roles TO service_role;
+GRANT TRIGGER ON TABLE public.user_roles TO service_role;
+GRANT TRUNCATE ON TABLE public.user_roles TO service_role;
+GRANT UPDATE ON TABLE public.user_roles TO service_role;
+GRANT UPDATE (full_name) ON TABLE public.profiles TO authenticated;
+GRANT UPDATE (phone) ON TABLE public.profiles TO authenticated;
+GRANT SELECT (id) ON TABLE public.regions TO anon;
+GRANT SELECT (name) ON TABLE public.regions TO anon;
+GRANT SELECT (description) ON TABLE public.regions TO anon;
+GRANT SELECT (is_active) ON TABLE public.regions TO anon;
+GRANT SELECT (created_at) ON TABLE public.regions TO anon;
+GRANT SELECT (updated_at) ON TABLE public.regions TO anon;
+GRANT SELECT (director_name) ON TABLE public.regions TO anon;
+GRANT UPDATE (director_name) ON TABLE public.regions TO authenticated;
+GRANT SELECT (field_representatives) ON TABLE public.regions TO anon;
+GRANT UPDATE (field_representatives) ON TABLE public.regions TO authenticated;
+GRANT UPDATE (director_phone) ON TABLE public.regions TO authenticated;
+GRANT SELECT (state_code) ON TABLE public.regions TO anon;
+GRANT SELECT (id) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (title) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (category) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (priority) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (summary) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (body) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (starts_at) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (ends_at) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (action_label) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (action_url) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (status) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (published_at) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (scope) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (country_iso3) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT (is_public) ON TABLE public.statewide_announcements TO anon;
+GRANT SELECT ON SEQUENCE public.account_deletion_requests_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.account_deletion_requests_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.account_deletion_requests_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.admin_audit_log_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.admin_audit_log_id_seq TO authenticated;
+GRANT UPDATE ON SEQUENCE public.admin_audit_log_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.admin_audit_log_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.admin_audit_log_id_seq TO authenticated;
+GRANT SELECT ON SEQUENCE public.backup_snapshots_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.backup_snapshots_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.backup_snapshots_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.chapter_meeting_log_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.chapter_meeting_log_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.chapter_meeting_log_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.chapter_monthly_reports_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.chapter_monthly_reports_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.chapter_monthly_reports_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.chapter_reports_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.chapter_reports_id_seq TO authenticated;
+GRANT UPDATE ON SEQUENCE public.chapter_reports_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.chapter_reports_id_seq TO authenticated;
+GRANT USAGE ON SEQUENCE public.chapter_reports_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.chapter_status_history_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.chapter_status_history_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.chapter_status_history_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.chapter_support_reports_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.chapter_support_reports_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.chapter_support_reports_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.chapters_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.chapters_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.chapters_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.events_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.events_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.events_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.leader_mandates_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.leader_mandates_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.leader_mandates_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.municipalities_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.municipalities_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.municipalities_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.notifications_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.notifications_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.notifications_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.ranking_grants_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.ranking_grants_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.ranking_grants_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.region_municipalities_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.region_municipalities_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.region_municipalities_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.regions_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.regions_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.regions_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.scope_roles_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.scope_roles_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.scope_roles_id_seq TO service_role;
+GRANT SELECT ON SEQUENCE public.speakers_id_seq TO authenticated;
+GRANT SELECT ON SEQUENCE public.speakers_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.speakers_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.speakers_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.speakers_id_seq TO authenticated;
+GRANT SELECT ON SEQUENCE public.statewide_announcements_id_seq TO authenticated;
+GRANT SELECT ON SEQUENCE public.statewide_announcements_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.statewide_announcements_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.statewide_announcements_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.statewide_announcements_id_seq TO authenticated;
+GRANT SELECT ON SEQUENCE public.user_roles_id_seq TO service_role;
+GRANT UPDATE ON SEQUENCE public.user_roles_id_seq TO service_role;
+GRANT USAGE ON SEQUENCE public.user_roles_id_seq TO service_role;
+
+REVOKE ALL ON FUNCTION public.adh_announcement_defaults() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_announcement_defaults() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_audit_row() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_audit_row() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_backup_export() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_backup_export() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_backup_list() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_backup_list() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_backup_snapshot_now() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_backup_snapshot_now() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_can_manage_speakers() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_can_manage_speakers() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_can_manage_speakers() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_can_see_report_chapter(bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_can_see_report_chapter(bigint) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_can_see_report_chapter(bigint) TO service_role;
+REVOKE ALL ON FUNCTION public.adh_can_see_support(bigint,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_can_see_support(bigint,text) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_can_submit_support(bigint,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_can_submit_support(bigint,text) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_contact_stamp() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_dump_json() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_global_overview() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_global_overview() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_grant_scope_role(text,text,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_grant_scope_role(text,text,text,text) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_grant_speaker_editor(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_grant_speaker_editor(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_grant_speaker_editor(text) TO service_role;
+REVOKE ALL ON FUNCTION public.adh_guard_access_request() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_guard_access_request() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_guard_chapter_report() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_guard_chapter_report() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_guard_monthly_report() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_guard_monthly_report() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_guard_support_report() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_has_role(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_has_role(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_has_role(text) TO service_role;
+REVOKE ALL ON FUNCTION public.adh_info_stamp() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_is_active_user() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_active_user() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_is_coordinator_of(bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_coordinator_of(bigint) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_is_country_director(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_country_director(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_is_global_board() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_global_board() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_is_leader() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_leader() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_is_leader() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_is_member() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_member() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_is_member() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_is_president_of(bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_president_of(bigint) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_is_president_of(bigint) TO service_role;
+REVOKE ALL ON FUNCTION public.adh_is_regional_director_of(bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_regional_director_of(bigint) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_is_regional_director_of(bigint) TO service_role;
+REVOKE ALL ON FUNCTION public.adh_is_regional_director_of_region(bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_regional_director_of_region(bigint) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_is_regional_director_of_region(bigint) TO service_role;
+REVOKE ALL ON FUNCTION public.adh_is_state_director_of(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_state_director_of(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_is_state_manager() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_state_manager() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_is_state_manager() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_is_state_manager_of(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_state_manager_of(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_is_support_coord_of(bigint,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_is_support_coord_of(bigint,text) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_lgpd_anonymize(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_lgpd_anonymize(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_lgpd_export(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_lgpd_export(text) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_lib_has(text[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_lib_has(text[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_lib_has(text[]) TO service_role;
+REVOKE ALL ON FUNCTION public.adh_lib_stamp() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_list_scope_roles() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_list_scope_roles() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_list_speaker_editors() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_list_speaker_editors() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_list_speaker_editors() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_log_chapter_status() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_log_chapter_status() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_make_event_reminders() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_mandate_stamp() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_mark_notifications_read(bigint[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_mark_notifications_read(bigint[]) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_meeting_guard() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_member_region() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_member_region() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_member_region() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_my_country_dirs() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_my_country_dirs() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_my_managed_ufs() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_my_managed_ufs() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_my_notifications(integer) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_my_notifications(integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_my_president_chapter_ids() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_my_president_chapter_ids() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_my_ranking_access() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_my_ranking_access() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_my_rd_region_ids() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_my_rd_region_ids() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_my_scope_roles() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_my_scope_roles() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_national_overview() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_national_overview() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_notif_visible(public.notifications,uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_notif_visible(public.notifications,uuid) TO PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_president_chapters() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_president_chapters() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_president_chapters() TO service_role;
+REVOKE ALL ON FUNCTION public.adh_public_chapters_br() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_public_chapters_br() TO anon;
+GRANT EXECUTE ON FUNCTION public.adh_public_chapters_br() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_public_foreign_chapters() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_public_foreign_chapters() TO anon;
+GRANT EXECUTE ON FUNCTION public.adh_public_foreign_chapters() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_ranking(date) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_ranking(date) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_ranking(date) TO service_role;
+REVOKE ALL ON FUNCTION public.adh_ranking_access_list() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_ranking_access_list() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_ranking_access_set(text,text,bigint,boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_ranking_access_set(text,text,bigint,boolean) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_register_device(text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_register_device(text,text) TO anon;
+GRANT EXECUTE ON FUNCTION public.adh_register_device(text,text) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_request_account_deletion() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_request_account_deletion() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_revoke_scope_role(bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_revoke_scope_role(bigint) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_revoke_speaker_editor(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_revoke_speaker_editor(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adh_revoke_speaker_editor(uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.adh_seed_state_chapters(text,jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_seed_state_chapters(text,jsonb) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_seed_state_municipalities(text,jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_seed_state_municipalities(text,jsonb) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_send_notification(text,text,text,text,bigint,bigint,timestamp with time zone,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_send_notification(text,text,text,text,bigint,bigint,timestamp with time zone,text) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_set_chapter_support(bigint,text,boolean) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_set_chapter_support(bigint,text,boolean) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_set_state_chapter() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_set_state_regmun() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_stamp_consent() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_state_overview() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_state_overview() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_states_list() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_states_list() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_suggest_regions(text,jsonb,jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_suggest_regions(text,jsonb,jsonb) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_take_snapshot(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_trg_event_notify() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_trg_event_notify() TO PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_trg_request_notify() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_trg_request_notify() TO PUBLIC;
+REVOKE ALL ON FUNCTION public.adh_uf_of_chapter(bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_uf_of_chapter(bigint) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_uf_of_mandate(bigint,bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_uf_of_mandate(bigint,bigint) TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_user_countries() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_user_countries() TO authenticated;
+REVOKE ALL ON FUNCTION public.adh_user_states() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.adh_user_states() TO authenticated;
+REVOKE ALL ON FUNCTION public.is_state_admin() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.is_state_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_state_admin() TO service_role;
+REVOKE ALL ON FUNCTION public.review_access_request(uuid,text,text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.review_access_request(uuid,text,text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.review_access_request(uuid,text,text) TO service_role;
+REVOKE ALL ON FUNCTION public.rls_auto_enable() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.rls_auto_enable() TO service_role;
+REVOKE ALL ON FUNCTION public.set_adhonep_updated_at() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.set_adhonep_updated_at() TO service_role;
