@@ -2,3 +2,5 @@
 Thumbs.db
 *.zip
 .env
+node_modules/
+testes/node_modules/

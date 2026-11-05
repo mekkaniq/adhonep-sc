@@ -1,0 +1,64 @@
+name: Testes (banco e tela)
+# Roda a cada push e pull request. Não usa segredos nem a produção:
+# o banco é um Postgres novo montado só com o SQL do repositório; a tela usa o Supabase simulado.
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+defaults:
+  run:
+    shell: bash   # com pipefail: se o teste falhar, o passo falha mesmo usando tee
+concurrency:
+  group: testes-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  banco:
+    name: Banco (RLS e perfis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: teste
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: teste
+    steps:
+      - uses: actions/checkout@v4
+      - name: Testar banco
+        run: |
+          bash testes/banco/rodar.sh | tee resultado-banco.txt
+      - name: Resumo
+        if: always()
+        run: |
+          { echo '### Banco'; echo '```'; grep -E '^(OK|FAIL|==|RESULTADO)' resultado-banco.txt || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+  tela:
+    name: Tela (Playwright, Supabase simulado)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar Playwright
+        working-directory: testes
+        run: |
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+      - name: Testar tela
+        working-directory: testes
+        run: |
+          node tela/rodar.js | tee ../resultado-tela.txt
+      - name: Resumo
+        if: always()
+        run: |
+          { echo '### Tela'; echo '```'; grep -E '^(OK|FAIL|==|RESULTADO)' resultado-tela.txt || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
