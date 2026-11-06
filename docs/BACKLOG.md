@@ -38,6 +38,11 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   Atenção: nenhuma hospedagem esconde o código que roda no navegador (HTML/JS/CSS sempre chega ao F12). O que a Vercel
   acrescenta: repositório privado, cabeçalhos de segurança, proteção contra robôs/abuso (firewall) e funções no servidor —
   regras que hoje estão no JS da página podem ir para o servidor, aí sim ficam invisíveis.
+- 06/11/2026 — **Login continua valendo depois de voltar à página inicial e atualizar.** Hoje é o comportamento esperado:
+  a sessão fica guardada no navegador até clicar em "Sair" ou o acesso expirar (o Supabase renova sozinho).
+  Opções a decidir: sair sozinho após X minutos sem uso no painel; não lembrar o login ao fechar o navegador
+  (guardar só na aba aberta); pedir a senha de novo antes de ações sensíveis (excluir, mudar perfis); deixar o
+  "Sair" mais visível. No app, o Face ID cobre isso.
 
 ## Depois
 - Mapa do Brasil na plataforma global: país em partículas, cor com significado (grafite sem capítulo, dourado conforme os
