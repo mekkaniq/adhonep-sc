@@ -43,6 +43,11 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   Opções a decidir: sair sozinho após X minutos sem uso no painel; não lembrar o login ao fechar o navegador
   (guardar só na aba aberta); pedir a senha de novo antes de ações sensíveis (excluir, mudar perfis); deixar o
   "Sair" mais visível. No app, o Face ID cobre isso.
+- 06/11/2026 — **Sugestão do Eduardo: HTML gerado por PHP no servidor + CSS, com hospedagem e banco SQL próprios.**
+  O que ganha: a lógica fica no servidor (o navegador só recebe o HTML pronto), então regras e consultas não aparecem no F12.
+  O que custa: reescrever site e painel (hoje tudo é JS + Supabase); manter servidor, PHP e banco (atualizações, backup,
+  segurança); o app (Capacitor) e o modo offline dependem do JS atual. Meio-termo a avaliar: manter o Supabase e levar só
+  as partes sensíveis para funções no servidor (Supabase Edge Functions ou Vercel), sem reescrever tudo.
 
 ## Depois
 - Mapa do Brasil na plataforma global: país em partículas, cor com significado (grafite sem capítulo, dourado conforme os
