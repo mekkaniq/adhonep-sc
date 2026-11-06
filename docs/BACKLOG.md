@@ -30,6 +30,11 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   A segurança precisa estar no servidor: regras de acesso do banco (RLS), chaves secretas só no Supabase e nada sensível no código.
   A revisar: conferir que não há segredo, senha, dado pessoal ou regra de negócio sensível no código público; avaliar
   minificar/ofuscar (só dificulta a leitura, não protege); confirmar que tudo que importa é barrado pelo banco (já testado em `testes/banco`).
+- 06/11/2026 — **Hospedagem e "hardening".** Hoje: site no **GitHub Pages** a partir do repositório **público** `mekkaniq/adhonep-sc`
+  (o código também fica aberto no GitHub), domínio no Registro.br, dados e login no Supabase. Pontos a decidir:
+  repositório privado (GitHub Pages em repositório privado exige plano pago) ou mudar a hospedagem (Vercel / Cloudflare Pages);
+  o GitHub Pages não deixa configurar cabeçalhos de segurança (CSP, HSTS, X-Frame-Options, Referrer-Policy) — outra hospedagem deixa;
+  proteção contra uso das imagens por outros sites (hotlink), se for isso que o Eduardo quis dizer com "hardlink".
 
 ## Depois
 - Mapa do Brasil na plataforma global: país em partículas, cor com significado (grafite sem capítulo, dourado conforme os
