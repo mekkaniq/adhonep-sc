@@ -34,7 +34,10 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   (o código também fica aberto no GitHub), domínio no Registro.br, dados e login no Supabase. Pontos a decidir:
   repositório privado (GitHub Pages em repositório privado exige plano pago) ou mudar a hospedagem (Vercel / Cloudflare Pages);
   o GitHub Pages não deixa configurar cabeçalhos de segurança (CSP, HSTS, X-Frame-Options, Referrer-Policy) — outra hospedagem deixa;
-  proteção contra uso das imagens por outros sites (hotlink), se for isso que o Eduardo quis dizer com "hardlink".
+  o Eduardo confirmou que quer **hardening** (reforço de segurança). Ideia dele: Vercel plano pago.
+  Atenção: nenhuma hospedagem esconde o código que roda no navegador (HTML/JS/CSS sempre chega ao F12). O que a Vercel
+  acrescenta: repositório privado, cabeçalhos de segurança, proteção contra robôs/abuso (firewall) e funções no servidor —
+  regras que hoje estão no JS da página podem ir para o servidor, aí sim ficam invisíveis.
 
 ## Depois
 - Mapa do Brasil na plataforma global: país em partículas, cor com significado (grafite sem capítulo, dourado conforme os
