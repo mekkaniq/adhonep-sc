@@ -25,6 +25,12 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 10. **Importar a lista de usuários** (~30 diretores + ~70 presidentes) antes de liberar o app.
 11. **Ficha da App Store** (textos, privacidade, prints reais do iPhone) e ficha da Google Play.
 
+## Anotações do Eduardo (descobertas, ainda sem ação)
+- 06/11/2026 — **Código do site visível no F12.** Todo site mostra o próprio HTML/JS no navegador; isso é normal e não dá para esconder.
+  A segurança precisa estar no servidor: regras de acesso do banco (RLS), chaves secretas só no Supabase e nada sensível no código.
+  A revisar: conferir que não há segredo, senha, dado pessoal ou regra de negócio sensível no código público; avaliar
+  minificar/ofuscar (só dificulta a leitura, não protege); confirmar que tudo que importa é barrado pelo banco (já testado em `testes/banco`).
+
 ## Depois
 - Mapa do Brasil na plataforma global: país em partículas, cor com significado (grafite sem capítulo, dourado conforme os
   capítulos) e destaque ao passar o dedo (`beta-global/PENDENCIAS.md`).
