@@ -4,20 +4,9 @@
 ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.md`.
 
 ## Fazendo agora
-- Política de Privacidade e exclusão de conta conforme a Google Play + ajustes no app (branch `privacidade-google-play`).
+- (nada)
 
 ## Próximas (em ordem de prioridade)
-0. **Política de Privacidade e exclusão de conta conforme a Google Play** (necessário para a revisão do app Android).
-   Conferido com a regra da Google (support.google.com/googleplay/android-developer/answer/10144311) em 07/11/2026. Falta:
-   - citar o **app "ADHONEP SC"** e o desenvolvedor da conta (**Eduardo de Souza**) — a Google exige que quem aparece na loja esteja na política;
-   - dizer quais dados o **app** usa: localização (só ao tocar em "evento mais perto"), aviso no celular (registro do aparelho),
-     Face ID/biometria (fica só no aparelho, não é enviada) e dados de cadastro;
-   - seção clara de **exclusão de conta**: como pedir pelo app (Conta → Configurações → Excluir minha conta) e **fora do app**
-     (página na web com passo a passo/formulário — a Google exige esse link no Play Console), o que é apagado e o que fica guardado por lei;
-   - contato de privacidade da ADHONEP-SC (hoje só o e-mail da sede);
-   - data de "última atualização".
-   Já está de acordo: endereço público em HTML, link dentro do app, HTTPS, aceite no cadastro, sem venda nem anúncios,
-   permissão de localização pedida na hora do uso.
 1. **Aplicar a v3.17 na produção** (tirar TRUNCATE/TRIGGER/REFERENCES do visitante e do logado). Arquivo pronto em
    `supabase/migracoes/v3.17-sem-truncate-para-api.sql`; o teste do banco passa com ela. **Aguardando o ok do Eduardo.**
 2. **Confirmar as exceções de exclusão** que o teste do banco encontrou (hoje permitidas): presidente/diretores excluem
@@ -86,6 +75,10 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 - Apresentação ao diretor estadual: não rodar teste de carga na véspera; abrir site e app 2 h antes (o plano gratuito pausa).
 
 ## Feito
+- 07/11/2026 · claude v1.14 — Política de Privacidade conforme a Google Play (app ADHONEP SC, desenvolvedor, dados do app,
+  exclusão de conta) no oficial e no `/beta`; página pública `excluir-conta.html` (link do Play Console); "Excluir minha conta"
+  no app (Configurações) e em Minha conta; lista de pedidos de exclusão para o administrador concluir; função
+  `rapid-responder` v4 (exclusão completa); aviso antes de pedir localização; builds Android 4 e iOS 10.
 - 04/11/2026 · claude v1.13 — Roteiro de entrega no `CLAUDE.md`; este backlog; testes do banco (Postgres do zero, RLS,
   visitante, perfis) e de tela (Playwright com Supabase simulado) rodando no GitHub a cada push/PR; estrutura do banco de
   produção guardada em `supabase/esquema/00-base.sql`; achado e corrigido (pendente de ok) o TRUNCATE liberado para a API.
