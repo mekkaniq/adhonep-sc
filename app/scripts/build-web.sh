@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 rm -rf www && mkdir -p www
 B=../beta
-cp "$B/index.html" "$B/styles.css" "$B/manifest.webmanifest" "$B/privacidade.html" "$B/termos.html" www/
+cp "$B/index.html" "$B/styles.css" "$B/manifest.webmanifest" "$B/privacidade.html" "$B/termos.html" "$B/excluir-conta.html" www/
 cp -r "$B/js" "$B/assets" "$B/data" www/
 rm -rf www/assets/video            # o app não usa o vídeo de capa (usa o globo)
 find www/data/mun -type f ! -name SC.json -delete   # app = só Santa Catarina

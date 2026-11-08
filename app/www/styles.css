@@ -1211,3 +1211,5 @@ html.in-app #eventsSection .ev-empty{border-color:rgba(255,255,255,.22);color:#c
 /* convite inteiro aparece (convites são verticais) */
 .ev-img.has-img{height:auto;aspect-ratio:4/5;background:#0b1b33}
 .ev-img.has-img img{object-fit:contain}
+/* excluir conta em Configurações */
+.mr-r.st-del .lb{color:#b4424a}.mr-r.st-del .ic:first-child{color:#b4424a}

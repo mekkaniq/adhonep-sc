@@ -120,6 +120,51 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await ctx.close();
     }
 
+    // ===== 5) privacidade e exclusão de conta (Google Play / App Store / LGPD) =====
+    {
+      const fs2 = require('fs');
+      for (const pasta of ['beta/']) {   // o oficial entra aqui quando a raiz for atualizada (passo 5)
+        const pol = fs2.readFileSync(path.join(RAIZ, pasta + 'privacidade.html'), 'utf8');
+        const onde = pasta ? '/beta' : 'oficial';
+        confere(`Política (${onde}): cita o app ADHONEP SC e o desenvolvedor`, pol.includes('ADHONEP SC') && pol.includes('Eduardo de Souza'));
+        confere(`Política (${onde}): explica localização, notificações e Face ID`, /Localização/.test(pol) && /Notificações/.test(pol) && /Face ID/.test(pol));
+        confere(`Política (${onde}): diz o que é apagado e o que fica na exclusão`, pol.includes('Exclusão da conta') && pol.includes('sem ligação com a pessoa'));
+        confere(`Política (${onde}): aponta a página de exclusão e tem data de atualização`, pol.includes('excluir-conta.html') && /Última atualização: \d{2}\/\d{2}\/\d{4}/.test(pol));
+        const exc = path.join(RAIZ, pasta + 'excluir-conta.html');
+        const txt = fs2.existsSync(exc) ? fs2.readFileSync(exc, 'utf8') : '';
+        confere(`Página de exclusão (${onde}): existe e ensina pelo app, pelo site e por e-mail`, txt.includes('Pelo aplicativo') && txt.includes('Pelo site') && txt.includes('mail'));
+      }
+      const { ctx, page, erros, log } = await abrir(browser, 'chapter_president', false);
+      await entrar(page);
+      await page.evaluate(() => openModal ? openModal('accountModal') : null).catch(() => {});
+      await page.waitForTimeout(400);
+      confere('Minha conta: tem "Solicitar exclusão da conta"', await page.evaluate(() => !!document.getElementById('acctDelBtn')));
+      await page.evaluate(() => { window.adhDialog = async () => true; document.getElementById('acctDelBtn').click(); });
+      await page.waitForTimeout(800);
+      confere('Minha conta: pedido de exclusão vai para o banco', log.some((x) => x.p.endsWith('/rpc/adh_request_account_deletion')));
+      confere('Minha conta: sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+    }
+    {
+      const { ctx, page, erros } = await abrir(browser, 'state_admin', false);
+      await entrar(page);
+      await page.evaluate(() => { showPage('users', document.querySelector('.nav[data-page="users"]')); loadRealUsers(); });
+      await page.waitForTimeout(1500);
+      const txt = await page.evaluate(() => document.getElementById('delReqBox')?.innerText || '');
+      confere('Administração: vê os pedidos de exclusão pendentes', txt.includes('TESTE Pessoa que pediu exclusão'), txt.slice(0, 120));
+      confere('Administração: tem botão para concluir a exclusão', await page.evaluate(() => !!document.querySelector('#delReqBox [data-delreq]')));
+      confere('Administração: sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrir(browser, 'chapter_president', false);
+      await entrar(page);
+      await page.evaluate(() => showPage('users', document.querySelector('.nav[data-page="users"]'))).catch(() => {});
+      await page.waitForTimeout(800);
+      confere('Presidente: não vê pedidos de exclusão', await page.evaluate(() => { const b = document.getElementById('delReqBox'); return !b || b.hidden; }));
+      await ctx.close();
+    }
+
     // ===== 4) celular (390 px): nenhuma tela com rolagem para o lado =====
     {
       const { ctx, page } = await abrir(browser, null, true);
