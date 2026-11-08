@@ -4,7 +4,7 @@
 ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.md`.
 
 ## Fazendo agora
-- (nada — o próximo item sai de "Próximas")
+- Política de Privacidade e exclusão de conta conforme a Google Play + ajustes no app (branch `privacidade-google-play`).
 
 ## Próximas (em ordem de prioridade)
 0. **Política de Privacidade e exclusão de conta conforme a Google Play** (necessário para a revisão do app Android).

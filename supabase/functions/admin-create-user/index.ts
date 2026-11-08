@@ -1,5 +1,5 @@
-// Edge Function: admin-create-user  (ADHONEP-SC · claude v1.12) — publicada no Supabase com o endereço "rapid-responder"
-// Ações: create (padrão) · get · update · delete · set_active
+// Edge Function: admin-create-user  (ADHONEP-SC · claude v1.14) — publicada no Supabase com o endereço "rapid-responder"
+// Ações: create (padrão) · get · update · delete · set_active · deletion_requests
 //  - Administrador (state_admin): tudo.
 //  - Presidente de capítulo: cria, edita, desativa e reativa SÓCIOS (role 'member') do PRÓPRIO capítulo. Nunca exclui.
 // Cadastro sem passar pelo painel do Supabase:
@@ -54,21 +54,42 @@ Deno.serve(async (req) => {
       return null;
     };
 
-    // ---------- excluir (somente administrador)
+    // ---------- pedidos de exclusão de conta pendentes (somente administrador)
+    if (action === "deletion_requests") {
+      if (!isAdmin) return json({ error: "Somente o administrador vê os pedidos de exclusão." }, 403);
+      const { data: reqs, error } = await admin.from("account_deletion_requests").select("id,user_id,email,created_at").eq("status", "pending").order("created_at");
+      if (error) return json({ error: error.message }, 400);
+      const ids = [...new Set((reqs || []).map((r) => r.user_id))];
+      const { data: profs } = ids.length ? await admin.from("profiles").select("id,full_name").in("id", ids) : { data: [] };
+      const nome = new Map((profs || []).map((p) => [p.id, p.full_name]));
+      return json({ ok: true, requests: (reqs || []).map((r) => ({ ...r, full_name: nome.get(r.user_id) || null })) });
+    }
+
+    // ---------- excluir (somente administrador) — apaga de verdade (exigência LGPD / App Store / Google Play)
     if (action === "delete") {
       if (!isAdmin) return json({ error: "Somente o administrador pode excluir usuários." }, 403);
       const uid = String(b.user_id || "");
       if (!uid) return json({ error: "Usuário não informado." }, 400);
       if (uid === me) return json({ error: "Você não pode excluir a sua própria conta." }, 400);
-      // apaga o login primeiro (perfil e designações saem junto, em cascata); se falhar, nada fica pela metade
+      const { data: alvo } = await admin.auth.admin.getUserById(uid);
+      const email = String(alvo?.user?.email || "").toLowerCase();
+      // solta os registros que apontam para a pessoa sem apagar junto (ficam sem vínculo)
+      await admin.from("access_requests").update({ reviewed_by: null }).eq("reviewed_by", uid);
+      await admin.from("approval_delegations").update({ granted_by: null }).eq("granted_by", uid);
+      await admin.from("scope_roles").update({ granted_by: null }).eq("granted_by", uid);
+      // o pedido de cadastro da própria pessoa tem dados pessoais: sai junto
+      if (email) await admin.from("access_requests").delete().ilike("email", email);
+      // apaga o login; perfil, designações, aparelhos e leituras saem em cascata
       const { error } = await admin.auth.admin.deleteUser(uid);
       if (error) {
-        // login preso a algum registro (ex.: aprovou pedidos de cadastro): tira o acesso e deixa o e-mail livre para reaproveitar
+        // não deveria acontecer; se acontecer, tira o acesso e os dados pessoais e deixa registrado
         await admin.from("user_roles").delete().eq("user_id", uid);
         await admin.from("profiles").delete().eq("id", uid);
         await admin.auth.admin.updateUserById(uid, { ban_duration: "876000h" });
-        return json({ ok: true, mode: "bloqueado" });
+        await admin.from("account_deletion_requests").update({ status: "done", done_at: new Date().toISOString() }).eq("user_id", uid).eq("status", "pending");
+        return json({ ok: true, mode: "bloqueado", note: error.message });
       }
+      await admin.from("account_deletion_requests").update({ status: "done", done_at: new Date().toISOString(), email: null }).eq("user_id", uid).eq("status", "pending");
       return json({ ok: true });
     }
 

@@ -57,6 +57,12 @@ async function simular(page, papel) {
     if (p.endsWith('/events')) return json(r, eventos);
     if (p.endsWith('/public_announcements')) return json(r, comunicados);
     if (p.endsWith('/public_chapter_contacts')) return json(r, capitulos.map((c) => ({ chapter_id: c.id, president_phone: '' })));
+    if (p.includes('/functions/v1/')) {   // função de usuários (rapid-responder)
+      const acao = corpo && corpo.action;
+      if (acao === 'deletion_requests') return json(r, { ok: true, requests: papel === 'state_admin' ? [{ id: 1, user_id: 'u-sair', email: 'quer.sair@teste.invalid', created_at: dia(-2), full_name: 'TESTE Pessoa que pediu exclusão' }] : [] });
+      return json(r, { ok: true });
+    }
+    if (p.endsWith('/rpc/adh_request_account_deletion')) return json(r, { ok: true, admin: false });
     if (p.endsWith('/rpc/adh_my_ranking_access')) return json(r, papel === 'state_admin' || papel === 'state_director' ? 'state' : papel === 'regional_director' ? 'region' : 'none');
     if (p.endsWith('/rpc/adh_ranking')) return json(r, { month: '2026-10-01', chapters: [], regions: [], settings: {} });
     if (p.includes('/rpc/')) return json(r, null);

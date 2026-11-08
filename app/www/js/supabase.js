@@ -859,7 +859,7 @@ function adhRenderAttention(){
 
 
 /* LGPD — versão da política aceita e direitos do titular (claude v1.x) */
-var ADH_POLICY_VERSION='privacidade-2026-10-25';
+var ADH_POLICY_VERSION='privacidade-2026-11-07';
 function lgpdMsg(t,ok){var m=document.getElementById('lgpdMsg');if(m){m.textContent=t;m.style.color=ok?'#1f7a4a':'#a83c42'}}
 async function lgpdExport(ev){ev.preventDefault();var em=document.getElementById('lgpdEmail').value.trim();lgpdMsg('Gerando…',true);try{var r=await adhFetch('/rest/v1/rpc/adh_lgpd_export',{method:'POST',body:JSON.stringify({p_email:em})});var blob=new Blob([JSON.stringify(r,null,2)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='dados-titular-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();lgpdMsg('✓ Arquivo gerado e ação registrada no histórico.',true)}catch(e){lgpdMsg('Não foi possível gerar: '+e.message,false)}}
 async function lgpdAnonymize(){var em=document.getElementById('lgpdEmail').value.trim();if(!em){lgpdMsg('Informe o e-mail do titular.',false);return}if(!confirm('Anonimizar os dados de '+em+'? Isso bloqueia o login e não pode ser desfeito.'))return;lgpdMsg('Processando…',true);try{var r=await adhFetch('/rest/v1/rpc/adh_lgpd_anonymize',{method:'POST',body:JSON.stringify({p_email:em})});lgpdMsg('✓ Concluído: '+r.solicitacoes_anonimizadas+' solicitação(ões), '+r.perfis_anonimizados+' perfil(is), '+r.papeis_desativados+' papel(éis). '+r.nao_alterado,true)}catch(e){lgpdMsg('Não foi possível anonimizar: '+e.message,false)}}

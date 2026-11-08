@@ -159,7 +159,9 @@ function buildEvents(){
  fetch('data/sc-cent.json').then(function(r){return r.json()}).then(function(j){S.cent=j;
   $('evCities').innerHTML=Object.keys(j.n).map(function(k){return '<option value="'+esc(j.n[k])+'">'}).join('');renderEv()}).catch(function(){});
  $('evCity').addEventListener('input',function(){var k=norm(this.value);if(S.cent&&S.cent.c[k]){S.pt={ll:S.cent.c[k],label:S.cent.n[k]};renderEv()}else if(!k){S.pt=null;renderEv()}});
- $('evGeo').onclick=function(){if(!navigator.geolocation){showRes('Localização indisponível. Digite sua cidade.');return}
+ $('evGeo').onclick=async function(){if(!navigator.geolocation){showRes('Localização indisponível. Digite sua cidade.');return}
+  var ja=false;try{ja=localStorage.getItem('adh-geo-ok')==='1'}catch(e){}
+  if(!ja){var ok=typeof adhDialog==='function'?await adhDialog({title:'Usar sua localização?',message:'O app usa a localização do seu celular só agora, para mostrar os eventos mais perto de você. Ela não é enviada nem guardada. Em seguida o celular vai pedir a sua autorização.',confirmLabel:'Continuar'}):confirm('Usar sua localização só agora para achar o evento mais perto? Ela não é enviada nem guardada.');if(!ok)return;try{localStorage.setItem('adh-geo-ok','1')}catch(e){}}
   navigator.geolocation.getCurrentPosition(function(p){S.pt={ll:[p.coords.latitude,p.coords.longitude],label:'você'};$('evCity').value='';renderEv()},function(){showRes('Não consegui sua localização. Digite sua cidade.')},{timeout:9000,maximumAge:600000})};
  $('evRail').addEventListener('scroll',function(){clearTimeout(S.dt);S.dt=setTimeout(dots,60)});
  $('evChips').addEventListener('click',function(e){var b=e.target.closest('[data-p]');if(!b)return;S.period=b.dataset.p;renderEv()})}
@@ -362,20 +364,21 @@ function homeAnim(on){var g=document.querySelector('#appHome .ah-globe'),v=g&&g.
 function settingsHtml(){
  var p=null;try{p=adhProfile}catch(e){}
  var pref='auto';try{pref=localStorage.getItem('adh-tema')||'auto'}catch(e){}
- var h='<div class="st-box"><div class="st-who"><b id="stName">'+esc((p&&p.label)||'Conta')+'</b><span id="stMail"></span></div><button class="mr-r" data-a="acct">'+ic('user')+'<span class="lb">Minha conta</span>'+ic('chev')+'</button></div>';
+ var h='<div class="st-box"><div class="st-who"><b id="stName">'+esc((p&&p.label)||'Conta')+'</b><span id="stMail"></span></div><button class="mr-r" data-a="acct">'+ic('user')+'<span class="lb">Minha conta</span>'+ic('chev')+'</button>'+((typeof adhSession!=='undefined'&&adhSession)?'<button class="mr-r st-del" data-a="del">'+ic('x')+'<span class="lb">Excluir minha conta</span>'+ic('chev')+'</button>':'')+'</div>';
  h+='<div class="st-g">Aparência</div><div class="st-box"><div class="st-seg" data-seg>'+[['auto','Automático','sliders'],['light','Claro','sun'],['dark','Escuro','moon']].map(function(t){return '<button type="button" data-t="'+t[0]+'" class="'+(pref===t[0]?'on':'')+'">'+ic(t[2],'xs')+t[1]+'</button>'}).join('')+'</div></div>';
  var fid='';if(window.adhFaceId&&window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())fid='<div class="st-g">Acesso</div><div class="st-box"><button class="mr-r" data-a="fid">'+ic('lock')+'<span class="lb">Entrar com Face ID</span><span class="st-st" id="fidSt">'+(adhFaceId.isOn()?'Ativado':'Desativado')+'</span></button></div>';
  h+=fid;
  var extra='';
  if(can('audit'))extra+='<button class="mr-r" data-a="audit">'+ic('clock')+'<span class="lb">Histórico de ações</span>'+ic('chev')+'</button>';
  if(can('lgpd'))extra+='<button class="mr-r" data-a="lgpd">'+ic('lock')+'<span class="lb">Privacidade (LGPD)</span>'+ic('chev')+'</button>';
- h+='<div class="st-g">Gestão</div><div class="st-box">'+(extra||'')+'<a class="mr-r" href="privacidade.html" style="text-decoration:none">'+ic('shield')+'<span class="lb">Política de privacidade</span>'+ic('chev')+'</a><a class="mr-r" href="termos.html" style="text-decoration:none">'+ic('file')+'<span class="lb">Termos de uso</span>'+ic('chev')+'</a></div>';
+ h+='<div class="st-g">Gestão</div><div class="st-box">'+(extra||'')+'<a class="mr-r" href="privacidade.html" style="text-decoration:none">'+ic('shield')+'<span class="lb">Política de privacidade</span>'+ic('chev')+'</a><a class="mr-r" href="termos.html" style="text-decoration:none">'+ic('file')+'<span class="lb">Termos de uso</span>'+ic('chev')+'</a><a class="mr-r" href="excluir-conta.html" style="text-decoration:none">'+ic('info')+'<span class="lb">Como excluir sua conta</span>'+ic('chev')+'</a></div>';
  h+='<div class="st-g"> </div><div class="st-box"><button class="mr-r" data-a="out">'+ic('logout')+'<span class="lb">Sair</span>'+ic('chev')+'</button></div><div class="st-ver">ADHONEP-SC · app '+esc(window.ADH_VER_APP||'')+'</div>';
  return h}
 function bindSettings(root,close){
  root.querySelectorAll('[data-t]').forEach(function(b){b.onclick=function(){setTheme(b.dataset.t);root.querySelectorAll('[data-t]').forEach(function(x){x.classList.toggle('on',x===b)})}});
  root.querySelectorAll('[data-a]').forEach(function(b){b.onclick=function(){var a=b.dataset.a;if(a!=='fid'&&close)close();
   if(a==='fid'){var st=root.querySelector('#fidSt');(adhFaceId.isOn()?adhFaceId.disable():adhFaceId.enable()).then(function(){if(st)st.textContent=adhFaceId.isOn()?'Ativado':'Desativado';toast(adhFaceId.isOn()?'Face ID ativado.':'Face ID desativado.')}).catch(function(){toast('Não foi possível ativar o Face ID.')});return}
+  if(a==='del'){if(window.adhPedirExclusao)adhPedirExclusao();return}
   if(a==='acct'){try{openAccount()}catch(e){}}
   else if(a==='audit'||a==='lgpd'){setMode('admin');go(a)}
   else if(a==='out'){try{signOutAdmin()}catch(e){}S.landed=false;S.rankAccess=null;S.unread=0;setTab('home')}}});
