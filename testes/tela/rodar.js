@@ -123,7 +123,7 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
     // ===== 5) privacidade e exclusão de conta (Google Play / App Store / LGPD) =====
     {
       const fs2 = require('fs');
-      for (const pasta of ['beta/']) {   // o oficial entra aqui quando a raiz for atualizada (passo 5)
+      for (const pasta of ['', 'beta/']) {   // oficial e /beta
         const pol = fs2.readFileSync(path.join(RAIZ, pasta + 'privacidade.html'), 'utf8');
         const onde = pasta ? '/beta' : 'oficial';
         confere(`Política (${onde}): cita o app ADHONEP SC e o desenvolvedor`, pol.includes('ADHONEP SC') && pol.includes('Eduardo de Souza'));

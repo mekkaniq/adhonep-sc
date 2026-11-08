@@ -8,7 +8,7 @@
  function addDelete(){
   var box=document.querySelector('#accountModal .modalbox');if(!box||$('acctDelete'))return;
   var d=document.createElement('div');d.id='acctDelete';d.style.cssText='margin-top:18px;padding-top:14px;border-top:1px solid #e4e9f1';
-  d.innerHTML='<b style="font-size:14px">Excluir minha conta</b><p class="sub" style="margin:6px 0 10px;font-size:13px">Seus acessos são desativados agora e a coordenação conclui a exclusão dos seus dados de login.</p><button type="button" class="btn" id="acctDelBtn" style="background:#fff;color:#a83c42;border:1px solid #e8b9bd">Solicitar exclusão da conta</button><p class="sub" id="acctDelMsg" style="font-size:13px"></p>';
+  d.innerHTML='<b style="font-size:14px">Excluir minha conta</b><p class="sub" style="margin:6px 0 10px;font-size:13px">Seus acessos são desativados na hora e a exclusão do login e do cadastro é concluída em até 30 dias. <a href="excluir-conta.html" target="_blank" rel="noopener">Como funciona</a></p><button type="button" class="btn" id="acctDelBtn" style="background:#fff;color:#a83c42;border:1px solid #e8b9bd">Solicitar exclusão da conta</button><p class="sub" id="acctDelMsg" style="font-size:13px"></p>';
   box.appendChild(d);
   $('acctDelBtn').onclick=async function(){
    var ok=typeof adhDialog==='function'?await adhDialog({title:'Excluir conta',message:'Tem certeza? Seus acessos serão desativados e você sairá do aplicativo.',confirmLabel:'Solicitar exclusão'}):confirm('Solicitar exclusão da conta?');
