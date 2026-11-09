@@ -6,6 +6,15 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 ## Fazendo agora
 - (nada)
 
+## Cronograma de lançamento do app (combinado em 08/11/2026)
+- **Semana 1 (09–15/11):** Apple: ficha da App Store (textos, Privacidade do app, prints, conta de revisão) e enviar o build 10 para análise até qua 11/11.
+  Google: Segurança dos dados + ficha da loja, build 4 no teste fechado, **12 testadores aceitos até qua 11/11** (começa a contar os 14 dias).
+  Decisões do Eduardo: ok na v3.17, Supabase Pro, lista de usuários para importar.
+- **Semana 2 (16–22/11):** resposta da Apple (1–3 dias) e correções; **lançar na App Store**; importar diretores e presidentes e enviar os acessos;
+  testadores Android usando o app (ao menos 1 abertura por dia); build com as correções.
+- **Semana 3 (23–29/11):** fim dos 14 dias (~25/11) → pedir acesso de produção na Google (análise de até ~7 dias); notificações push.
+- **Semana 4 (30/11–06/12):** **lançar na Google Play** (produção) e anunciar para os capítulos.
+
 ## Próximas (em ordem de prioridade)
 1. **Aplicar a v3.17 na produção** (tirar TRUNCATE/TRIGGER/REFERENCES do visitante e do logado). Arquivo pronto em
    `supabase/migracoes/v3.17-sem-truncate-para-api.sql`; o teste do banco passa com ela. **Aguardando o ok do Eduardo.**
