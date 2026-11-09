@@ -47,6 +47,8 @@ jobs:
           python3 -c "import re;p='App.xcodeproj/project.pbxproj';s=open(p).read();s=re.sub(r'(\\n\\s*)(PRODUCT_BUNDLE_IDENTIFIER = )',r'\\1CODE_SIGN_ENTITLEMENTS = App/App.entitlements;\\1\\2',s);open(p,'w').write(s)"
           sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = ${{ inputs.build_number }};/g" App.xcodeproj/project.pbxproj
           sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};/g" App.xcodeproj/project.pbxproj
+          # só iPhone (no iPad roda em modo iPhone): a App Store não exige prints de iPad
+          sed -i '' 's/TARGETED_DEVICE_FAMILY = "1,2";/TARGETED_DEVICE_FAMILY = 1;/g' App.xcodeproj/project.pbxproj
       - name: Archive (sem assinar; a assinatura de distribuição é feita na exportação)
         working-directory: app/ios/App
         run: |
