@@ -906,3 +906,6 @@ html.lvl-global .rolebar,html.lvl-brasil .rolebar{display:none!important}
 
 /* capa: ao terminar o vídeo (sozinho), o texto sobe com suavidade */
 .hero-vmode.vauto .hero-grid,.hero-vmode.vauto .hero-shade,.hero-vmode.vauto .hero-video,.hero-vmode.vauto .hero-sound{transition:opacity 1s ease,transform 1s ease,filter 1s ease}
+/* Apresentação em vídeo: acima da faixa do beta, botão de fechar visível no iPhone */
+.reel-modal{z-index:400}
+.reel-close{top:calc(env(safe-area-inset-top,0px) + 14px);z-index:3}
