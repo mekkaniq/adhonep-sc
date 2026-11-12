@@ -16,8 +16,8 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 - **Semana 4 (30/11–06/12):** **lançar na Google Play** (produção) e anunciar para os capítulos.
 
 ## Próximas (em ordem de prioridade)
-1. **Aplicar a v3.17 na produção** (tirar TRUNCATE/TRIGGER/REFERENCES do visitante e do logado). Arquivo pronto em
-   `supabase/migracoes/v3.17-sem-truncate-para-api.sql`; o teste do banco passa com ela. **Aguardando o ok do Eduardo.**
+1. ~~Aplicar a v3.17 na produção~~ **APLICADA em 12/11/2026** (migração `v3_17_sem_truncate_para_api`, a pedido do Eduardo). O arquivo
+   `supabase/migracoes/v3.17-sem-truncate-para-api.sql` ainda diz PENDENTE; atualizar para APLICADA.
 2. **Confirmar as exceções de exclusão** que o teste do banco encontrou (hoje permitidas): presidente/diretores excluem
    registro de reunião (`chapter_meeting_log`) e mandato (`leader_mandates`); quem enviou um documento da Biblioteca
    pode excluí-lo; diretor estadual também consegue excluir reuniões e mandatos. Manter ou restringir ao administrador?
@@ -33,6 +33,26 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 9. **Notificações push de verdade**: iOS (chave APNs + publicar `send-push`) e Android (Firebase / `GOOGLE_SERVICES_JSON`).
 10. **Importar a lista de usuários** (~30 diretores + ~70 presidentes) antes de liberar o app.
 11. **Ficha da App Store** (textos, privacidade, prints reais do iPhone) e ficha da Google Play.
+
+## Observações da reunião de 12/11/2026 (Eduardo) — a priorizar e dividir em pacotes
+Marcação: **[tela]** só site/app · **[banco]** mexe em banco/RLS/permissões (parar e pedir o ok do Eduardo antes de aplicar).
+- **Prioridade 1 · bug:** (5) **Informações do capítulo não gravaram.** Nenhum capítulo mudou no banco desde 08/11 (snapshot de 08/11 idêntico ao atual) e
+  `chapter_public_info` está vazia. Falta o Eduardo dizer quando/qual tela/qual capítulo/mensagem ao salvar para reproduzir.
+- **Correções:** (13) **[banco]** "Saúde dos capítulos" traz o Brasil todo: `adh_ranking` não filtra por SC (capítulos e regiões). Corrigir a função e testar antes/depois.
+  (4) **[tela]** mapa do painel: clicar em "Santa Catarina" não volta ao mapa completo (visto em tela cheia; não reproduzido sem login).
+  (3) **[tela]** relatório de eventos: máximo de 3 fotos.
+  (2) **[tela]** trocar "Quero ser sócio" por "Desejo ser sócio" (site público e app).
+  (15) **[tela]** menu: agrupar em seções recolhíveis (menu suspenso), melhorar a estética, principalmente no celular.
+- **Funcionalidades novas (precisam de decisão do Eduardo):**
+  (12) **[banco]** **Modo Eleição**: o secretário preenche a ata no sistema; vai ao diretor regional (e ao regente presente) e ao escritório nacional.
+  Eleição exige regente (diretor regional ou representante de campo). Absorve (6) atualizar presidente/diretoria pela ata, (10) modelo de ata na Biblioteca e (11) ata preenchida da diretoria.
+  Abertas: quem preenche (o "secretário" não é perfil de login hoje), como o escritório nacional recebe, se a diretoria nova vale na hora ou após confirmação.
+  (8) **[banco]** alerta de fim de mandato 60 e 30 dias antes da eleição (`leader_mandates.end_date`).
+  (7) **[banco]** evento com data vencida vira alerta de "relatório pendente" automaticamente.
+  (9) **[banco]** relatório de andamento do capítulo trimestral (hoje mensal, prazo dia 5), com alertas "relatório daqui a X dias"; revê os pontos e limites do ranking.
+  (14) **[banco]** preletores: nível de atualização ("está ativo?").
+- **Outros:** (1) pensar no marketing.
+- Backup completo feito em 12/11/2026 (`ADHONEP-BACKUP-2026-11-12.zip`, fora do repositório; contém dados pessoais).
 
 ## Anotações do Eduardo (descobertas, ainda sem ação)
 - 06/11/2026 — **Código do site visível no F12.** Todo site mostra o próprio HTML/JS no navegador; isso é normal e não dá para esconder.
