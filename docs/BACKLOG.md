@@ -4,7 +4,13 @@
 ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.md`.
 
 ## Fazendo agora
-- (nada)
+- **Hardening (16/11/2026, branch `claude/eloquent-ramanujan-sjl4cy`)** — briefing de segurança:
+  - [feito] varredura de chaves (gitleaks, histórico inteiro + zips): só a chave publicável; nada a rotacionar.
+  - [feito] revisão do banco (views, gatilhos, funções de ação/leitura, tabelas sem política): papéis checados por dentro.
+  - [pendente ok do Eduardo] `supabase/migracoes/v3.18-hardening-gatilhos-dispositivos.sql` (gatilhos fora da API; limite no token de dispositivo).
+  - [feito] `vercel.json` (CSP + Report-Only, anti-iframe, nosniff, HSTS sem preload) e `.vercelignore` (SQL/docs/testes fora do ar); teste de tela novo.
+  - A decidir: migrar para a Vercel depois da aprovação da Apple; Turnstile no login/cadastro; proteção de senhas vazadas (Pro);
+    confirmar se `www.adhonepemsc.com.br/docs/BACKLOG.md` abre hoje (Pages publica tudo da main).
 
 ## Cronograma de lançamento do app (combinado em 08/11/2026)
 - **Semana 1 (09–15/11):** Apple: ficha da App Store (textos, Privacidade do app, prints, conta de revisão) e enviar o build 10 para análise até qua 11/11.

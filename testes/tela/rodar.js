@@ -19,18 +19,22 @@ function confere(nome, cond, detalhe) {
   else { falhas++; console.log('FAIL ' + nome + (detalhe ? '  →  ' + detalhe : '')); }
 }
 
-function servidor() {
+// Cabeçalhos de segurança do vercel.json (CSP etc.), aplicados como a Vercel aplicaria — usados no servidor "com cabeçalhos".
+const CABECALHOS_VERCEL = Object.fromEntries((JSON.parse(fs.readFileSync(path.join(RAIZ, 'vercel.json'), 'utf8')).headers
+  .find((h) => h.source === '/(.*)') || { headers: [] }).headers.map((h) => [h.key, h.value]));
+
+function servidor(porta = PORTA, cabecalhos = {}) {
   return http.createServer((req, res) => {
     let f = path.join(RAIZ, decodeURIComponent(new URL(req.url, 'http://x').pathname));
     if (!f.startsWith(RAIZ)) { res.writeHead(403); return res.end(); }
     if (fs.existsSync(f) && fs.statSync(f).isDirectory()) f = path.join(f, 'index.html');
     if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); }
-    res.writeHead(200, { 'Content-Type': TIPOS[path.extname(f)] || 'application/octet-stream' });
+    res.writeHead(200, { ...cabecalhos, 'Content-Type': TIPOS[path.extname(f)] || 'application/octet-stream' });
     fs.createReadStream(f).pipe(res);
-  }).listen(PORTA);
+  }).listen(porta);
 }
 
-async function abrir(browser, papel, celular) {
+async function abrir(browser, papel, celular, base = BASE) {
   const ctx = await browser.newContext(celular
     ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 }
     : { viewport: { width: 1366, height: 900 } });
@@ -38,10 +42,12 @@ async function abrir(browser, papel, celular) {
   const page = await ctx.newPage();
   const erros = [];
   page.on('pageerror', (e) => erros.push(e.message));
+  const csp = [];   // avisos de CSP: bloqueios de verdade e os "Report-Only" (só avisam)
+  page.on('console', (m) => { if (/Content Security Policy/i.test(m.text())) csp.push(m.text()); });
   const log = await simular(page, papel);
-  await page.goto(BASE);
+  await page.goto(base);
   await page.waitForTimeout(1500);
-  return { ctx, page, erros, log };
+  return { ctx, page, erros, log, csp };
 }
 
 async function entrar(page) {
@@ -187,6 +193,30 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
         confere(`Celular, ${papel}, página "${pg}": sem rolagem lateral`, ok, larg);
       }
       await ctx.close();
+    }
+
+    // ===== 6) hardening: cabeçalhos de segurança da Vercel (vercel.json) não quebram o site =====
+    {
+      const srvV = servidor(PORTA + 1, CABECALHOS_VERCEL);
+      const baseV = `http://localhost:${PORTA + 1}/beta/index.html`;
+      try {
+        confere('vercel.json: tem CSP, CSP Report-Only, anti-iframe e nosniff',
+          ['Content-Security-Policy', 'Content-Security-Policy-Report-Only', 'X-Frame-Options', 'X-Content-Type-Options'].every((k) => CABECALHOS_VERCEL[k]));
+        confere("vercel.json: CSP proíbe o site dentro de iframe de outro domínio e nunca libera 'unsafe-eval'",
+          /frame-ancestors 'none'/.test(CABECALHOS_VERCEL['Content-Security-Policy']) && !/unsafe-eval/.test(JSON.stringify(CABECALHOS_VERCEL)));
+        for (const papel of [null, 'state_admin']) {
+          const nome = papel ? 'administrador logado' : 'site público';
+          const { ctx, page, erros, csp } = await abrir(browser, papel, false, baseV);
+          if (papel) await entrar(page);
+          await page.waitForTimeout(800);
+          const bloqueios = csp.filter((t) => !/report-only/i.test(t));
+          confere(`CSP da Vercel (${nome}): nada é bloqueado`, bloqueios.length === 0, bloqueios.slice(0, 3).join(' | '));
+          confere(`CSP da Vercel (${nome}): sem erro de JavaScript`, erros.length === 0, erros.join(' | '));
+          const avisos = csp.length - bloqueios.length;
+          console.log(`     (info) CSP Report-Only, ${nome}: ${avisos} aviso(s) — o que falta mudar para tirar 'unsafe-inline' dos scripts`);
+          await ctx.close();
+        }
+      } finally { srvV.close(); }
     }
   } catch (e) {
     confere('Os testes de tela rodaram até o fim', false, String(e && e.stack || e));
