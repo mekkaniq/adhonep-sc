@@ -35,6 +35,8 @@ Dono: Eduardo S. (GitHub `mekkaniq`). Fala em português, prefere tudo feito de 
 - Banco: `PGHOST=... PGUSER=... testes/banco/rodar.sh` — Postgres vazio, carrega `00-base.sql` + `migracoes/`, confere RLS,
   o que o visitante pode e as regras de perfil. Imprime OK/FAIL e sai com erro se falhar.
 - Tela: `cd testes && npm install && npx playwright install chromium && node tela/rodar.js` — `/beta` com Supabase simulado.
+- Segredos: gitleaks no histórico inteiro (regras em `.gitleaks.toml`; a chave `sb_publishable_` é liberada). Achou chave?
+  **Rotacionar no painel antes de apagar do código** (o histórico guarda).
 - **Funcionalidade nova entra com teste novo** (no `30-perfis.sql` se for regra de acesso; no `tela/rodar.js` se for tela).
 
 ## Roteiro de entrega (toda mudança)

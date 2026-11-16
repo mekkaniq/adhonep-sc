@@ -1,0 +1,21 @@
+# ADHONEP-SC · varredura de segredos (gitleaks) — roda a cada push no workflow "Testes (banco e tela)".
+# Regras padrão do gitleaks + regras do Supabase. A chave PUBLICÁVEL (sb_publishable_...) é pública por desenho
+# (vai no navegador), então é liberada. Qualquer outra chave encontrada faz o teste falhar.
+[extend]
+useDefault = true
+
+[[rules]]
+id = "supabase-secret-key"
+description = "Chave secreta do Supabase (sb_secret_...) — nunca pode ir para o repositório"
+regex = '''sb_secret_[A-Za-z0-9_-]{20,}'''
+keywords = ["sb_secret_"]
+
+[[rules]]
+id = "supabase-jwt-legado"
+description = "JWT do Supabase (anon/service_role legados). service_role dá acesso total ao banco"
+regex = '''eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'''
+keywords = ["eyj"]
+
+[allowlist]
+description = "Chave publicável do Supabase (pública por desenho)"
+regexes = ['''sb_publishable_[A-Za-z0-9_-]+''']

@@ -6,6 +6,7 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 ## Fazendo agora
 - **Hardening (16/11/2026, branch `claude/eloquent-ramanujan-sjl4cy`)** — briefing de segurança:
   - [feito] varredura de chaves (gitleaks, histórico inteiro + zips): só a chave publicável; nada a rotacionar.
+    Agora automática: job "Segredos" no workflow de testes, a cada push (`.gitleaks.toml`).
   - [feito] revisão do banco (views, gatilhos, funções de ação/leitura, tabelas sem política): papéis checados por dentro.
   - [APLICADA 16/11/2026] `supabase/migracoes/v3.18-hardening-gatilhos-dispositivos.sql` (gatilhos fora da API; limite no token de dispositivo).
   - [feito] `vercel.json` (CSP + Report-Only, anti-iframe, nosniff, HSTS sem preload) e `.vercelignore` (SQL/docs/testes fora do ar); teste de tela novo.
