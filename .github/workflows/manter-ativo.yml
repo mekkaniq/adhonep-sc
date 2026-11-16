@@ -1,0 +1,26 @@
+# ADHONEP-SC · "relógio" do Supabase (plano Free pausa o projeto após 7 dias sem uso).
+# Uma vez por dia faz uma leitura pública real na API (a mesma que o site faz para o visitante).
+# Usa só a chave publicável (já pública no site). Se falhar, o GitHub manda e-mail para o Eduardo.
+name: Supabase — manter ativo
+on:
+  schedule:
+    - cron: '17 9 * * *'   # todo dia ~06:17 em Brasília (horário do GitHub não é exato)
+  workflow_dispatch:
+permissions: {}
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Leitura pública no Supabase
+        run: |
+          for i in 1 2 3; do
+            code=$(curl -sS -o resp.json -w '%{http_code}' -m 30 \
+              "https://ayrdfetnscrfrlcssiua.supabase.co/rest/v1/chapters?select=id&limit=1" \
+              -H "apikey: sb_publishable_4q2FsB0DhzqgdR91JM0FDA_DMyuWNxs") || code=000
+            echo "tentativa $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 20
+          done
+          echo "::error::Supabase não respondeu. Pode estar pausado: abrir o painel e clicar em Restore."
+          exit 1

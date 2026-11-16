@@ -9,8 +9,13 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   - [feito] revisão do banco (views, gatilhos, funções de ação/leitura, tabelas sem política): papéis checados por dentro.
   - [pendente ok do Eduardo] `supabase/migracoes/v3.18-hardening-gatilhos-dispositivos.sql` (gatilhos fora da API; limite no token de dispositivo).
   - [feito] `vercel.json` (CSP + Report-Only, anti-iframe, nosniff, HSTS sem preload) e `.vercelignore` (SQL/docs/testes fora do ar); teste de tela novo.
-  - A decidir: migrar para a Vercel depois da aprovação da Apple; Turnstile no login/cadastro; proteção de senhas vazadas (Pro);
-    confirmar se `www.adhonepemsc.com.br/docs/BACKLOG.md` abre hoje (Pages publica tudo da main).
+  - **Confirmado 16/11: o Pages publica os arquivos internos** (`www.adhonepemsc.com.br/docs/BACKLOG.md` abre).
+    [feito] `scripts/montar-site.py` + workflow `publicar-site.yml` (Pages só com os arquivos do site); falta o Eduardo trocar
+    Settings → Pages → Source para "GitHub Actions" e criar a variável `PAGES_PELO_ACTIONS = sim`. Testes de tela rodam na pasta publicada.
+  - Supabase continua no **Free** (decisão do Eduardo, 16/11). [feito] `manter-ativo.yml` (leitura diária) e `backup-semanal.yml`
+    (banco criptografado → Google Drive, ~8 semanas; passo a passo em `docs/BACKUP.md`; faltam os 3 segredos).
+  - A decidir: migrar para a Vercel depois da aprovação da Apple; Turnstile no login/cadastro (grátis).
+    Proteção de senhas vazadas exige Pro: fica de fora.
 
 ## Cronograma de lançamento do app (combinado em 08/11/2026)
 - **Semana 1 (09–15/11):** Apple: ficha da App Store (textos, Privacidade do app, prints, conta de revisão) e enviar o build 10 para análise até qua 11/11.
@@ -79,7 +84,8 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 - Excluir no painel do Supabase as funções temporárias já desligadas (`importar-convites`, `exportar-esquema`).
 
 ## Comigo (fora do código) — Eduardo
-- Assinar o **Supabase Pro** (sem pausas, máquina maior; decisão depois da apresentação ao diretor estadual).
+- Supabase **fica no Free por enquanto** (16/11). Configurar o backup: 3 segredos no GitHub (`docs/BACKUP.md`).
+- Ativar o Pages pelo Actions (Settings → Pages → Source: GitHub Actions + variável `PAGES_PELO_ACTIONS = sim`).
 - **Google Play**: aguardar a verificação de identidade; fazer o login no app Play Console num **Android de verdade** (emprestado serve);
   juntar **12 a 16 testadores** com Gmail e Android (coordenadores do Apoio Jovem) para o teste fechado de 14 dias.
 - Rodar o workflow **App Android → Google Play** e cadastrar os segredos `ANDROID_KEYSTORE_B64` / `ANDROID_KEYSTORE_PASSWORD`.

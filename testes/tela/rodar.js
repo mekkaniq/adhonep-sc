@@ -7,7 +7,9 @@ const path = require('path');
 const { chromium } = require('playwright');
 const { simular } = require('./simulador');
 
-const RAIZ = path.resolve(__dirname, '../..');
+const REPO = path.resolve(__dirname, '../..');
+// ADH_SITE=pasta → testa a pasta montada por scripts/montar-site.py (o que de fato vai para o ar)
+const RAIZ = process.env.ADH_SITE ? path.resolve(process.env.ADH_SITE) : REPO;
 const PORTA = 8799;
 const BASE = `http://localhost:${PORTA}/beta/index.html`;
 const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.png': 'image/png',
@@ -20,7 +22,7 @@ function confere(nome, cond, detalhe) {
 }
 
 // Cabeçalhos de segurança do vercel.json (CSP etc.), aplicados como a Vercel aplicaria — usados no servidor "com cabeçalhos".
-const CABECALHOS_VERCEL = Object.fromEntries((JSON.parse(fs.readFileSync(path.join(RAIZ, 'vercel.json'), 'utf8')).headers
+const CABECALHOS_VERCEL = Object.fromEntries((JSON.parse(fs.readFileSync(path.join(REPO, 'vercel.json'), 'utf8')).headers
   .find((h) => h.source === '/(.*)') || { headers: [] }).headers.map((h) => [h.key, h.value]));
 
 function servidor(porta = PORTA, cabecalhos = {}) {

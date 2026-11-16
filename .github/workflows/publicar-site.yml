@@ -1,0 +1,37 @@
+# ADHONEP-SC · publica o site no GitHub Pages SÓ com os arquivos do site (sem docs, SQL, testes, zips).
+# Hoje o Pages publica a main inteira ("Deploy from a branch"), e por isso www.adhonepemsc.com.br/docs/BACKLOG.md abre.
+# Para ativar (Eduardo, uma vez):
+#   1) Settings → Pages → Build and deployment → Source: "GitHub Actions" (o domínio personalizado continua o mesmo)
+#   2) Settings → Secrets and variables → Actions → aba Variables → New variable: PAGES_PELO_ACTIONS = sim
+#   3) Actions → "Publicar site (GitHub Pages)" → Run workflow
+# Enquanto a variável não existir, este workflow não faz nada (o Pages continua como hoje).
+name: Publicar site (GitHub Pages)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: false
+jobs:
+  publicar:
+    if: vars.PAGES_PELO_ACTIONS == 'sim'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Montar o site (sem arquivos internos)
+        run: python3 scripts/montar-site.py _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

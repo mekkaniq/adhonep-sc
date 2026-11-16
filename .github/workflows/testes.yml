@@ -54,8 +54,16 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npx playwright install --with-deps chromium
-      - name: Testar tela
+      - name: Montar o site que vai para o ar (sem arquivos internos)
+        run: |
+          python3 scripts/montar-site.py _site
+          internos=$(cd _site && find . -type f \( -name '*.md' -o -name '*.sql' -o -name '*.zip' -o -name '*.py' -o -name '*.ts' -o -name '*.yml' \) | head)
+          if [ -n "$internos" ]; then echo "FAIL arquivos internos no site publicado:"; echo "$internos"; exit 1; fi
+          echo "OK   site publicado sem documentação, SQL, testes ou zips"
+      - name: Testar tela (na pasta publicada)
         working-directory: testes
+        env:
+          ADH_SITE: ../_site
         run: |
           node tela/rodar.js | tee ../resultado-tela.txt
       - name: Resumo
