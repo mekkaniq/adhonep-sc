@@ -12,8 +12,8 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   - **Confirmado 16/11: o Pages publica os arquivos internos** (`www.adhonepemsc.com.br/docs/BACKLOG.md` abre).
     [feito] `scripts/montar-site.py` + workflow `publicar-site.yml` (Pages só com os arquivos do site); falta o Eduardo trocar
     Settings → Pages → Source para "GitHub Actions" e criar a variável `PAGES_PELO_ACTIONS = sim`. Testes de tela rodam na pasta publicada.
-  - Supabase continua no **Free** (decisão do Eduardo, 16/11). [feito] `manter-ativo.yml` (leitura diária) e `backup-semanal.yml`
-    (banco criptografado → Google Drive, ~8 semanas; passo a passo em `docs/BACKUP.md`; faltam os 3 segredos).
+  - Supabase continua no **Free** (decisão do Eduardo, 16/11). [feito] `manter-ativo.yml` (leitura diária) e `backup-diario.yml`
+    (banco criptografado → Google Drive, 30 dias, ~1 MB por dia; passo a passo em `docs/BACKUP.md`; faltam os 3 segredos).
   - A decidir: migrar para a Vercel depois da aprovação da Apple; Turnstile no login/cadastro (grátis).
     Proteção de senhas vazadas exige Pro: fica de fora.
 

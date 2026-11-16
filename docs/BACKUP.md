@@ -1,8 +1,9 @@
 # Backup do banco — ADHONEP-SC
 
-O Supabase **Free não faz backup**. Toda semana (domingo de madrugada) o GitHub copia o banco inteiro
+O Supabase **Free não faz backup**. Todo dia (de madrugada) o GitHub copia o banco inteiro
 (capítulos, eventos, relatórios, cadastros e logins), **criptografa** e guarda no **Google Drive**, na pasta
-`ADHONEP-SC/backups-banco`. Ficam as últimas ~8 semanas. Workflow: `.github/workflows/backup-semanal.yml`.
+`ADHONEP-SC/backups-banco`. Ficam os últimos 30 dias. Cada arquivo tem ~1 MB hoje (banco: 1,7 MB de dados em 16/11/2026), ~30 MB no total.
+Workflow: `.github/workflows/backup-diario.yml`.
 
 Não entram: arquivos do Storage (fotos de eventos, documentos da Biblioteca). Se quiser, dá para acrescentar depois.
 
@@ -40,7 +41,7 @@ rclone config show drive
 Copie **tudo** o que aparecer (incluindo a linha `[drive]`) e cadastre como segredo `RCLONE_CONF`.
 
 ### 4. Testar
-GitHub → Actions → "Backup semanal do banco (Google Drive)" → **Run workflow**. Em 2–3 minutos o arquivo
+GitHub → Actions → "Backup diário do banco (Google Drive)" → **Run workflow**. Em 2–3 minutos o arquivo
 `adhonep-sc-banco-AAAA-MM-DD.dump.gpg` aparece no Drive. Se falhar, o GitHub manda e-mail.
 
 ## Restaurar (em caso de desastre)

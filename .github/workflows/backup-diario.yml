@@ -1,6 +1,6 @@
-# ADHONEP-SC · backup semanal do banco para o Google Drive (o plano Free do Supabase não faz backup).
+# ADHONEP-SC · backup diário do banco para o Google Drive (o plano Free do Supabase não faz backup).
 # Copia o banco inteiro (estrutura + dados dos schemas public e auth), CRIPTOGRAFA e envia para o Drive.
-# Mantém ~8 semanas. Nada fica guardado no GitHub (o repositório é público).
+# Mantém 30 dias (cada arquivo tem ~1 MB hoje). Nada fica guardado no GitHub (o repositório é público).
 #
 # Segredos (Settings → Secrets and variables → Actions), cadastrados pelo Eduardo:
 #   SUPABASE_DB_URL  conexão do POOLER, modo Session (Supabase → Connect → Session pooler), com a senha do banco.
@@ -9,10 +9,10 @@
 #   RCLONE_CONF      conteúdo do arquivo de configuração do rclone com um remoto chamado "drive" (passo a passo em docs/BACKUP.md)
 #   BACKUP_SENHA     senha longa para criptografar o arquivo (guardar no gerenciador de senhas: sem ela o backup não abre)
 # Sem os segredos o workflow avisa e sai sem erro.
-name: Backup semanal do banco (Google Drive)
+name: Backup diário do banco (Google Drive)
 on:
   schedule:
-    - cron: '41 6 * * 0'   # domingo ~03:41 em Brasília
+    - cron: '41 6 * * *'   # todo dia ~03:41 em Brasília
   workflow_dispatch:
 permissions: {}
 concurrency: backup-banco
@@ -56,6 +56,6 @@ jobs:
           gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 --symmetric --cipher-algo AES256 -o "$ARQ" banco.dump 3<<<"$BACKUP_SENHA"
           rm -f banco.dump
           rclone copy "$ARQ" "$PASTA_DRIVE" --drive-scope drive.file
-          rclone delete "$PASTA_DRIVE" --min-age 60d --drive-scope drive.file
+          rclone delete "$PASTA_DRIVE" --min-age 30d --drive-scope drive.file
           echo "Backups no Drive:"; rclone lsf "$PASTA_DRIVE" --drive-scope drive.file
           rm -f "$ARQ" ~/.config/rclone/rclone.conf
