@@ -211,7 +211,7 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
           const { ctx, page, erros, csp } = await abrir(browser, papel, false, baseV);
           if (papel) await entrar(page);
           await page.waitForTimeout(800);
-          const bloqueios = csp.filter((t) => !/report-only/i.test(t));
+          const bloqueios = csp.filter((t) => !/report[ -]only/i.test(t));
           confere(`CSP da Vercel (${nome}): nada é bloqueado`, bloqueios.length === 0, bloqueios.slice(0, 3).join(' | '));
           confere(`CSP da Vercel (${nome}): sem erro de JavaScript`, erros.length === 0, erros.join(' | '));
           const avisos = csp.length - bloqueios.length;
