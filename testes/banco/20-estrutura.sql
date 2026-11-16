@@ -11,8 +11,9 @@ declare r record; v text;
   -- o visitante só GRAVA aqui: formulário "Solicitar cadastro"
   anon_grava text[] := array['access_requests'];
   -- funções que o visitante pode chamar
+  -- (funções de gatilho não entram: só rodam como gatilho — v3.18)
   anon_funcoes text[] := array['adh_notif_visible','adh_public_chapters_br','adh_public_foreign_chapters',
-                               'adh_register_device','adh_trg_event_notify','adh_trg_request_notify'];
+                               'adh_register_device'];
 begin
   -- 1) RLS ligada em todas as tabelas
   for r in select c.relname, c.relrowsecurity from pg_class c

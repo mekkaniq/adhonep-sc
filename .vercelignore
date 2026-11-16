@@ -1,0 +1,22 @@
+# Arquivos internos que NÃO devem ir para o ar na Vercel (o GitHub Pages hoje publica tudo da main).
+# Documentação, SQL, testes, funções do servidor, scripts, zips e o app nativo ficam só no repositório.
+*.md
+*.sql
+*.zip
+*.py
+*.ts
+supabase/
+testes/
+loadtest/
+docs/
+scripts/
+app/
+beta/docs/
+beta/scripts/
+beta-global/PENDENCIAS.md
+beta-global/LEIA-ME.txt
+download
+download (1)
+CNAME
+.github/
+.nojekyll

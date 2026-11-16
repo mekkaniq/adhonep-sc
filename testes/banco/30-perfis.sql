@@ -117,3 +117,49 @@ begin
       r.q);
   end loop;
 end $$;
+
+-- ===== HARDENING (v3.18): gatilhos fora da API, mas disparando; token de dispositivo com tamanho limitado =====
+do $$
+declare res text; n_antes bigint; n_depois bigint;
+begin
+  perform teste.confere('Nenhuma função de gatilho pode ser chamada pela API (visitante ou logado)',
+    not exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prorettype = 'trigger'::regtype
+                and (has_function_privilege('anon', p.oid, 'EXECUTE') or has_function_privilege('authenticated', p.oid, 'EXECUTE'))));
+
+  -- pedido de cadastro do visitante continua avisando a diretoria (gatilho dispara mesmo sem EXECUTE para anon)
+  select count(*) into n_antes from public.notifications where dedupe_key like 'ar-%';
+  begin
+    perform set_config('request.jwt.claims', '{"role":"anon"}', true);
+    set local role anon;
+    insert into public.access_requests (full_name, email, phone, city, requested_role, status, justification, consent_version)
+      values ('TESTE Gatilho', 'gatilho@teste.invalid', '47999990000', 'Brusque', 'member', 'pending', 'Quero participar do capítulo.', 'v1');
+    reset role;
+    select count(*) into n_depois from public.notifications where dedupe_key like 'ar-%';
+    raise exception using errcode = 'P0099', message = n_depois::text;
+  exception when sqlstate 'P0099' then n_depois := sqlerrm::bigint;
+            when others then n_depois := -1; res := sqlstate || ' ' || sqlerrm;
+  end;
+  perform teste.confere('Pedido de cadastro do visitante ainda gera aviso para a diretoria (gatilho)', n_depois = n_antes + 1, res);
+
+  -- evento publicado pelo presidente continua gerando aviso
+  select count(*) into n_antes from public.notifications where kind = 'event_new';
+  res := null;
+  begin
+    perform set_config('request.jwt.claims', json_build_object('sub', teste.uid('presidente'), 'role', 'authenticated')::text, true);
+    set local role authenticated;
+    insert into public.events (chapter_id, title, event_type, starts_at, is_published, status)
+      values (801, 'TESTE gatilho evento', 'dinner', now() + interval '6 days', true, 'scheduled');
+    reset role;
+    select count(*) into n_depois from public.notifications where kind = 'event_new';
+    raise exception using errcode = 'P0099', message = n_depois::text;
+  exception when sqlstate 'P0099' then n_depois := sqlerrm::bigint;
+            when others then n_depois := -1; res := sqlstate || ' ' || sqlerrm;
+  end;
+  perform teste.confere('Evento publicado pelo presidente ainda gera aviso (gatilho)', n_depois = n_antes + 1, res);
+
+  -- token de notificação do app: tamanho real passa, texto gigante é recusado
+  res := teste.tenta(null, 'select public.adh_register_device(''' || repeat('a', 64) || ''', ''ios'')');
+  perform teste.confere('App registra token de notificação de tamanho normal (sem login)', res = 'linhas:1', res);
+  res := teste.tenta(null, 'select public.adh_register_device(''' || repeat('a', 5000) || ''', ''android'')');
+  perform teste.confere('Token de notificação gigante é recusado', teste.bloqueou(res), res);
+end $$;

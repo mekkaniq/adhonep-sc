@@ -1,0 +1,61 @@
+# ADHONEP-SC · backup diário do banco para o Google Drive (o plano Free do Supabase não faz backup).
+# Copia o banco inteiro (estrutura + dados dos schemas public e auth), CRIPTOGRAFA e envia para o Drive.
+# Mantém 30 dias (cada arquivo tem ~1 MB hoje). Nada fica guardado no GitHub (o repositório é público).
+#
+# Segredos (Settings → Secrets and variables → Actions), cadastrados pelo Eduardo:
+#   SUPABASE_DB_URL  conexão do POOLER, modo Session (Supabase → Connect → Session pooler), com a senha do banco.
+#                    Ex.: postgresql://postgres.ayrdfetnscrfrlcssiua:SENHA@aws-0-sa-east-1.pooler.supabase.com:5432/postgres
+#                    (a conexão direta é só IPv6 e o GitHub não tem IPv6)
+#   RCLONE_CONF      conteúdo do arquivo de configuração do rclone com um remoto chamado "drive" (passo a passo em docs/BACKUP.md)
+#   BACKUP_SENHA     senha longa para criptografar o arquivo (guardar no gerenciador de senhas: sem ela o backup não abre)
+# Sem os segredos o workflow avisa e sai sem erro.
+name: Backup diário do banco (Google Drive)
+on:
+  schedule:
+    - cron: '41 6 * * *'   # todo dia ~03:41 em Brasília
+  workflow_dispatch:
+permissions: {}
+concurrency: backup-banco
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
+      BACKUP_SENHA: ${{ secrets.BACKUP_SENHA }}
+      PASTA_DRIVE: drive:ADHONEP-SC/backups-banco
+    steps:
+      - name: Conferir segredos
+        id: seg
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$RCLONE_CONF" ] || [ -z "$BACKUP_SENHA" ]; then
+            echo "::warning::Backup não configurado: faltam segredos (SUPABASE_DB_URL, RCLONE_CONF, BACKUP_SENHA). Ver docs/BACKUP.md."
+            echo "ok=0" >> "$GITHUB_OUTPUT"
+          else echo "ok=1" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Instalar pg_dump 17 e rclone
+        if: steps.seg.outputs.ok == '1'
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17 rclone >/dev/null
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Copiar, criptografar e enviar
+        if: steps.seg.outputs.ok == '1'
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.config/rclone && printf '%s\n' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
+          ARQ="adhonep-sc-banco-$(date -u +%Y-%m-%d).dump.gpg"
+          /usr/lib/postgresql/17/bin/pg_dump "$SUPABASE_DB_URL" -Fc -n public -n auth -f banco.dump
+          echo "Tamanho do backup: $(du -h banco.dump | cut -f1)"
+          /usr/lib/postgresql/17/bin/pg_restore -l banco.dump > /dev/null   # confere que o arquivo abre
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 --symmetric --cipher-algo AES256 -o "$ARQ" banco.dump 3<<<"$BACKUP_SENHA"
+          rm -f banco.dump
+          rclone copy "$ARQ" "$PASTA_DRIVE" --drive-scope drive.file
+          rclone delete "$PASTA_DRIVE" --min-age 30d --drive-scope drive.file
+          echo "Backups no Drive:"; rclone lsf "$PASTA_DRIVE" --drive-scope drive.file
+          rm -f "$ARQ" ~/.config/rclone/rclone.conf
