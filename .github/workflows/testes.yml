@@ -42,7 +42,7 @@ jobs:
           { echo '### Banco'; echo '```'; grep -E '^(OK|FAIL|==|RESULTADO)' resultado-banco.txt || true; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
   tela:
     name: Tela (Playwright, Supabase simulado)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # ubuntu-latest virou 26.04 e o Playwright do projeto ainda não roda nele
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
