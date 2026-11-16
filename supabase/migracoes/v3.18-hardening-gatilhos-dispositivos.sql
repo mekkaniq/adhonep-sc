@@ -1,5 +1,5 @@
 -- ADHONEP-SC · v3.18 — hardening: funções de gatilho fora da API e limite no token de dispositivo (claude v1.14)
--- STATUS: PENDENTE — aguardando o ok do Eduardo para aplicar na PRODUÇÃO (já entra no teste do banco).
+-- STATUS: APLICADA em 16/11/2026 (ok do Eduardo). Já entra no teste do banco.
 --
 -- Origem: varredura de segurança do Supabase (advisor) de 16/11/2026.
 --

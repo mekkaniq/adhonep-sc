@@ -7,7 +7,7 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 - **Hardening (16/11/2026, branch `claude/eloquent-ramanujan-sjl4cy`)** — briefing de segurança:
   - [feito] varredura de chaves (gitleaks, histórico inteiro + zips): só a chave publicável; nada a rotacionar.
   - [feito] revisão do banco (views, gatilhos, funções de ação/leitura, tabelas sem política): papéis checados por dentro.
-  - [pendente ok do Eduardo] `supabase/migracoes/v3.18-hardening-gatilhos-dispositivos.sql` (gatilhos fora da API; limite no token de dispositivo).
+  - [APLICADA 16/11/2026] `supabase/migracoes/v3.18-hardening-gatilhos-dispositivos.sql` (gatilhos fora da API; limite no token de dispositivo).
   - [feito] `vercel.json` (CSP + Report-Only, anti-iframe, nosniff, HSTS sem preload) e `.vercelignore` (SQL/docs/testes fora do ar); teste de tela novo.
   - **Confirmado 16/11: o Pages publica os arquivos internos** (`www.adhonepemsc.com.br/docs/BACKLOG.md` abre).
     [feito] `scripts/montar-site.py` + workflow `publicar-site.yml` (Pages só com os arquivos do site); falta o Eduardo trocar
