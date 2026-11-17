@@ -297,6 +297,23 @@ function mrChStatus(c){return String(c.status??c.situation??c.situacao??'').toLo
 function mrChapters(){const all=adhDbChapters||[];if(mrIsPres()){const ids=(adhProfile.chapterIds||[]).map(String);return all.filter(c=>ids.includes(String(c.id)))}return all.filter(c=>mrChStatus(c)==='active')}
 function mrChName(id){const c=(adhDbChapters||[]).find(x=>String(x.id)===String(id));return c?c.name:('Capítulo '+id)}
 function mrRegionName(id){const r=(adhDbRegions||[]).find(x=>String(x.id)===String(id));return r?(r.name||r.nome||''):''}
+/* ---- Trimestre (v3.23): relatórios de andamento de mar/jun/set/dez, prazo dia 5 do mês seguinte ----
+   A chave do trimestre é o 1º dia do último mês (ex.: 2027-03-01 = 1º trimestre de 2027). */
+let adhCfg={lancamento:null,alerta_mandato_dias:[60,30]},adhCfgOk=false;
+async function adhLoadConfig(force){if(adhCfgOk&&!force)return adhCfg;try{const rows=await adhFetch('/rest/v1/adh_config?select=key,value');(Array.isArray(rows)?rows:[]).forEach(r=>{adhCfg[r.key]=r.value});adhCfgOk=true}catch(e){}return adhCfg}
+function qKey(d){const m=Math.floor(d.getMonth()/3)*3+3;return d.getFullYear()+'-'+String(m).padStart(2,'0')+'-01'}
+function qPrev(k){const [y,m]=String(k).slice(0,10).split('-');return qKey(new Date(+y,+m-4,1))}
+function qStart(k){const [y,m]=String(k).slice(0,10).split('-');return new Date(+y,+m-3,1)}
+function qOpen(k){const [y,m]=String(k).slice(0,10).split('-');return new Date(+y,+m-1,1)}
+function qList(n){const out=[];let k=qKey(new Date());for(let i=0;i<n;i++){out.push(k);k=qPrev(k)}return out}
+function qLabel(k){const [y,m]=String(k).slice(0,10).split('-');const q=Math.round(+m/3);return q+'º trimestre de '+y+' ('+['jan–mar','abr–jun','jul–set','out–dez'][q-1]+')'}
+function qShort(k){const [y,m]=String(k).slice(0,10).split('-');return Math.round(+m/3)+'º tri/'+String(y).slice(2)}
+function qDefault(){let k=qKey(new Date());if(new Date()<qOpen(k))k=qPrev(k);return k}
+function qClosed(){let k=qKey(new Date());while(new Date()<=mrDeadline(k))k=qPrev(k);return k}
+function qLaunch(){const L=adhCfg&&adhCfg.lancamento;if(!L||typeof L!=='string')return null;const [y,m,d]=L.slice(0,10).split('-');return new Date(+y,+m-1,+d)}
+function qDue(k){const L=qLaunch();return !!L&&qStart(k)>=L}
+function qDaysLeft(k){return Math.ceil((mrDeadline(k)-new Date())/864e5)}
+function mrFillQuarterSelect(sel,n,keep,def){if(!sel)return;const cur=keep&&sel.value;sel.innerHTML=qList(n).map(k=>`<option value="${k}">${escapeHtml(qLabel(k))}</option>`).join('');sel.value=cur&&[...sel.options].some(o=>o.value===cur)?cur:(def||qDefault())}
 function mrFillMonthSelect(sel,n,keep){if(!sel)return;const cur=keep&&sel.value;sel.innerHTML=mrMonths(n).map(k=>`<option value="${k}">${escapeHtml(mrLabel(k))}</option>`).join('');sel.value=cur&&[...sel.options].some(o=>o.value===cur)?cur:(sel.id==='rankingMonth'?mrKey(new Date()):mrDefaultMonth())}
 
 async function loadMonthly(silent){
@@ -304,52 +321,55 @@ async function loadMonthly(silent){
   const note=document.getElementById('monthlyNotice');
   try{
     if(!(adhDbChapters||[]).length){try{await loadChaptersAdmin()}catch(e){}}
+    await adhLoadConfig();
     const rows=await adhFetch('/rest/v1/chapter_monthly_reports?select=*&order=ref_month.desc,chapter_id.asc&limit=3000');
     adhMonthly=Array.isArray(rows)?rows:[];window.adhMonthlyOk=Array.isArray(rows);try{adhRenderAttention()}catch(e){}
-    mrFillMonthSelect(document.getElementById('monthlyMonth'),12,true);
+    mrFillQuarterSelect(document.getElementById('monthlyMonth'),8,true);
     const nb=document.getElementById('monthlyNewBtn');if(nb)nb.style.display=mrCanSubmit()?'':'none';
     mrNavCount();if(!silent||document.getElementById('page-monthly')?.classList.contains('on'))renderMonthly();
   }catch(e){if(note&&!silent)note.textContent='Não foi possível carregar os relatórios: '+mrErr(e)}
 }
 function mrNavCount(){const el=document.getElementById('monthlyNavCount');if(!el)return;let n=0;
   if(mrCanReview())n=adhMonthly.filter(r=>r.status==='Entregue'||r.status==='Reenviado').length;
-  else if(mrIsPres()){const prev=mrKey(new Date(new Date().getFullYear(),new Date().getMonth()-1,1));n=mrChapters().filter(c=>!adhMonthly.some(r=>String(r.chapter_id)===String(c.id)&&String(r.ref_month).slice(0,10)===prev)).length+adhMonthly.filter(r=>r.status==='Correções solicitadas').length}
+  else if(mrIsPres()){const prev=qDefault();n=(!qDue(prev)?[]:mrChapters().filter(c=>!adhMonthly.some(r=>String(r.chapter_id)===String(c.id)&&String(r.ref_month).slice(0,10)===prev))).length+adhMonthly.filter(r=>r.status==='Correções solicitadas').length}
   el.textContent=n?String(n):'';el.style.display=n?'':'none'}
 function mrTagHtml(s){return `<span class="tag ${MR_TAG[s]||'activation'}">${escapeHtml(MR_ST[s]||s)}</span>`}
 function renderMonthly(){
   const body=document.getElementById('monthlyRows');if(!body)return;
-  const month=document.getElementById('monthlyMonth').value||mrDefaultMonth(),st=document.getElementById('monthlyStatus').value,q=(document.getElementById('monthlySearch').value||'').toLowerCase();
+  const month=document.getElementById('monthlyMonth').value||qDefault(),st=document.getElementById('monthlyStatus').value,q=(document.getElementById('monthlySearch').value||'').toLowerCase();
   const inMonth=adhMonthly.filter(r=>String(r.ref_month).slice(0,10)===month);
   const rows=inMonth.filter(r=>(st==='all'||(st==='review'&&(r.status==='Entregue'||r.status==='Reenviado'))||(st==='fix'&&r.status==='Correções solicitadas')||(st==='done'&&r.status==='Aprovado'))&&mrChName(r.chapter_id).toLowerCase().includes(q));
   body.innerHTML=rows.map(r=>{const canEdit=mrIsAdmin()||(mrIsPres()&&(r.status==='Entregue'||r.status==='Correções solicitadas'));
     return `<tr><td><strong>${escapeHtml(mrChName(r.chapter_id))}</strong>${r.on_time===false?'<div class="meta">entregue fora do prazo</div>':''}</td><td>${r.chapter_meetings} · ${r.women_meetings} · ${r.youth_meetings}</td><td>${r.visitors}</td><td>${r.chapter_events} · ${r.women_events} · ${r.youth_events}</td><td>${r.prison_ministry_active?'Ativo'+(r.prison_activities?' ('+r.prison_activities+')':''):'—'}</td><td>${mrTagHtml(r.status)}${r.status==='Correções solicitadas'&&r.reviewer_notes?'<div class="meta">'+escapeHtml(r.reviewer_notes)+'</div>':''}</td><td><div class="actions"><button class="btn small" onclick="openMonthlyView('${r.id}')">Ver</button>${canEdit?`<button class="btn small" onclick="openMonthlyForm('${r.id}')">${r.status==='Correções solicitadas'?'Corrigir':'Editar'}</button>`:''}</div></td></tr>`}).join('')||'<tr><td colspan="7" class="empty">Nenhum relatório neste filtro.</td></tr>';
   // avisos e capítulos sem relatório
   const note=document.getElementById('monthlyNotice'),chs=mrChapters(),missing=chs.filter(c=>!inMonth.some(r=>String(r.chapter_id)===String(c.id)));
-  const late=new Date()>mrDeadline(month);
+  const late=new Date()>mrDeadline(month),due=qDue(month),open=new Date()>=qOpen(month),left=qDaysLeft(month),prazo=mrDeadline(month).toLocaleDateString('pt-BR');
+  const prox=qKey(new Date())!==month&&new Date()<qOpen(qKey(new Date()))?qKey(new Date()):null;
+  const proxTxt=prox?` Próximo: ${qLabel(prox)} — o envio abre em ${qOpen(prox).toLocaleDateString('pt-BR')} e o prazo é ${mrDeadline(prox).toLocaleDateString('pt-BR')}.`:'';
   const box=document.getElementById('monthlyMissingBox'),list=document.getElementById('monthlyMissing');
   if(mrIsPres()){const fix=adhMonthly.filter(r=>r.status==='Correções solicitadas').length;
-    note.textContent=(missing.length?`Falta enviar o relatório de ${mrLabel(month)} (${missing.map(c=>c.name).join(', ')}). Prazo: ${mrDeadline(month).toLocaleDateString('pt-BR')}${late?' — já passou; envie assim mesmo, mas ele não conta como entregue no prazo.':'.'}`:`Relatório de ${mrLabel(month)} enviado.`)+(fix?` Há ${fix} relatório(s) com correções solicitadas.`:'');box.hidden=true}
+    note.textContent=(!open?`O envio do ${qLabel(month)} abre em ${qOpen(month).toLocaleDateString('pt-BR')}.`:missing.length?(due?(late?`O relatório do ${qLabel(month)} (${missing.map(c=>c.name).join(', ')}) está atrasado: o prazo era ${prazo}. Envie assim mesmo; ele só não conta como entregue no prazo.`:`Envie o relatório do ${qLabel(month)} (${missing.map(c=>c.name).join(', ')}). Prazo: ${prazo}${left<=15?' — faltam '+left+' dia(s).':'.'}`):`O envio do ${qLabel(month)} está aberto até ${prazo}. Antes do lançamento da plataforma ele não é cobrado.`):`Relatório do ${qLabel(month)} enviado. Obrigado!`)+(fix?` Há ${fix} relatório(s) com correções solicitadas.`:'')+proxTxt;box.hidden=true}
   else{const aw=adhMonthly.filter(r=>r.status==='Entregue'||r.status==='Reenviado').length;
-    note.textContent=`${mrLabel(month)}: ${inMonth.length} relatório(s) recebido(s)${chs.length?' de '+chs.length+' capítulo(s) ativo(s)':''}.`+(aw&&mrCanReview()?` ${aw} aguardando sua aprovação (todos os meses).`:'');
-    box.hidden=!missing.length;list.innerHTML=missing.map(c=>escapeHtml(c.name)).join(' · ')+(late?'':'<div class="meta" style="margin-top:6px">O prazo deste mês ainda não terminou ('+mrDeadline(month).toLocaleDateString('pt-BR')+').</div>')}
+    note.textContent=`${qLabel(month)}: ${inMonth.length} relatório(s) recebido(s)${chs.length?' de '+chs.length+' capítulo(s) ativo(s)':''}. Prazo: ${prazo}.`+(due?'':' Antes do lançamento da plataforma, ninguém é cobrado.')+(aw&&mrCanReview()?` ${aw} aguardando sua aprovação (todos os trimestres).`:'');
+    box.hidden=!missing.length||!open;list.innerHTML=missing.map(c=>escapeHtml(c.name)).join(' · ')+(late&&due?'':'<div class="meta" style="margin-top:6px">'+(due?'O prazo deste trimestre ainda não terminou ('+prazo+').':'Ainda não cobrado (antes do lançamento).')+'</div>')}
 }
 
 function openMonthlyForm(id){
-  if(!mrCanSubmit()){toast('Somente o presidente do capítulo envia o relatório mensal.');return}
+  if(!mrCanSubmit()){toast('Somente o presidente do capítulo envia o relatório do trimestre.');return}
   const f=document.querySelector('#monthlyModal form');f.reset();
   const chs=mrChapters();if(!chs.length){toast('Nenhum capítulo disponível para este perfil.');return}
   const cs=document.getElementById('mrChapter');cs.innerHTML=(chs.length>1?'<option value="">Selecione o capítulo</option>':'')+chs.map(c=>`<option value="${escapeHtml(String(c.id))}">${escapeHtml(c.name)}</option>`).join('');
-  const ms=document.getElementById('mrMonth');ms.innerHTML=mrMonths(mrIsAdmin()?12:3).map(k=>`<option value="${k}">${escapeHtml(mrLabel(k))}</option>`).join('');ms.value=mrDefaultMonth();
+  const ms=document.getElementById('mrMonth');const qs=qList(mrIsAdmin()?8:2).filter(k=>new Date()>=qOpen(k));ms.innerHTML=qs.map(k=>`<option value="${k}">${escapeHtml(qLabel(k))}</option>`).join('');ms.value=qDefault();
   const fb=document.getElementById('monthlyFeedback');fb.hidden=true;
   window.adhMrEditing=null;cs.disabled=false;ms.disabled=false;
-  document.getElementById('monthlyTitle').textContent='Relatório de andamento';document.getElementById('monthlySubmit').textContent='Enviar relatório';
+  document.getElementById('monthlyTitle').textContent='Relatório do trimestre';document.getElementById('monthlySubmit').textContent='Enviar relatório';
   document.getElementById('mrPrisonWrap').style.display='none';
   if(id){const r=adhMonthly.find(x=>String(x.id)===String(id));if(!r)return;window.adhMrEditing=r;
     if(![...cs.options].some(o=>o.value===String(r.chapter_id)))cs.insertAdjacentHTML('beforeend',`<option value="${escapeHtml(String(r.chapter_id))}">${escapeHtml(mrChName(r.chapter_id))}</option>`);
-    cs.value=String(r.chapter_id);const mk=String(r.ref_month).slice(0,10);if(![...ms.options].some(o=>o.value===mk))ms.insertAdjacentHTML('beforeend',`<option value="${mk}">${escapeHtml(mrLabel(mk))}</option>`);ms.value=mk;cs.disabled=true;ms.disabled=true;
+    cs.value=String(r.chapter_id);const mk=String(r.ref_month).slice(0,10);if(![...ms.options].some(o=>o.value===mk))ms.insertAdjacentHTML('beforeend',`<option value="${mk}">${escapeHtml(qLabel(mk))}</option>`);ms.value=mk;cs.disabled=true;ms.disabled=true;
     ['chapter_meetings','women_meetings','youth_meetings','avg_attendance','visitors','visitors_notes','chapter_events','women_events','youth_events','events_notes','prison_activities','considerations'].forEach(k=>{if(f.elements[k])f.elements[k].value=r[k]??''});
     f.elements.prison_ministry_active.checked=!!r.prison_ministry_active;document.getElementById('mrPrisonWrap').style.display=r.prison_ministry_active?'':'none';
-    document.getElementById('monthlyTitle').textContent='Relatório de '+mrLabel(mk)+' — '+mrChName(r.chapter_id);
+    document.getElementById('monthlyTitle').textContent=qLabel(mk)+' — '+mrChName(r.chapter_id);
     document.getElementById('monthlySubmit').textContent=r.status==='Correções solicitadas'?'Reenviar para aprovação':'Salvar alterações';
     if(r.status==='Correções solicitadas'&&r.reviewer_notes){fb.hidden=false;fb.innerHTML='<strong>Correções pedidas pelo diretor:</strong> '+escapeHtml(r.reviewer_notes)}
   }else if(chs.length===1)cs.value=String(chs[0].id);
@@ -365,20 +385,20 @@ async function submitMonthly(ev){
   try{
     if(ed){if(ed.status==='Correções solicitadas')body.status='Reenviado';await adhFetch('/rest/v1/chapter_monthly_reports?id=eq.'+encodeURIComponent(ed.id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify(body)})}
     else{const cid=document.getElementById('mrChapter').value,mk=document.getElementById('mrMonth').value;if(!cid){msg.textContent='Selecione o capítulo.';btn.disabled=false;return}
-      const dup=adhMonthly.find(r=>String(r.chapter_id)===String(cid)&&String(r.ref_month).slice(0,10)===mk);if(dup){btn.disabled=false;closeModal('monthlyModal');toast('Já existe o relatório deste mês. Abrindo para edição.');openMonthlyForm(dup.id);return}
+      const dup=adhMonthly.find(r=>String(r.chapter_id)===String(cid)&&String(r.ref_month).slice(0,10)===mk);if(dup){btn.disabled=false;closeModal('monthlyModal');toast('Já existe o relatório deste trimestre. Abrindo para edição.');openMonthlyForm(dup.id);return}
       await adhFetch('/rest/v1/chapter_monthly_reports',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({...body,chapter_id:Number(cid),ref_month:mk,status:'Entregue'})})}
     closeModal('monthlyModal');toast(ed?'Relatório atualizado.':'Relatório enviado. Obrigado!');await loadMonthly();
   }catch(e){msg.textContent='Não foi possível enviar: '+mrErr(e)}finally{btn.disabled=false}
 }
 function openMonthlyView(id){
   const r=adhMonthly.find(x=>String(x.id)===String(id));if(!r)return;const mk=String(r.ref_month).slice(0,10);
-  document.getElementById('mvTitle').textContent=mrChName(r.chapter_id)+' — '+mrLabel(mk);
+  document.getElementById('mvTitle').textContent=mrChName(r.chapter_id)+' — '+qLabel(mk);
   const row=(a,b)=>`<div class="detail"><strong>${a}</strong><p>${b}</p></div>`;
   document.getElementById('mvBody').innerHTML=`<p>${mrTagHtml(r.status)} ${r.on_time===false?'<span class="meta">entregue fora do prazo</span>':r.on_time?'<span class="meta">entregue no prazo</span>':''}</p>`+
    row('Reuniões',`Capítulo: <b>${r.chapter_meetings}</b> · Apoio Feminino: <b>${r.women_meetings}</b> · Apoio Jovem: <b>${r.youth_meetings}</b>${r.avg_attendance!=null?' · Média de participantes: <b>'+r.avg_attendance+'</b>':''}`)+
    row('Visitantes (não sócios)',`<b>${r.visitors}</b>${r.visitors_notes?' — '+escapeHtml(r.visitors_notes):''}`)+
    row('Eventos',`Capítulo: <b>${r.chapter_events}</b> · Apoio Feminino: <b>${r.women_events}</b> · Apoio Jovem: <b>${r.youth_events}</b>${r.events_notes?'<br>'+escapeHtml(r.events_notes):''}`)+
-   row('Ministério de Prisões',r.prison_ministry_active?`Ativo${r.prison_activities?' — '+r.prison_activities+' atividade(s) no mês':''}`:'Não ativo')+
+   row('Ministério de Prisões',r.prison_ministry_active?`Ativo${r.prison_activities?' — '+r.prison_activities+' atividade(s) no trimestre':''}`:'Não ativo')+
    (r.considerations?row('Considerações',escapeHtml(r.considerations).replace(/\n/g,'<br>')):'')+
    (r.reviewer_notes?row('Orientações do diretor',escapeHtml(r.reviewer_notes)):'');
   const act=document.getElementById('mvActions');act.innerHTML='';
@@ -397,8 +417,8 @@ async function reviewMonthly(id,status){
 /* ---- Ranking (interno) ---- */
 async function loadRanking(){
   const note=document.getElementById('rankingNotice');if(!adhSession||!adhProfile)return;
-  const sel=document.getElementById('rankingMonth');if(sel&&!sel.options.length)mrFillMonthSelect(sel,12,false);
-  const month=(sel&&sel.value)||mrKey(new Date());note.textContent='Calculando…';
+  await adhLoadConfig();const sel=document.getElementById('rankingMonth');if(sel&&!sel.options.length)mrFillQuarterSelect(sel,8,false,qKey(new Date()));
+  const month=(sel&&sel.value)||qKey(new Date());note.textContent='Calculando…';
   try{
     const data=await adhFetch('/rest/v1/rpc/adh_ranking',{method:'POST',body:JSON.stringify({p_month:month})});
     adhRankData=data;renderRanking();
@@ -413,10 +433,10 @@ function renderRanking(){
   const pts=v=>(v>0?'+':'')+v;
   const rc=mrRank(ch);document.getElementById('rankingChapters').innerHTML=ch.map((c,i)=>{
     const st=!c.report_status?'<div class="meta" style="color:#a83c42">sem relatório</div>':(c.report_status==='Aprovado'?'':'<div class="meta">relatório '+escapeHtml((MR_ST[c.report_status]||c.report_status).toLowerCase())+' — ainda não pontua</div>');
-    return `<tr><td>${pill(rc[i])}</td><td><strong>${escapeHtml(c.name)}</strong>${st}</td><td>${escapeHtml(c.region_name||'—')}</td><td>${c.p_meetings}</td><td>${c.p_events}</td><td>${pts(Number(c.p_prison)+Number(c.p_ontime)+Number(c.p_missing))}</td><td>${c.p_members}</td><td><strong>${c.points}</strong></td></tr>`}).join('')||'<tr><td colspan="8" class="empty">Nenhum capítulo ativo neste mês.</td></tr>';
+    return `<tr><td>${pill(rc[i])}</td><td><strong>${escapeHtml(c.name)}</strong>${st}</td><td>${escapeHtml(c.region_name||'—')}</td><td>${c.p_meetings}</td><td>${c.p_events}</td><td>${pts(Number(c.p_prison)+Number(c.p_ontime)+Number(c.p_missing))}</td><td>${c.p_members}</td><td><strong>${c.points}</strong></td></tr>`}).join('')||'<tr><td colspan="8" class="empty">Nenhum capítulo ativo neste trimestre.</td></tr>';
   const rr=mrRank(rg);document.getElementById('rankingRegions').innerHTML=rg.map((r,i)=>`<tr><td>${pill(rr[i])}</td><td><strong>${escapeHtml(r.name)}</strong></td><td>${r.active_chapters}</td><td>${r.avg_points}</td><td>${r.opened?pts(r.opened):'—'}</td><td>${r.reactivated?pts(r.reactivated):'—'}</td><td>${r.inactivated?pts(r.inactivated):'—'}</td><td><strong>${r.points}</strong></td></tr>`).join('')||'<tr><td colspan="8" class="empty">Sem regiões para exibir.</td></tr>';
   const aw=ch.filter(c=>c.report_status&&c.report_status!=='Aprovado').length,nr=ch.filter(c=>!c.report_status).length;
-  document.getElementById('rankingNotice').textContent=`${mrLabel(d.month)} · ${ch.length} capítulo(s) ativo(s) · ${nr} sem relatório · ${aw} aguardando aprovação. Só relatórios aprovados pontuam; sócios novos entram automaticamente.`;
+  document.getElementById('rankingNotice').textContent=`${qLabel(d.month)} · ${ch.length} capítulo(s) ativo(s) · ${nr} sem relatório · ${aw} aguardando aprovação. Só relatórios aprovados pontuam; sócios novos entram automaticamente.`+(d.due===false?' Antes do lançamento da plataforma, ninguém perde pontos por relatório.':'');
 }
 async function saveRankingSettings(){
   const inputs=[...document.querySelectorAll('#rankingSettings input[data-k]')].filter(i=>i.value!==i.dataset.orig);if(!inputs.length){toast('Nenhuma alteração para salvar.');return}
@@ -424,7 +444,7 @@ async function saveRankingSettings(){
   catch(e){toast('Não foi possível salvar: '+mrErr(e))}
 }
 function exportRanking(){const d=adhRankData;if(!d){toast('Abra a página Saúde dos capítulos primeiro.');return}const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
-  const lines=[['Saúde dos capítulos — '+mrLabel(d.month)],['Posição','Capítulo','Região','Reuniões','Eventos','Outros','Sócios novos','Total'],...(()=>{const rc=mrRank(d.chapters);return d.chapters.map((c,i)=>[rc[i],c.name,c.region_name,c.p_meetings,c.p_events,Number(c.p_prison)+Number(c.p_ontime)+Number(c.p_missing),c.p_members,c.points])})(),[],['Saúde das regiões'],['Posição','Região','Capítulos ativos','Média','Abertos','Reativados','Inativados','Total'],...(()=>{const rr=mrRank(d.regions);return d.regions.map((r,i)=>[rr[i],r.name,r.active_chapters,r.avg_points,r.opened,r.reactivated,r.inactivated,r.points])})()];
+  const lines=[['Saúde dos capítulos — '+qLabel(d.month)],['Posição','Capítulo','Região','Reuniões','Eventos','Outros','Sócios novos','Total'],...(()=>{const rc=mrRank(d.chapters);return d.chapters.map((c,i)=>[rc[i],c.name,c.region_name,c.p_meetings,c.p_events,Number(c.p_prison)+Number(c.p_ontime)+Number(c.p_missing),c.p_members,c.points])})(),[],['Saúde das regiões'],['Posição','Região','Capítulos ativos','Média','Abertos','Reativados','Inativados','Total'],...(()=>{const rr=mrRank(d.regions);return d.regions.map((r,i)=>[rr[i],r.name,r.active_chapters,r.avg_points,r.opened,r.reactivated,r.inactivated,r.points])})()];
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+lines.map(l=>l.map(q).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}));a.download='saude-adhonep-'+String(d.month).slice(0,7)+'.csv';document.body.appendChild(a);a.click();a.remove()}
 
 /* carrega as pendências assim que o perfil é aplicado (contador no menu) */
@@ -817,10 +837,10 @@ async function adhInviteCopy(){try{await navigator.clipboard.writeText(document.
 /* --- quadro "Atenção" (relatórios mensais em atraso) --- */
 function adhAttentionItems(){
  const now=new Date(),out=[];
- const closed=[1,2,3].map(n=>mrKey(new Date(now.getFullYear(),now.getMonth()-n,1))).filter(k=>now>mrDeadline(k));
+ const closed=[];{let k=qClosed();for(let i=0;i<2;i++){if(qDue(k))closed.push(k);k=qPrev(k)}}
  mrChapters().filter(c=>mrChStatus(c)==='active').forEach(c=>{
   const miss=closed.filter(k=>{
-   const [y,m]=k.split('-');if(c.created_at&&new Date(c.created_at)>new Date(+y,+m,1))return false;
+   if(c.created_at&&new Date(c.created_at)>qStart(k))return false;
    return !adhMonthly.some(r=>String(r.chapter_id)===String(c.id)&&String(r.ref_month).slice(0,10)===k)});
   if(!miss.length)return;
   const first=miss[miss.length-1],late=Math.max(1,Math.ceil((now-mrDeadline(first))/864e5));
@@ -832,8 +852,8 @@ function adhAttentionItems(){
 function adhAttentionWa(it){
  const c=it.c,ph=((adhChapterContacts||{})[String(c.id)]||{}).president_phone||'';
  const nome=String(c.president_name||'').trim().split(/\s+/)[0];
- const meses=it.miss.slice().reverse().map(k=>mrLabel(k).split(' ')[0].toLowerCase()).join(' e ');
- const msg='Olá'+(nome?', '+nome:'')+'! Tudo bem? Aqui é da '+ADH_BRAND+'. Notamos que o relatório mensal de '+meses+' do capítulo '+c.name+' ainda não foi enviado (o prazo é sempre dia 5). Consegue enviar pela plataforma quando puder? Se tiver qualquer dificuldade, é só me chamar. Obrigado pelo trabalho! 🙏';
+ const meses=it.miss.slice().reverse().map(k=>qLabel(k)).join(' e ');
+ const msg='Olá'+(nome?', '+nome:'')+'! Tudo bem? Aqui é da '+ADH_BRAND+'. Notamos que o relatório do '+meses+' do capítulo '+c.name+' ainda não foi enviado (o prazo é dia 5 do mês seguinte ao fim do trimestre). Consegue enviar pela plataforma quando puder? Se tiver qualquer dificuldade, é só me chamar. Obrigado pelo trabalho! 🙏';
  return /^55\d{10,11}$/.test(ph)?'https://wa.me/'+ph+'?text='+encodeURIComponent(msg):'';
 }
 let adhAttentionAll=false,adhContactsTried=false;
@@ -847,10 +867,10 @@ function adhRenderAttention(){
  const red=items.filter(i=>i.level==='red').length,yel=items.length-red;
  const pend=mrCanReview()?adhMonthly.filter(x=>x.status==='Entregue'||x.status==='Reenviado').length:0;
  const E=escapeHtml,show=adhAttentionAll?items:items.slice(0,8);
- let h='<div class="eyebrow">Atenção</div><h3>'+(items.length?'Capítulos que precisam de um toque':'Tudo em dia 🎉')+'</h3><p class="sub">'+(r==='regional_director'?'Capítulos da sua região':'Estado inteiro')+' · '+(total-items.length)+' de '+total+' capítulos ativos com os relatórios mensais em dia (prazo: dia 5).'+(items.length?' <strong style="color:#a83c42">'+red+' crítico(s)</strong> · <strong style="color:#966315">'+yel+' em atraso</strong>':'')+'</p>';
+ let h='<div class="eyebrow">Atenção</div><h3>'+(items.length?'Capítulos que precisam de um toque':'Tudo em dia 🎉')+'</h3><p class="sub">'+(r==='regional_director'?'Capítulos da sua região':'Estado inteiro')+' · '+(total-items.length)+' de '+total+' capítulos ativos com os relatórios trimestrais em dia (prazo: dia 5 do mês seguinte ao trimestre).'+(items.length?' <strong style="color:#a83c42">'+red+' crítico(s)</strong> · <strong style="color:#966315">'+yel+' em atraso</strong>':'')+'</p>';
  if(pend)h+='<div class="detail" style="display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap"><span>📥 <strong>'+pend+'</strong> relatório(s) aguardando a sua revisão</span><button class="btn small primary" onclick="showPage(\'monthly\',document.querySelector(\'.nav[data-page=monthly]\'))">Revisar</button></div>';
- h+=show.map(it=>{const wa=adhAttentionWa(it),meses=it.miss.slice().reverse().map(k=>mrLabel(k).split(' ')[0].toLowerCase()).join(', ');
-  return '<div class="detail" style="display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap"><span>'+(it.level==='red'?'🔴':'🟡')+' <strong>'+E(it.c.name)+'</strong> — '+(it.level==='red'?it.miss.length+' meses sem relatório ('+E(meses)+')':'relatório de '+E(meses)+' atrasado há '+it.late+' dia(s)')+'</span>'
+ h+=show.map(it=>{const wa=adhAttentionWa(it),meses=it.miss.slice().reverse().map(k=>qShort(k)).join(', ');
+  return '<div class="detail" style="display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap"><span>'+(it.level==='red'?'🔴':'🟡')+' <strong>'+E(it.c.name)+'</strong> — '+(it.level==='red'?it.miss.length+' trimestres sem relatório ('+E(meses)+')':'relatório do '+E(meses)+' atrasado há '+it.late+' dia(s)')+'</span>'
   +(wa?'<a class="btn small" target="_blank" rel="noopener" href="'+E(wa)+'">Falar com o presidente</a>':'<button class="btn small" onclick="openChapterContact('+Number(it.c.id)+')">Cadastrar telefone do presidente</button>')+'</div>'}).join('');
  if(items.length>8)h+='<div style="margin-top:8px"><button class="btn small" onclick="adhAttentionAll=!adhAttentionAll;adhRenderAttention()">'+(adhAttentionAll?'Mostrar menos':'Ver todos ('+items.length+')')+'</button></div>';
  box.innerHTML=h;box.hidden=false;

@@ -96,8 +96,9 @@ async function cmdLoad(force) {
   try {
     if (!(typeof chapters !== 'undefined' && chapters.length)) { try { await loadChaptersAdmin(); } catch (e) { /* ok */ } }
     const sel = cmdEl('cmdMonth');
-    if (sel && !sel.options.length) { mrFillMonthSelect(sel, 12, false); sel.value = mrDefaultMonth(); }
-    CMD.month = (sel && sel.value) || mrDefaultMonth();
+    try { await adhLoadConfig(); } catch (e) { /* ok */ }
+    if (sel && !sel.options.length) { mrFillQuarterSelect(sel, 8, false); }
+    CMD.month = (sel && sel.value) || qDefault();
     const tasks = [];
     tasks.push(gxLoadMeetings(true), gxLoadMandates(true));
     tasks.push(loadMonthly(true));
@@ -132,11 +133,12 @@ function cmdWeeks(n) {
   return out;
 }
 function cmdMonths(n) {
-  const d = new Date(), out = []; const ids = new Set(cmdScopeChapters().map(c => String(c.id)));
-  for (let i = n - 1; i >= 0; i--) {
-    const k = mrKey(new Date(d.getFullYear(), d.getMonth() - i, 1));
+  const out = []; const ids = new Set(cmdScopeChapters().map(c => String(c.id)));
+  const qs = qList(n).reverse();
+  for (let i = 0; i < qs.length; i++) {
+    const k = qs[i];
     const rows = (adhMonthly || []).filter(r => String(r.ref_month).slice(0, 10) === k && ids.has(String(r.chapter_id)));
-    out.push({ k, label: mrLabel(k).split(' ')[0].slice(0, 3), total: rows.length, appr: rows.filter(r => r.status === 'Aprovado').length,
+    out.push({ k, label: qShort(k), total: rows.length, appr: rows.filter(r => r.status === 'Aprovado').length,
       events: rows.reduce((s, r) => s + (r.chapter_events || 0) + (r.women_events || 0) + (r.youth_events || 0), 0),
       vis: rows.reduce((s, r) => s + (r.visitors || 0), 0), meet: rows.reduce((s, r) => s + (r.chapter_meetings || 0) + (r.women_meetings || 0) + (r.youth_meetings || 0), 0),
       prison: rows.filter(r => r.prison_ministry_active).length });
@@ -172,7 +174,7 @@ function cmdRender() {
 
   const scopeName = CMD.scope === 'region' && CMD.regionId ? ('Região ' + ((cmdRegions().find(r => String(r.id) === String(CMD.regionId)) || {}).name || '')) : ADH_UF_NAME;
   cmdEl('cmdScopeTitle').textContent = scopeName;
-  cmdEl('cmdNote').textContent = (CMD.at ? 'Atualizado às ' + CMD.at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' · ' : '') + 'mês de referência: ' + mrLabel(CMD.month) + ' (relatório e atividade); reuniões e mandatos de hoje.';
+  cmdEl('cmdNote').textContent = (CMD.at ? 'Atualizado às ' + CMD.at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' · ' : '') + 'mês de referência: ' + qLabel(CMD.month) + ' (relatório e atividade); reuniões e mandatos de hoje.';
 
   const tile = (lab, big, sub, color, spark) => '<div class="cmd-kpi"><label>' + lab + '</label><strong style="color:' + (color || '#fff') + '">' + big + '</strong><small>' + sub + '</small>' + (spark || '') + '</div>';
   const dW = prev1 && prev0 ? prev1.n - prev0.n : 0;
@@ -184,7 +186,7 @@ function cmdRender() {
     + tile('Reuniões (7 dias)', cmdN(prev1 ? prev1.n : 0), (dW > 0 ? '▲ ' : dW < 0 ? '▼ ' : '= ') + Math.abs(dW) + ' vs. semana anterior', '#fff', cmdSpark(weeks.map(w => w.n), CMD_C.gold))
     + tile('Presença média', attAvg == null ? '—' : cmdN(attAvg), 'por reunião, 4 semanas', '#fff', cmdSpark(weeks.map(w => w.att), CMD_C.blue))
     + tile('Visitantes (4 semanas)', cmdN(visSum), 'registrados nas reuniões', '#fff', cmdSpark(weeks.map(w => w.vis), CMD_C.green))
-    + tile('Relatórios do mês', repPct + '%', repMonth.length + ' de ' + act.length + ' ativos', repPct >= 80 ? CMD_C.green : repPct >= 50 ? CMD_C.yellow : CMD_C.red)
+    + tile('Relatórios do trimestre', repPct + '%', repMonth.length + ' de ' + act.length + ' ativos', repPct >= 80 ? CMD_C.green : repPct >= 50 ? CMD_C.yellow : CMD_C.red)
     + tile('Mandatos', cmdN(mExp + mSoon), mExp + ' vencido(s) · ' + mSoon + ' vencendo', mExp ? CMD_C.red : (mSoon ? CMD_C.yellow : CMD_C.green))
     + tile('Eventos nos próx. 30 dias', cmdN(up30), up.length ? 'próximo: ' + (up[0].title || '') .slice(0, 28) : 'nenhum agendado', '#fff');
 
@@ -219,14 +221,14 @@ function cmdRender() {
       + '</tbody></table></div><p class="cmd-foot">Clique em uma região para abrir a visão regional.</p>';
   } else {
     cmdEl('cmdCompareTitle').textContent = 'Capítulos da região';
-    // ranking embutido: posição e pontos do mês na própria tabela da região
+    // ranking embutido: posição e pontos do trimestre na própria tabela da região
     const rkAll = ((CMD.rank && CMD.rank.chapters) || []).filter(x => ids.has(String(x.chapter_id != null ? x.chapter_id : x.id))).slice().sort((a, b) => b.points - a.points);
     const rkMap = new Map(rkAll.map((x, i) => [String(x.chapter_id != null ? x.chapter_id : x.id), { pos: i + 1, pts: x.points }]));
     const sorted = rows.slice().sort((a, b) => ((rkMap.get(String(b.c.id)) || { pts: -1 }).pts - (rkMap.get(String(a.c.id)) || { pts: -1 }).pts) || (b.h.score - a.h.score));
     const rkCell = c => { const r = rkMap.get(String(c.id)); return r ? '<span class="cmd-rkpos' + (r.pos <= 3 ? ' top' : '') + '">' + r.pos + 'º</span><em>' + cmdN(r.pts) + ' pts</em>' : '<em>—</em>'; };
     cmdEl('cmdCompare').innerHTML = '<div class="tablewrap"><table class="cmd-tb"><thead><tr><th>Posição</th><th>Capítulo</th><th>Presidente</th><th>Saúde</th><th>Reunião</th><th>Relatório</th><th>Mandato</th><th>Sócios</th></tr></thead><tbody>'
       + sorted.map(x => { const mi = gxMeetInfo(x.c), p = x.h.parts; return '<tr class="cmd-click" onclick="gxChapterTimeline(\'' + x.c.id + '\')"><td class="cmd-rkcell">' + rkCell(x.c) + '</td><td><b>' + E(x.c.name) + '</b><em>' + E(x.c.city || '') + '</em></td><td class="cmd-pres">' + E(x.c.president || '—') + '</td><td><span class="cmd-pill" style="color:' + cmdBandColor(x.h.score) + ';border-color:' + cmdBandColor(x.h.score) + '">' + x.h.score + '</span></td><td>' + E(p[1][3]) + '</td><td>' + E(p[0][3]) + '</td><td>' + E(p[2][3]) + '</td><td>' + (CMD.members ? cmdN(CMD.members[String(x.c.id)] || 0) : '—') + '</td></tr>'; }).join('')
-      + '</tbody></table></div><p class="cmd-foot">Ordenado pela saúde do mês. Clique em um capítulo para ver o histórico.</p>';
+      + '</tbody></table></div><p class="cmd-foot">Ordenado pela saúde do trimestre. Clique em um capítulo para ver o histórico.</p>';
   }
 
   // alertas
@@ -239,7 +241,7 @@ function cmdRender() {
     al.push({ k: x.i.key === 'expired' ? 'r' : 'y', t: (x.n > 1 ? 'Mandato da <b>diretoria</b> (' + x.n + ' cargos, ' + E(gxMandScopeName(x.m)) + ')' : 'Mandato de <b>' + E(x.m.person_name) + '</b> (' + E(gxMandScopeName(x.m)) + ')') + ' — ' + E(x.i.label.toLowerCase()) });
   });
   const semRel = act.filter(c => !(adhMonthly || []).some(m => String(m.chapter_id) === String(c.id) && String(m.ref_month).slice(0, 10) === CMD.month));
-  if (semRel.length) al.push({ k: 'y', t: '<b>' + semRel.length + '</b> capítulo(s) ativo(s) sem relatório de ' + E(mrLabel(CMD.month).toLowerCase()) + ': ' + E(semRel.slice(0, 4).map(c => c.name).join(', ')) + (semRel.length > 4 ? '…' : '') });
+  if (semRel.length && qDue(CMD.month) && new Date() > mrDeadline(CMD.month)) al.push({ k: 'y', t: '<b>' + semRel.length + '</b> capítulo(s) ativo(s) sem relatório do ' + E(qLabel(CMD.month)) + ': ' + E(semRel.slice(0, 4).map(c => c.name).join(', ')) + (semRel.length > 4 ? '…' : '') });
   const semReu = act.filter(c => gxMeetInfo(c).key === 'late').length;
   if (semReu) al.push({ k: 'o', t: '<b>' + semReu + '</b> capítulo(s) com reunião atrasada (acima do limite da frequência).' });
   cmdEl('cmdAlerts').innerHTML = al.length ? al.slice(0, 10).map(a => '<div class="cmd-al ' + a.k + '"><i></i><span>' + a.t + '</span></div>').join('') : '<p class="cmd-empty">Nada crítico agora. 👏</p>';

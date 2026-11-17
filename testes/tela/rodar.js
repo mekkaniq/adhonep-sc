@@ -5,7 +5,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { simular } = require('./simulador');
+const { simular, eventos: SIM_EVENTOS, CONFIG: SIM_CFG } = require('./simulador');
 
 const REPO = path.resolve(__dirname, '../..');
 // ADH_SITE=pasta → testa a pasta montada por scripts/montar-site.py (o que de fato vai para o ar)
@@ -213,6 +213,86 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       else confere('Central (diretor regional): clicar em "Santa Catarina" mostra o mapa do estado mas a Central fica na região dele', r.scope === 'region' && r.mapa.startsWith('Visão geral'), JSON.stringify(r));
       confere(`Central (${papel}): sem erro de JavaScript ao voltar ao estado`, erros.length === 0, erros.join(' | '));
       await ctx.close();
+    }
+
+    // ===== 1i) relatório TRIMESTRAL (mar/jun/set/dez, prazo dia 5) — nada pendente antes do lançamento =====
+    {
+      const { ctx, page, erros } = await abrir(browser, 'chapter_president', false);
+      await entrar(page);
+      await page.evaluate(async () => { showPage('monthly', document.querySelector('.nav[data-page="monthly"]')); await loadMonthly(); });
+      await page.waitForTimeout(600);
+      const r = await page.evaluate(() => ({ sel: [...document.getElementById('monthlyMonth').options].map((o) => o.value + '|' + o.textContent),
+        nota: document.getElementById('monthlyNotice').textContent, titulo: document.querySelector('#page-monthly h1').textContent }));
+      confere('Trimestral: página "Andamento trimestral"', r.titulo === 'Andamento trimestral', r.titulo);
+      confere('Trimestral: o filtro só tem trimestres (mar/jun/set/dez)', r.sel.length >= 4 && r.sel.every((x) => /^\d{4}-(03|06|09|12)-01\|\dº trimestre de \d{4}/.test(x)), r.sel.slice(0, 3).join(' · '));
+      confere('Trimestral: antes do lançamento, aviso diz que não é cobrado (sem "atrasado")', /não é cobrado|abre em|enviado/.test(r.nota) && !/atrasado/.test(r.nota), r.nota);
+      await page.evaluate(() => openMonthlyForm());
+      const f = await page.evaluate(() => ({ t: document.getElementById('monthlyTitle').textContent, ms: [...document.getElementById('mrMonth').options].map((o) => o.value) }));
+      confere('Trimestral: formulário só oferece trimestres que já abriram', f.t === 'Relatório do trimestre' && f.ms.length >= 1 && f.ms.every((m) => /-(03|06|09|12)-01$/.test(m) && new Date(m + 'T00:00:00') <= new Date()), JSON.stringify(f));
+      const aviso = await page.evaluate(() => { const b = document.getElementById('adhMeusAvisos'); return b ? (b.hidden ? '' : b.textContent) : ''; });
+      confere('Antes do lançamento: presidente não vê nenhum aviso de pendência', aviso === '', aviso);
+      confere('Trimestral (presidente): sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+    }
+    {
+      // depois do lançamento: evento que já passou sem relatório vira "relatório pendente"; relatório do trimestre cobrado
+      SIM_CFG.lancamento = '2026-01-01';
+      SIM_EVENTOS.push({ id: 99, chapter_id: 4, title: 'TESTE Evento que já passou', event_type: 'dinner', description: '', starts_at: new Date(Date.now() - 3 * 864e5).toISOString(), ends_at: null,
+        venue_name: '', address: '', municipality_id: null, status: 'scheduled', is_published: true, public_contact: '', image_url: null });
+      try {
+        const { ctx, page, erros } = await abrir(browser, 'chapter_president', false);
+        await entrar(page);
+        await page.evaluate(async () => { await loadMonthly(true); showPage('dashboard', document.querySelector('.nav[data-page="dashboard"]')); renderDashboard(); });
+        await page.waitForTimeout(800);
+        const av = await page.evaluate(() => { const b = document.getElementById('adhMeusAvisos'); return b && !b.hidden ? b.textContent : ''; });
+        confere('Depois do lançamento: "Seus avisos" mostra o relatório do trimestre', /Relatório do|relatório do/.test(av) && /trimestre/.test(av), av);
+        confere('Depois do lançamento: evento que já passou vira "Relatório pendente"', /Relatório pendente: TESTE Evento que já passou/.test(av), av);
+        await page.evaluate(() => adhReportForEvent('99'));
+        const rf = await page.evaluate(() => { const f = document.querySelector('#reportModal form'); return { open: document.getElementById('reportModal').classList.contains('open'), ev: document.getElementById('reportEvent').value, nome: f.elements.eventName.value }; });
+        confere('"Fazer relatório" abre o relatório já com o evento escolhido', rf.open && rf.ev === '99' && rf.nome === 'TESTE Evento que já passou', JSON.stringify(rf));
+        await page.evaluate(() => { closeModal('reportModal'); showPage('reports', document.querySelector('.nav[data-page="reports"]')); renderReports(); });
+        const rp = await page.evaluate(() => { const b = document.getElementById('adhRelPendentes'); return b && !b.hidden ? b.textContent : ''; });
+        confere('Relatórios de eventos: lista os eventos já realizados sem relatório', /1 evento\(s\) já realizado\(s\) sem relatório/.test(rp), rp);
+        confere('Avisos (presidente): sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+        await ctx.close();
+        const d = await abrir(browser, 'regional_director', false);
+        await entrar(d.page);
+        await d.page.evaluate(async () => { await loadMonthly(true); showPage('dashboard', document.querySelector('.nav[data-page="dashboard"]')); renderDashboard(); });
+        await d.page.waitForTimeout(800);
+        const at = await d.page.evaluate(() => (document.getElementById('attentionPanel') || {}).textContent || '');
+        confere('Diretor regional: quadro "Atenção" mostra evento da região sem relatório', /evento\(s\) já realizado\(s\) sem relatório/.test(at) && /TESTE Evento que já passou/.test(at), at.slice(0, 300));
+        confere('Diretor regional: avisos sem erro de JavaScript', d.erros.length === 0, d.erros.join(' | '));
+        await d.ctx.close();
+      } finally { SIM_CFG.lancamento = null; SIM_EVENTOS.pop(); }
+    }
+    // ===== 1j) Saúde por trimestre e aviso de fim de mandato definido pelo diretor =====
+    {
+      const { ctx, page, erros, log } = await abrir(browser, 'state_director', false);
+      await entrar(page);
+      await page.evaluate(async () => { showPage('ranking', document.querySelector('.nav[data-page="ranking"]')); await loadRanking(); });
+      await page.waitForTimeout(500);
+      const rk = log.filter((x) => x.p.endsWith('/rpc/adh_ranking')).map((x) => x.corpo && x.corpo.p_month);
+      confere('Saúde: pede sempre um trimestre (mar/jun/set/dez)', rk.length > 0 && rk.every((m) => /-(03|06|09|12)-01$/.test(m)), rk.join(','));
+      await page.evaluate(async () => { showPage('mandates', document.querySelector('.nav[data-page="mandates"]')); await gxLoadMandates(true); gxRenderMandates(); });
+      const m = await page.evaluate(() => ({ btn: !document.getElementById('gxMandAlertBtn').hidden, txt: document.getElementById('gxMandDias').textContent }));
+      confere('Mandatos: diretor estadual vê "Aviso de fim de mandato" (60 e 30 dias)', m.btn && m.txt === '60 e 30', JSON.stringify(m));
+      await page.evaluate(() => { gxMandAlertEdit(); });
+      await page.waitForTimeout(200);
+      const pre = await page.evaluate(() => (document.getElementById('adhDlgInput') || {}).value);
+      await page.evaluate(() => { document.getElementById('adhDlgInput').value = '90, 45'; [...document.querySelectorAll('.modal.open button')].find((b) => /Salvar/.test(b.textContent)).click(); });
+      await page.waitForTimeout(500);
+      const set = log.find((x) => x.p.endsWith('/rpc/adh_config_set'));
+      confere('Mandatos: o diretor muda para 90 e 45 dias e o sistema grava', pre === '60, 30' && set && set.corpo.p_key === 'alerta_mandato_dias' && JSON.stringify(set.corpo.p_value) === '[90,45]', pre + ' → ' + JSON.stringify(set && set.corpo));
+      const depois = await page.evaluate(() => document.getElementById('gxMandDias').textContent);
+      confere('Mandatos: tela passa a mostrar "90 e 45"', depois === '90 e 45', depois);
+      confere('Saúde/mandatos (diretor estadual): sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+      const p2 = await abrir(browser, 'chapter_president', false);
+      await entrar(p2.page);
+      await p2.page.evaluate(async () => { showPage('mandates', document.querySelector('.nav[data-page="mandates"]')); await gxLoadMandates(true); gxRenderMandates(); });
+      const pb = await p2.page.evaluate(() => !document.getElementById('gxMandAlertBtn').hidden);
+      confere('Mandatos: presidente não muda o aviso de mandato', !pb);
+      await p2.ctx.close();
     }
 
     // ===== 1e) logoff por inatividade: aviso com contagem, "Continuar conectado" e saída automática =====

@@ -24,6 +24,9 @@ const comunicados = [
   { id: 3, title: 'TESTE Aviso Oeste', category: 'Região', summary: 'Só do Oeste', body: 'Texto', scope: 'regional', region_id: 4, published_at: dia(-1) },
 ];
 
+/* Configurações do sistema simuladas (os testes podem mudar e devolver depois) */
+const CONFIG = { lancamento: null, alerta_mandato_dias: [60, 30] };
+
 /* Perfis fictícios: papel → designações (o capítulo 4 "Brusque" fica na região 2 "Vale do Itajaí") */
 const PERFIS = {
   state_admin: [{ role: 'state_admin', is_active: true, region_id: null, chapter_id: null }],
@@ -57,6 +60,8 @@ async function simular(page, papel) {
       return json(r, muni.slice(off, off + lim).map((m, i) => ({ ...m, boundary_geojson: { type: 'MultiPolygon',
         coordinates: SC[off + i].p.map((ring) => [ring.map((pt) => [pt[0] / 1000, pt[1] / 1000])]) } })));
     }
+    if (p.endsWith('/adh_config')) return json(r, Object.keys(CONFIG).map((key) => ({ key, value: CONFIG[key] })));
+    if (p.endsWith('/rpc/adh_config_set')) return json(r, corpo && corpo.p_value);
     if (p.endsWith('/regions')) return json(r, regioes);
     if (p.endsWith('/region_municipalities')) return json(r, regiaoMun);
     if (p.endsWith('/chapters')) return json(r, capitulos);
@@ -84,4 +89,4 @@ async function simular(page, papel) {
   return log;
 }
 
-module.exports = { simular, PERFIS, regioes, capitulos, comunicados };
+module.exports = { simular, PERFIS, regioes, capitulos, comunicados, eventos, CONFIG };

@@ -92,11 +92,11 @@ insert into public.events (id, chapter_id, title, event_type, starts_at, status,
 -- relatórios mensais entregues pelos presidentes (o gatilho só aceita quem pode enviar)
 select set_config('request.jwt.claims', json_build_object('sub', teste.uid('presidente'), 'role', 'authenticated')::text, false);
 set role authenticated;
-insert into public.chapter_monthly_reports (chapter_id, ref_month, chapter_meetings, status) values (801, date_trunc('month', now() - interval '1 month')::date, 3, 'Entregue');
+insert into public.chapter_monthly_reports (chapter_id, ref_month, chapter_meetings, status) values (801, (date_trunc('quarter', now()) - interval '4 months')::date, 3, 'Entregue');
 reset role;
 select set_config('request.jwt.claims', json_build_object('sub', teste.uid('presidente2'), 'role', 'authenticated')::text, false);
 set role authenticated;
-insert into public.chapter_monthly_reports (chapter_id, ref_month, chapter_meetings, status) values (802, date_trunc('month', now() - interval '1 month')::date, 2, 'Entregue');
+insert into public.chapter_monthly_reports (chapter_id, ref_month, chapter_meetings, status) values (802, (date_trunc('quarter', now()) - interval '4 months')::date, 2, 'Entregue');
 reset role;
 select set_config('request.jwt.claims', '', false);
 insert into public.statewide_announcements (id, title, summary, body, status, scope, state_code, region_id, starts_at, published_at, is_public) overriding system value values

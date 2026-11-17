@@ -6,7 +6,7 @@
 do $$
 declare res text; rel bigint; t text;
   novo_evento text := 'insert into public.events (chapter_id, title, event_type, starts_at, is_published) values (%s, ''TESTE novo'', ''dinner'', now() + interval ''5 days'', true)';
-  novo_relatorio text := 'insert into public.chapter_monthly_reports (chapter_id, ref_month, chapter_meetings, status) values (%s, date_trunc(''month'', now())::date, 1, ''Entregue'')';
+  novo_relatorio text := 'insert into public.chapter_monthly_reports (chapter_id, ref_month, chapter_meetings, status) values (%s, (date_trunc(''quarter'', now()) - interval ''1 month'')::date, 1, ''Entregue'')';
   aviso_regional text := 'insert into public.statewide_announcements (title, summary, body, scope, state_code, region_id, status) values (''TESTE aviso'', ''r'', ''t'', ''regional'', ''SC'', %s, ''published'')';
   aviso_estadual text := 'insert into public.statewide_announcements (title, summary, body, scope, state_code, status) values (''TESTE aviso estadual'', ''r'', ''t'', ''state'', ''SC'', ''published'')';
 begin
