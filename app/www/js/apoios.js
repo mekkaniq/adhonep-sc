@@ -51,7 +51,7 @@
    SP=Array.isArray(rows)?rows:[];try{var cs=await adhFetch('/rest/v1/chapter_supports?select=*');CS={};(Array.isArray(cs)?cs:[]).forEach(function(r){CS[String(r.chapter_id)]=r})}catch(e){}mrFillMonthSelect(document.getElementById('spMonth'),12,true);
    var nb=document.getElementById('spNewBtn');if(nb)nb.style.display=canSubmit()?'':'none';
    navCount();renderToggles();if(!silent||document.getElementById('page-support')?.classList.contains('on'))renderSupport()}
-  catch(e){var m=String(e&&e.message||e);if(note&&!silent)note.textContent=/relation .* does not exist|schema cache|chapter_support_reports/i.test(m)?'A migração v3.14 ainda não foi aplicada no Supabase (supabase/migracao-v3.14-relatorio-apoios.sql).':'Não foi possível carregar os relatórios: '+m}};
+  catch(e){var m=String(e&&e.message||e);if(note&&!silent)note.textContent=/relation .* does not exist|schema cache|chapter_support_reports/i.test(m)?'Este módulo ainda não está disponível. Fale com o administrador.':'Não foi possível carregar os relatórios: '+m}};
  function navCount(){var el=document.getElementById('spNavCount');if(!el)return;var n=0;
   if(canReview())n=SP.filter(function(r){return r.status==='Entregue'||r.status==='Reenviado'}).length;
   else if(canSubmit()){var d=new Date(),prev=mrKey(new Date(d.getFullYear(),d.getMonth()-1,1));n=myPairs().filter(function(p){return !SP.some(function(r){return String(r.chapter_id)===String(p.c)&&r.kind===p.k&&String(r.ref_month).slice(0,10)===prev})}).length+SP.filter(function(r){return r.status==='Correções solicitadas'}).length}

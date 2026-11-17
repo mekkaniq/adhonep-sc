@@ -5,7 +5,7 @@
    - Público: destaque dourado nos municípios com capítulo ativo e publicado; busca por cidade sem
      capítulo mostra os 2 capítulos mais próximos.
    - Administrativo: 4 situações (ativo, em ativação, em reativação, inativo), cada uma com sua cor.
-   Os dados (capítulos, regiões, vínculos, limites) vêm sempre do Supabase. */
+   Os dados (capítulos, regiões, vínculos, limites) vêm sempre. */
 (function (root) {
   'use strict';
 

@@ -878,6 +878,6 @@ async function gxRdSave(ev, id) {
     gxEl('gxRdModal').remove(); renderRegions(); ['adm', 'cmd'].forEach(k => AdhMap[k] && AdhMap[k].refreshPanel && AdhMap[k].refreshPanel());
     if (typeof toast === 'function') toast('Contato da região salvo.');
   } catch (e) {
-    msg.textContent = 'Não foi possível salvar: ' + (/permission|42501|row-level|column/i.test(e.message) ? 'rode o SQL migracao-v1.9-regioes-diretor.sql no Supabase.' : e.message);
+    msg.textContent = 'Não foi possível salvar: ' + (/permission|42501|row-level|column/i.test(e.message) ? 'sua conta não tem permissão para isso.' : e.message);
   }
 }
