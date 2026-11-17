@@ -8,6 +8,10 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   Brusque (Norberto Bruns): Brusque, Gaspar, Guabiruba, Botuverá (de Blumenau) e Nova Trento (de Tijucas).
   Jaraguá do Sul (Jean Dias): Jaraguá do Sul, Corupá, Guaramirim, Massaranduba, Schroeder (de Joinville).
   Ajustes seguintes: `select public.adh_mover_municipios('Região', array['Cidade', ...]);` no SQL Editor (só o dono do banco). Teste: `testes/banco/35-regioes.sql`.
+- **Mudar cidade de região pelo painel (17/11/2026, branch `mover-cidade-regiao`)** — Regiões e municípios: o administrador busca a cidade e
+  escolhe a região nova (capítulos vão junto, histórico guardado) e cria região com "+ Nova região". [banco] v3.20 **APLICADA em 17/11/2026**.
+  Cores fixas no mapa para Brusque e Jaraguá do Sul; região nova sem cor fixa ganha cor estável pelo nome. Testes: `35-regioes.sql` e tela.
+- **Tirar o nome "Supabase" das telas (17/11/2026)** — mensagens, títulos e login do `/beta` e do app (fica só na Política de Privacidade). Falta levar ao oficial.
 - **Texto do login (17/11/2026)** — "Entre com sua conta já cadastrada ou solicite o cadastro." no `/beta` e no app; falta levar ao oficial.
 - **GitHub Pages pelo Actions (17/11/2026)** — [feito] Eduardo trocou Source para "GitHub Actions" e criou `PAGES_PELO_ACTIONS = sim`;
   "Publicar site (GitHub Pages)" rodou com sucesso (só os arquivos do site; sem `docs/`, SQL, testes, zips).

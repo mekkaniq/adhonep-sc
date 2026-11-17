@@ -102,6 +102,35 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await ctx.close();
     }
 
+    // ===== 1c) regiões: administrador muda a cidade de região (v3.20); outros perfis não =====
+    for (const papel of ['state_admin', 'state_director']) {
+      const { ctx, page, erros, log } = await abrir(browser, papel, false);
+      await entrar(page);
+      await page.evaluate(async () => { showPage('regions', document.querySelector('.nav[data-page="regions"]')); await loadTerritoryFromSupabase(); });
+      await page.evaluate(() => { document.getElementById('municipalitySearch').value = 'Brusque'; renderMunicipalities(); });
+      await page.waitForTimeout(400);
+      const seletores = await page.locator('select.adh-mover-cidade').count();
+      const botao = await page.evaluate(() => !document.getElementById('adhNewRegionBtn').hidden);
+      if (papel === 'state_admin') {
+        confere('Regiões: administrador vê a lista para mudar a cidade de região', seletores > 0, 'listas: ' + seletores);
+        confere('Regiões: administrador vê "+ Nova região"', botao);
+        const sel = page.locator('select.adh-mover-cidade').first();
+        const atual = await sel.inputValue();
+        const outra = await sel.evaluate((s, a) => [...s.options].map((o) => o.value).find((v) => v && v !== a), atual);
+        await sel.selectOption(outra);
+        await page.waitForTimeout(300);
+        await page.locator('.modal.open button[data-k="1"]').last().click();
+        await page.waitForTimeout(1200);
+        const envio = log.find((x) => x.m === 'POST' && x.p.endsWith('/rpc/adh_admin_mover_municipio'));
+        confere('Regiões: mudar a cidade de região vai para o banco com cidade e região', !!envio && Number(envio.corpo.p_regiao) === Number(outra) && Number(envio.corpo.p_municipio) > 0, JSON.stringify(envio && envio.corpo));
+      } else {
+        confere('Regiões: ' + papel + ' NÃO vê a lista para mudar a cidade de região', seletores === 0, 'listas: ' + seletores);
+        confere('Regiões: ' + papel + ' NÃO vê "+ Nova região"', !botao);
+      }
+      confere('Regiões (' + papel + '): sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+    }
+
     // ===== 2) relatórios: presidente envia o andamento mensal do próprio capítulo =====
     {
       const { ctx, page, erros, log } = await abrir(browser, 'chapter_president', false);

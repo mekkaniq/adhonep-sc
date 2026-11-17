@@ -40,3 +40,25 @@ begin
     perform teste.confere('Regiões: recusa município de outro estado', true, sqlerrm);
   end;
 end $$;
+
+-- v3.20: pela tela, só o administrador muda cidade de região e cria região
+do $$
+declare res text; u text;
+begin
+  res := teste.tenta(teste.uid('admin'), 'select public.adh_admin_mover_municipio(9002, 901)');
+  perform teste.confere('Regiões (tela): administrador muda a cidade de região', teste.linhas(res) = 1, res);
+  res := teste.tenta(teste.uid('admin'), 'select public.adh_admin_criar_regiao(''TESTE Região Criada'', ''Fulano'')');
+  perform teste.confere('Regiões (tela): administrador cria região', teste.linhas(res) = 1, res);
+  res := teste.tenta(teste.uid('admin'), 'select public.adh_admin_mover_municipio(9003, 901)');
+  perform teste.confere('Regiões (tela): recusa região de outro estado', res like 'erro:%', res);
+  foreach u in array array['dir_estadual','dir_regional','presidente','socio'] loop
+    res := teste.tenta(teste.uid(u), 'select public.adh_admin_mover_municipio(9002, 901)');
+    perform teste.confere('Regiões (tela): ' || u || ' NÃO muda cidade de região', teste.bloqueou(res), res);
+    res := teste.tenta(teste.uid(u), 'select public.adh_admin_criar_regiao(''X'' || ''Y'')');
+    perform teste.confere('Regiões (tela): ' || u || ' NÃO cria região', teste.bloqueou(res), res);
+  end loop;
+  res := teste.tenta(null, 'select public.adh_admin_mover_municipio(9002, 901)');
+  perform teste.confere('Regiões (tela): visitante NÃO muda cidade de região', teste.bloqueou(res), res);
+  perform teste.confere('Regiões (tela): nada mudou depois das tentativas',
+    (select region_id from public.region_municipalities where municipality_id = 9002 and valid_until is null) = 902);
+end $$;
