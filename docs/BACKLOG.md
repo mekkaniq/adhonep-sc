@@ -4,6 +4,9 @@
 ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.md`.
 
 ## Fazendo agora
+- **GitHub Pages pelo Actions (17/11/2026)** — publicar só os arquivos do site (sem `docs/`, SQL, testes, zips).
+  Falta o Eduardo: Settings → Pages → Source "GitHub Actions" e a variável `PAGES_PELO_ACTIONS = sim`; depois rodar
+  "Publicar site (GitHub Pages)" e conferir que `www.adhonepemsc.com.br/docs/BACKLOG.md` dá 404.
 - **Hardening (16/11/2026, branch `claude/eloquent-ramanujan-sjl4cy`)** — briefing de segurança:
   - [feito] varredura de chaves (gitleaks, histórico inteiro + zips): só a chave publicável; nada a rotacionar.
     Agora automática: job "Segredos" no workflow de testes, a cada push (`.gitleaks.toml`).
@@ -28,13 +31,13 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 - **Semana 4 (30/11–06/12):** **lançar na Google Play** (produção) e anunciar para os capítulos.
 
 ## Próximas (em ordem de prioridade)
-1. ~~Aplicar a v3.17 na produção~~ **APLICADA em 12/11/2026** (migração `v3_17_sem_truncate_para_api`, a pedido do Eduardo). O arquivo
-   `supabase/migracoes/v3.17-sem-truncate-para-api.sql` ainda diz PENDENTE; atualizar para APLICADA.
+1. ~~Aplicar a v3.17 na produção~~ **APLICADA em 12/11/2026** (migração `v3_17_sem_truncate_para_api`). Conferido na produção em 17/11;
+   arquivo marcado como APLICADA.
 2. **Confirmar as exceções de exclusão** que o teste do banco encontrou (hoje permitidas): presidente/diretores excluem
    registro de reunião (`chapter_meeting_log`) e mandato (`leader_mandates`); quem enviou um documento da Biblioteca
    pode excluí-lo; diretor estadual também consegue excluir reuniões e mandatos. Manter ou restringir ao administrador?
-3. **Pacote do app (branch `proximo-pacote`)**, sobe tudo de uma vez quando o Eduardo pedir:
-   - [feito na branch] evento público mostra a cidade em destaque e não o nome do capítulo;
+3. **Pacote do app** — **subido para a `main` em 17/11/2026** (a pedido do Eduardo); entra no próximo build iOS/Android:
+   - [na main] evento público mostra a cidade em destaque e não o nome do capítulo;
    - (os próximos pedidos do Eduardo entram aqui).
 4. **Conta de demonstração para os revisores** da Apple e da Google (perfil sócio, só leitura). Pode ser a mesma do teste de carga.
 5. **Teste de carga k6 de novo**, com o ritmo real (`lancamento`), depois do plano Pro ou com 1 h sem outros testes.

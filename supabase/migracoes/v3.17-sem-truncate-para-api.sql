@@ -1,5 +1,5 @@
 -- ADHONEP-SC · v3.17 — tira permissões que sobraram para os papéis da API (claude v1.13)
--- STATUS: PENDENTE — aguardando o ok do Eduardo para aplicar na PRODUÇÃO (já entra no teste do banco).
+-- STATUS: APLICADA em 12/11/2026 (migração v3_17_sem_truncate_para_api; conferido em 17/11: nenhum TRUNCATE/TRIGGER/REFERENCES para anon/authenticated).
 --
 -- O que é: o visitante (anon) e o usuário logado (authenticated) tinham TRUNCATE, TRIGGER e REFERENCES
 -- em algumas tabelas. TRUNCATE apaga a tabela inteira passando por cima da RLS. O site e o app nunca usam
