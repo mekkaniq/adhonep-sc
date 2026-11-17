@@ -68,6 +68,9 @@ async function simular(page, papel) {
       if (acao === 'deletion_requests') return json(r, { ok: true, requests: papel === 'state_admin' ? [{ id: 1, user_id: 'u-sair', email: 'quer.sair@teste.invalid', created_at: dia(-2), full_name: 'TESTE Pessoa que pediu exclusão' }] : [] });
       return json(r, { ok: true });
     }
+    if (p.includes('/storage/v1/object/sign/')) return json(r, { signedURL: '/object/sign/' + p.split('/object/sign/')[1] + '?token=teste' });
+    if (p.includes('/storage/v1/object/') && m === 'POST') return json(r, { Key: p.split('/storage/v1/object/')[1] });
+    if (p.endsWith('/chapter_reports') && (m === 'POST' || m === 'PATCH')) return json(r, [{ id: 77, ...(corpo || {}) }], 201);
     if (p.endsWith('/rpc/adh_request_account_deletion')) return json(r, { ok: true, admin: false });
     if (p.endsWith('/rpc/adh_my_ranking_access')) return json(r, papel === 'state_admin' || papel === 'state_director' ? 'state' : papel === 'regional_director' ? 'region' : 'none');
     if (p.endsWith('/rpc/adh_ranking')) return json(r, { month: '2026-10-01', chapters: [], regions: [], settings: {} });

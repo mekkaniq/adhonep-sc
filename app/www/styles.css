@@ -909,6 +909,11 @@ html.lvl-global .rolebar,html.lvl-brasil .rolebar{display:none!important}
 /* Apresentação em vídeo: acima da faixa do beta, botão de fechar visível no iPhone */
 .reel-modal{z-index:400}
 .reel-close{top:calc(env(safe-area-inset-top,0px) + 14px);z-index:3}
+
+/* Relatório de evento: até 3 fotos */
+.adh-rep-fotos{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0}
+.adh-rep-foto{display:flex;flex-direction:column;gap:6px;align-items:flex-start;width:112px}
+.adh-rep-foto img{width:112px;height:84px;object-fit:cover;border-radius:10px;border:1px solid rgba(16,43,78,.18);background:#eef2f7}
 /* ADHONEP-SC · aplicativo — camada visual única (azul-marinho + ouro, ícones de traço, sem emoji). */
 html.in-app{
   --navy:#102b4e;--gold:#c9a45c;--gold2:#e6cf9c;

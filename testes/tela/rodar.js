@@ -159,6 +159,62 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await ctx.close();
     }
 
+    // ===== 1f) "Desejo ser sócio" (no lugar de "Quero ser sócio") no site e no app =====
+    {
+      const fs = require('fs'), path = require('path'), raiz = path.resolve(__dirname, '../..');
+      const site = fs.readFileSync(path.join(raiz, 'beta/index.html'), 'utf8'), app = fs.readFileSync(path.join(raiz, 'app/native/shell.js'), 'utf8');
+      confere('"Desejo ser sócio" no site e no app, sem "Quero ser sócio"', site.includes('Desejo ser sócio') && app.includes('Desejo ser sócio') && !/Quero ser sócio/.test(site + app));
+    }
+
+    // ===== 1g) relatório de evento com até 3 fotos =====
+    {
+      const { ctx, page, erros, log } = await abrir(browser, 'chapter_president', false);
+      await entrar(page);
+      await page.evaluate(() => openReport());
+      await page.waitForSelector('#reportModal.open', { timeout: 5000 }).catch(() => {});
+      const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+      const fotos = [1, 2, 3, 4].map((i) => ({ name: 'foto' + i + '.png', mimeType: 'image/png', buffer: png }));
+      await page.setInputFiles('#reportPhotos', fotos);
+      await page.waitForTimeout(300);
+      const est = await page.evaluate(() => ({ n: document.querySelectorAll('#reportPhotoList .adh-rep-foto').length, c: document.getElementById('reportPhotoCount').textContent, d: document.getElementById('reportPhotos').disabled, t: (document.querySelector('.toast') || {}).textContent || '' }));
+      confere('Relatório: escolhendo 4 fotos, ficam só 3 ("3 de 3") e o campo trava', est.n === 3 && est.c === '3 de 3' && est.d, JSON.stringify(est));
+      confere('Relatório: avisa "Máximo de 3 fotos"', /Máximo de 3 fotos/.test(est.t), est.t);
+      await page.evaluate(() => adhRepFotoTirar(0));
+      const dois = await page.evaluate(() => ({ n: document.querySelectorAll('#reportPhotoList .adh-rep-foto').length, d: document.getElementById('reportPhotos').disabled }));
+      confere('Relatório: tirar uma foto libera o campo de novo', dois.n === 2 && !dois.d, JSON.stringify(dois));
+      await page.evaluate(() => { const f = document.querySelector('#reportModal form'); f.elements.eventName.value = 'TESTE evento'; f.elements.owner.value = 'Fulano'; f.elements.summary.value = 'Resumo'; });
+      await page.evaluate(() => document.querySelector('#reportModal form').requestSubmit());
+      await page.waitForTimeout(1500);
+      const envios = log.filter((x) => x.m === 'POST' && x.p.includes('/storage/v1/object/event-report-photos/'));
+      const rel = log.find((x) => x.m === 'POST' && x.p.endsWith('/chapter_reports'));
+      const caminhos = rel && rel.corpo && rel.corpo.photo_paths;
+      confere('Relatório: envia as 2 fotos para a pasta do capítulo dele', envios.length === 2 && envios.every((x) => /event-report-photos\/4\/[\w.-]+$/.test(x.p)), envios.map((x) => x.p).join(' | '));
+      confere('Relatório: grava os 2 caminhos no relatório', Array.isArray(caminhos) && caminhos.length === 2 && caminhos.every((c) => /^4\//.test(c)), JSON.stringify(caminhos));
+      await page.evaluate(() => { reports = [mapReportRow({ id: 77, chapter_id: 4, event_name: 'TESTE evento', responsible_name: 'Fulano', summary: 'Resumo', status: 'Entregue', photo_paths: ['4/a.jpg', '4/b.jpg'] })]; reportDetail(77); });
+      await page.waitForTimeout(600);
+      const det = await page.evaluate(() => [...document.querySelectorAll('#reportDetailFotos img')].map((i) => i.src));
+      confere('Relatório: o detalhe mostra as fotos por link protegido', det.length === 2 && det.every((u) => /object\/sign\/event-report-photos\/4\//.test(u)), det.join(' | '));
+      confere('Relatório com fotos: sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+    }
+
+    // ===== 1h) Central: com uma região aberta, clicar em "Santa Catarina" volta o painel inteiro ao estado =====
+    for (const papel of ['state_admin', 'regional_director']) {
+      const { ctx, page, erros } = await abrir(browser, papel, false);
+      await entrar(page);
+      await page.evaluate(() => { showPage('central', document.querySelector('.nav[data-page="central"]')); cmdOpen(); });
+      await page.waitForFunction(() => window.AdhMap && AdhMap.cmd && AdhMap.cmd.state().loaded, null, { timeout: 15000 }).catch(() => {});
+      await page.evaluate(() => { if (CMD.scope !== 'region') cmdPickRegion(2); });
+      await page.waitForFunction(() => document.getElementById('cmdMapLabel').textContent.startsWith('Região:'), null, { timeout: 5000 }).catch(() => {});
+      await page.evaluate(() => { const b = document.querySelector('#cmdMap .amap-crumbs [data-g="0"]'); if (b) b.click(); });
+      await page.waitForTimeout(800);
+      const r = await page.evaluate(() => ({ scope: CMD.scope, titulo: document.getElementById('cmdScopeTitle').textContent, mapa: document.getElementById('cmdMapLabel').textContent }));
+      if (papel === 'state_admin') confere('Central (administrador): clicar em "Santa Catarina" volta a Central inteira ao estado', r.scope === 'state' && r.titulo === 'Santa Catarina' && r.mapa.startsWith('Visão geral'), JSON.stringify(r));
+      else confere('Central (diretor regional): clicar em "Santa Catarina" mostra o mapa do estado mas a Central fica na região dele', r.scope === 'region' && r.mapa.startsWith('Visão geral'), JSON.stringify(r));
+      confere(`Central (${papel}): sem erro de JavaScript ao voltar ao estado`, erros.length === 0, erros.join(' | '));
+      await ctx.close();
+    }
+
     // ===== 1e) logoff por inatividade: aviso com contagem, "Continuar conectado" e saída automática =====
     {
       const { ctx, page, erros, log } = await abrir(browser, 'state_admin', false);

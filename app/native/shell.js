@@ -213,13 +213,13 @@ function buildAbout(){
  w.innerHTML='<div class="ab-eyebrow">Conheça a ADHONEP</div><h2>O que é a ADHONEP?</h2><div class="ab-lead">'+(lead?lead.innerHTML:'')+'</div>'
  +cards.map(function(c,i){var t=c.querySelector('h3');var body=c.cloneNode(true);var h=body.querySelector('h3');if(h)h.remove();
   return '<details class="ab-card"'+(i===0?' open':'')+'><summary>'+esc(t?t.textContent:'')+ic('chev','sm')+'</summary><div class="ab-in">'+body.innerHTML+'</div></details>'}).join('')
- +'<div class="ab-cta"><a class="b b-line" href="https://adhonep.com" target="_blank" rel="noopener">Quero saber mais'+ic('arrow','sm')+'</a><a class="b b-gold" href="https://adhonep.com/pt/socio/" target="_blank" rel="noopener">Quero ser sócio'+ic('arrow','sm')+'</a></div>';
+ +'<div class="ab-cta"><a class="b b-line" href="https://adhonep.com" target="_blank" rel="noopener">Quero saber mais'+ic('arrow','sm')+'</a><a class="b b-gold" href="https://adhonep.com/pt/socio/" target="_blank" rel="noopener">Desejo ser sócio'+ic('arrow','sm')+'</a></div>';
  sec.innerHTML='';sec.appendChild(w)}
 
 /* --- conta do visitante --- */
 function buildAccount(){
  var a=document.createElement('section');a.id='appAccount';a.className='app-tab';
- a.innerHTML='<div class="ac-badge">'+ic('user')+'</div><h2>Sua conta</h2><p>Entre para acessar a área do sócio, os avisos e a gestão do seu capítulo.</p><div class="ac-btns"><button class="b b-navy" id="acIn">Entrar</button><button class="b b-line" id="acReq">Solicitar cadastro</button><a class="b b-gold" href="https://adhonep.com/pt/socio/" target="_blank" rel="noopener">Quero ser sócio'+ic('arrow','sm')+'</a></div><div class="ac-links"><a href="privacidade.html">Política de privacidade</a><a href="termos.html">Termos de uso</a></div>';
+ a.innerHTML='<div class="ac-badge">'+ic('user')+'</div><h2>Sua conta</h2><p>Entre para acessar a área do sócio, os avisos e a gestão do seu capítulo.</p><div class="ac-btns"><button class="b b-navy" id="acIn">Entrar</button><button class="b b-line" id="acReq">Solicitar cadastro</button><a class="b b-gold" href="https://adhonep.com/pt/socio/" target="_blank" rel="noopener">Desejo ser sócio'+ic('arrow','sm')+'</a></div><div class="ac-links"><a href="privacidade.html">Política de privacidade</a><a href="termos.html">Termos de uso</a></div>';
  $('publicView').appendChild(a);
  $('acIn').onclick=function(){try{openRealLogin()}catch(e){}};
  $('acReq').onclick=function(){try{openPublicRequest()}catch(e){}}}

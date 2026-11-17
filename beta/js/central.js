@@ -270,6 +270,8 @@ function cmdSetScope(s) {
   else CMD.regionId = '';
   cmdSyncControls(); cmdRender(); cmdMapSync();
 }
+/* Mapa: clicou em "Santa Catarina" (ou Voltar até o estado) com uma região aberta → a Central inteira volta ao estado (diretor regional continua na região dele) */
+function cmdMapaVoltouEstado() { if (CMD.scope === 'region' && !cmdIsRegional()) cmdSetScope('state'); }
 function cmdPickRegion(id) { CMD.scope = 'region'; CMD.regionId = String(id); cmdSyncControls(); cmdRender(); cmdMapSync(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
 function cmdSyncControls() {
   const reg = cmdEl('cmdRegionSel'), regs = cmdRegions();

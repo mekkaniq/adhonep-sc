@@ -4,6 +4,12 @@
 ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.md`.
 
 ## Fazendo agora
+- **Pedidos do diretor estadual, pacote 1 (17/11/2026, branch `pacote-diretor-estadual`)** — no `/beta` e no app:
+  (13) **Saúde dos capítulos só de SC** — [banco] v3.21 **APLICADA em 17/11/2026** (antes vinham ~350 capítulos do Brasil; agora 36 ativos e 22 regiões de SC). Teste `36-saude-so-sc.sql`.
+  (3) **Relatório de evento com até 3 fotos** — [banco] v3.22 **APLICADA em 17/11/2026**: coluna `photo_paths` (máx. 3, travado no banco),
+  pasta privada `event-report-photos` (vê quem vê o relatório; envia/apaga administrador e presidente do capítulo). Fotos otimizadas para 1600 px. Testes `37-fotos-relatorio.sql` e tela.
+  (2) "Quero ser sócio" → **"Desejo ser sócio"** (rodapé do site e app). (4) **Central: clicar em "Santa Catarina"** com uma região aberta volta a Central
+  inteira ao estado (diretor regional continua na região dele). Testes de tela.
 - **Logoff por inatividade (17/11/2026)** — no navegador: 30 min sem mexer → sai (também no servidor); 2 min antes, aviso com contagem e
   "Continuar conectado"; depois, "Sua sessão foi encerrada por inatividade. Faça o login novamente." No app a sessão continua. No `/beta`; testes de tela.
 - **Dividir regiões (17/11/2026, branch `regioes-brusque-jaragua`)** — [banco] `supabase/migracoes/v3.19-regioes-brusque-jaragua.sql` **APLICADA em 17/11/2026** (ok do Eduardo). Itajaí fica como está (Barra Velha e São João do Itaperiú não mudam).
@@ -61,6 +67,8 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 11. **Ficha da App Store** (textos, privacidade, prints reais do iPhone) e ficha da Google Play.
 
 ## Observações da reunião de 12/11/2026 (Eduardo) — a priorizar e dividir em pacotes
+> **17/11/2026 — feitos no pacote 1:** (2), (3), (4), (13). Seguem: (5) bug sem reprodução; pacote 2 = (7), (8), (9) alertas e relatório trimestral
+> (4 perguntas do trimestral em aberto); pacote 3 = (12) Modo Eleição (absorve 6, 10, 11); (14) preletores; (15) menu; (1) marketing (Eduardo).
 Marcação: **[tela]** só site/app · **[banco]** mexe em banco/RLS/permissões (parar e pedir o ok do Eduardo antes de aplicar).
 - **Prioridade 1 · bug:** (5) **Informações do capítulo não gravaram.** Nenhum capítulo mudou no banco desde 08/11 (snapshot de 08/11 idêntico ao atual) e
   `chapter_public_info` está vazia. Falta o Eduardo dizer quando/qual tela/qual capítulo/mensagem ao salvar para reproduzir.

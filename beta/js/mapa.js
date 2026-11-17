@@ -596,7 +596,9 @@
       applyVisibility(); animateTo(fit(targetBBox()), opt.animate !== false);
       renderCrumbs(); renderPanel(); syncExternal();
     }
-    function back() { var L = S.st.level; if (L === 2) go(1, S.st.region); else if (L === 1) go(0); S.followed = false; }
+    /* Pedido do usuário para ver o estado inteiro (clique em "Santa Catarina", Voltar, "Ver todo o estado"): na Central, avisa para sair da visão de região */
+    function goState() { go(0); if (key === 'cmd' && typeof root.cmdMapaVoltouEstado === 'function') { try { root.cmdMapaVoltouEstado(); } catch (e) { /* ok */ } } }
+    function back() { var L = S.st.level; if (L === 2) go(1, S.st.region); else if (L === 1) goState(); S.followed = false; }
     function clickMuni(id) {
       var m = S.byId.get(String(id)); if (!m) return; var L = S.st.level;
       if (L === 0) go(1, m.regionId);
@@ -622,7 +624,7 @@
       if (L === 2 && m) h += '<span aria-hidden="true">›</span><button type="button" class="cur" aria-current="true">' + esc(m.name) + '</button>';
       if (L > 0) h += '<button type="button" class="back" data-g="b">← Voltar</button>';
       c.innerHTML = h;
-      c.querySelectorAll('[data-g]').forEach(function (b) { b.onclick = function (ev) { ev.stopPropagation(); var g = b.getAttribute('data-g'); if (g === '0') go(0); else if (g === '1') go(1, S.st.region); else if (g === 'b') back(); }; });
+      c.querySelectorAll('[data-g]').forEach(function (b) { b.onclick = function (ev) { ev.stopPropagation(); var g = b.getAttribute('data-g'); if (g === '0') goState(); else if (g === '1') go(1, S.st.region); else if (g === 'b') back(); }; });
     }
     function syncExternal() {
       var r = S.regions.get(S.st.region), m = S.byId.get(S.st.muni || ''), L = S.st.level;
@@ -641,7 +643,7 @@
           ? (cmdRegions().find(function (x) { return String(x.id) === String(CMD.regionId); }) || null) : null;
         if (rs) {
           if (home && L === 0) { rs.disabled = false; rs.textContent = 'Voltar à região ' + home.name; rs.onclick = function () { api.goRegionName(home.name); }; }
-          else { rs.disabled = L === 0; rs.textContent = 'Ver todo o estado'; rs.onclick = function () { go(0); }; }
+          else { rs.disabled = L === 0; rs.textContent = 'Ver todo o estado'; rs.onclick = function () { goState(); }; }
         }
         var sel = $(ids.sel); if (sel) { sel.disabled = false; sel.value = L >= 1 && r ? r.name : ''; }
       }
