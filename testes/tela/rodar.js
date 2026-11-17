@@ -159,6 +159,35 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await ctx.close();
     }
 
+    // ===== 1e) logoff por inatividade: aviso com contagem, "Continuar conectado" e saída automática =====
+    {
+      const { ctx, page, erros, log } = await abrir(browser, 'state_admin', false);
+      await entrar(page);
+      await page.evaluate(() => { window.adhInatividade = { limite: 5000, aviso: 3000 }; });
+      await page.waitForSelector('#adhInatividade', { timeout: 6000 }).catch(() => {});
+      const txt = await page.evaluate(() => (document.querySelector('#adhInatividade') || {}).textContent || '');
+      confere('Inatividade: aviso "o sistema fará o logoff automaticamente em"', /logoff automaticamente em \d+:\d\d minuto/.test(txt), txt);
+      await page.evaluate(() => document.querySelector('#adhInatividade [data-k="ficar"]').click());
+      await page.waitForTimeout(500);
+      const ficou = await page.evaluate(() => !!adhSession && !document.querySelector('#adhInatividade'));
+      confere('Inatividade: "Continuar conectado" mantém a sessão', ficou);
+      await page.waitForSelector('#adhInatividadeFim', { timeout: 8000 }).catch(() => {});
+      const fim = await page.evaluate(() => ({ sessao: !!adhSession, msg: (document.querySelector('#adhInatividadeFim') || {}).textContent || '', admin: document.getElementById('adminView').classList.contains('on') }));
+      confere('Inatividade: sem resposta, sai e pede login novamente', !fim.sessao && !fim.admin && fim.msg.includes('Faça o login novamente'), JSON.stringify(fim));
+      confere('Inatividade: encerra a sessão também no servidor', log.some((x) => x.m === 'POST' && x.p.endsWith('/auth/v1/logout')));
+      confere('Inatividade: sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+    }
+    {
+      const { ctx, page } = await abrir(browser, 'state_admin', false);
+      await page.evaluate(() => document.documentElement.classList.add('in-app'));
+      await entrar(page);
+      await page.evaluate(() => { window.adhInatividade = { limite: 2000, aviso: 1000 }; });
+      await page.waitForTimeout(3500);
+      confere('Inatividade: no app a sessão continua', await page.evaluate(() => !!adhSession && !document.querySelector('#adhInatividade')));
+      await ctx.close();
+    }
+
     // ===== 2) relatórios: presidente envia o andamento mensal do próprio capítulo =====
     {
       const { ctx, page, erros, log } = await abrir(browser, 'chapter_president', false);

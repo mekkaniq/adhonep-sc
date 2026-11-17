@@ -4,6 +4,8 @@
 ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.md`.
 
 ## Fazendo agora
+- **Logoff por inatividade (17/11/2026)** — no navegador: 30 min sem mexer → sai (também no servidor); 2 min antes, aviso com contagem e
+  "Continuar conectado"; depois, "Sua sessão foi encerrada por inatividade. Faça o login novamente." No app a sessão continua. No `/beta`; testes de tela.
 - **Dividir regiões (17/11/2026, branch `regioes-brusque-jaragua`)** — [banco] `supabase/migracoes/v3.19-regioes-brusque-jaragua.sql` **APLICADA em 17/11/2026** (ok do Eduardo). Itajaí fica como está (Barra Velha e São João do Itaperiú não mudam).
   Brusque (Norberto Bruns): Brusque, Gaspar, Guabiruba, Botuverá (de Blumenau) e Nova Trento (de Tijucas).
   Jaraguá do Sul (Jean Dias): Jaraguá do Sul, Corupá, Guaramirim, Massaranduba, Schroeder (de Joinville).

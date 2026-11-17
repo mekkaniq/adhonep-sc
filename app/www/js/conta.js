@@ -47,3 +47,49 @@
  function liga(){if(typeof loadRealUsers!=='function'||loadRealUsers.__del)return;var f=loadRealUsers;loadRealUsers=async function(){var r=await f.apply(this,arguments);try{adhCarregarPedidosExclusao()}catch(e){}return r};loadRealUsers.__del=1}
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',liga);else liga();
 })();
+
+/* claude v1.15 — logoff automático por inatividade (só no navegador; no app a sessão continua, como nos apps de banco).
+   30 min sem mexer → sai. 2 min antes aparece o aviso com contagem e "Continuar conectado".
+   Teste de tela troca os tempos por window.adhInatividade = { limite, aviso } (em ms). */
+(function () {
+  const PADRAO = { limite: 30 * 60 * 1000, aviso: 2 * 60 * 1000 };
+  let ultimo = Date.now(), modal = null;
+  const cfg = () => Object.assign({}, PADRAO, window.adhInatividade || {});
+  const noApp = () => document.documentElement.classList.contains('in-app') || !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  const logado = () => typeof adhSession !== 'undefined' && !!adhSession;
+  const fmt = (ms) => { const s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+  function fechaAviso() { if (modal) { modal.remove(); modal = null; } }
+  function mexeu() { if (modal) return; ultimo = Date.now(); }   // com o aviso aberto, só o botão renova
+  function aviso(resta) {
+    if (!modal) {
+      modal = document.createElement('div'); modal.className = 'modal open'; modal.id = 'adhInatividade'; modal.style.zIndex = 200;
+      modal.innerHTML = '<div class="modalbox" role="alertdialog" aria-live="assertive" style="max-width:440px"><h3>Você ainda está aí?</h3>'
+        + '<p class="sub">Por inatividade, o sistema fará o logoff automaticamente em <b id="adhInatRelogio"></b> minuto(s).</p>'
+        + '<div class="actions" style="justify-content:flex-end;margin-top:14px"><button type="button" class="btn" data-k="sair">Sair agora</button>'
+        + '<button type="button" class="btn primary" data-k="ficar">Continuar conectado</button></div></div>';
+      modal.addEventListener('click', (e) => { const k = e.target.dataset && e.target.dataset.k; if (k === 'ficar') { fechaAviso(); ultimo = Date.now(); } else if (k === 'sair') { fechaAviso(); sair(false); } });
+      document.body.appendChild(modal);
+    }
+    const r = modal.querySelector('#adhInatRelogio'); if (r) r.textContent = fmt(resta);
+  }
+  function sair(porInatividade) {
+    const tok = logado() && adhSession.access_token;
+    if (tok && typeof ADH_SUPABASE_URL !== 'undefined') fetch(ADH_SUPABASE_URL + '/auth/v1/logout', { method: 'POST', headers: { apikey: ADH_SUPABASE_KEY, Authorization: 'Bearer ' + tok } }).catch(() => {});
+    try { signOutAdmin(); } catch (e) { try { adhStoreSession(null); } catch (e2) { } }
+    try { if (typeof setMode === 'function') setMode('public'); } catch (e) { }
+    if (porInatividade) {
+      const m = document.createElement('div'); m.className = 'modal open'; m.id = 'adhInatividadeFim'; m.style.zIndex = 200;
+      m.innerHTML = '<div class="modalbox" role="alertdialog" style="max-width:440px"><h3>Sessão encerrada</h3><p class="sub">Sua sessão foi encerrada por inatividade. Faça o login novamente.</p>'
+        + '<div class="actions" style="justify-content:flex-end;margin-top:14px"><button type="button" class="btn" data-k="ok">Fechar</button><button type="button" class="btn primary" data-k="entrar">Entrar</button></div></div>';
+      m.addEventListener('click', (e) => { const k = e.target.dataset && e.target.dataset.k; if (!k) return; m.remove(); if (k === 'entrar' && typeof openRealLogin === 'function') openRealLogin(); });
+      document.body.appendChild(m);
+    }
+  }
+  ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll', 'mousemove'].forEach((ev) => window.addEventListener(ev, mexeu, { passive: true, capture: true }));
+  setInterval(() => {
+    if (!logado() || noApp()) { fechaAviso(); ultimo = Date.now(); return; }
+    const c = cfg(), parado = Date.now() - ultimo, resta = c.limite - parado;
+    if (resta <= 0) { fechaAviso(); ultimo = Date.now(); sair(true); }
+    else if (resta <= c.aviso) aviso(resta);
+  }, 1000);
+})();
