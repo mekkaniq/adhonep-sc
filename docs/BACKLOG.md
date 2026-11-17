@@ -4,6 +4,11 @@
 ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.md`.
 
 ## Fazendo agora
+- **Dividir regiões (17/11/2026, branch `regioes-brusque-jaragua`)** — [banco] `supabase/migracoes/v3.19-regioes-brusque-jaragua.sql`, **aguardando o ok do Eduardo**.
+  Brusque (Norberto Bruns): Brusque, Gaspar, Guabiruba, Botuverá (de Blumenau) e Nova Trento (de Tijucas).
+  Jaraguá do Sul (Jean Dias): Jaraguá do Sul, Corupá, Guaramirim, Massaranduba, Schroeder (de Joinville).
+  Ajustes seguintes: `select public.adh_mover_municipios('Região', array['Cidade', ...]);` no SQL Editor (só o dono do banco). Teste: `testes/banco/35-regioes.sql`.
+- **Texto do login (17/11/2026)** — "Entre com sua conta já cadastrada ou solicite o cadastro." no `/beta` e no app; falta levar ao oficial.
 - **GitHub Pages pelo Actions (17/11/2026)** — [feito] Eduardo trocou Source para "GitHub Actions" e criou `PAGES_PELO_ACTIONS = sim`;
   "Publicar site (GitHub Pages)" rodou com sucesso (só os arquivos do site; sem `docs/`, SQL, testes, zips).
   Falta conferir no navegador: site e `/beta/` abrindo, e `/docs/BACKLOG.md` dando 404.
