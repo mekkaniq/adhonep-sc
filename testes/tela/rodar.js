@@ -94,6 +94,14 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await ctx.close();
     }
 
+    // ===== 1a) /beta em sigilo até o lançamento: buscadores não indexam =====
+    {
+      const { ctx, page } = await abrir(browser, 'member', false);
+      const robots = await page.evaluate(() => (document.querySelector('meta[name="robots"]') || {}).content || '');
+      confere('Beta: buscadores não indexam (noindex,nofollow)', robots === 'noindex,nofollow', robots);
+      await ctx.close();
+    }
+
     // ===== 1b) tela de login: texto para o usuário, sem citar o Supabase =====
     {
       const { ctx, page } = await abrir(browser, 'member', false);

@@ -53,7 +53,7 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 6. **Lixeira de 30 dias para usuários excluídos** (proposta: excluir → bloqueia e vai para a Lixeira; restaurar em 30 dias;
    depois apaga sozinho). Aguardando decisão.
 7. **Quem mais corrige cadastros**: hoje só o administrador (todos) e o presidente (sócios dele). Diretores também? Até onde?
-8. **Troca completa beta → oficial no lançamento** (decisão do Eduardo, 17/11/2026: oficial congelado até lá; diretores usam o `/beta`).
+8. **Troca completa beta → oficial no lançamento** (decisão do Eduardo, 17/11/2026: oficial congelado até lá; diretores usam o `/beta`, em sigilo). Na troca: voltar `robots` para `index,follow`, tirar `Disallow: /beta/` do robots.txt.
 9. **Notificações push de verdade**: iOS (chave APNs + publicar `send-push`) e Android (Firebase / `GOOGLE_SERVICES_JSON`).
 10. **Importar a lista de usuários** (~30 diretores + ~70 presidentes) antes de liberar o app.
 11. **Ficha da App Store** (textos, privacidade, prints reais do iPhone) e ficha da Google Play.
