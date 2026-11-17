@@ -88,6 +88,27 @@ Marcação: **[tela]** só site/app · **[banco]** mexe em banco/RLS/permissões
 - **Outros:** (1) pensar no marketing.
 - Backup completo feito em 12/11/2026 (`ADHONEP-BACKUP-2026-11-12.zip`, fora do repositório; contém dados pessoais).
 
+## Decisões do Eduardo de 17/11/2026 (pedidos do diretor estadual) — anotado, aguardando o "pode fazer"
+**Pacote 2 · relatório trimestral + alertas (7, 8, 9)**
+- Trimestre de calendário. Relatórios em **março, junho, setembro e dezembro** (o último do ano é dezembro); **prazo dia 5** do mês seguinte.
+- A **Saúde soma os 3 meses** do trimestre (teto de eventos/reuniões ×3 — proposta, confirmar). Não há relatórios antigos para converter.
+- **Nada fica pendente antes do lançamento:** só cobra relatório de trimestre a partir do lançamento da plataforma (abrir já com tudo pendente
+  só gera ansiedade). Mesma regra para "evento vencido → relatório pendente" (7): só eventos depois do lançamento.
+- Avisos antes do prazo: proposta 15, 7 e 1 dia(s) antes do dia 5; depois, "atrasado".
+- (8) **Alerta de fim de mandato: quantos dias antes é definido pelo diretor** (configurável; padrão 60 e 30).
+
+**Pacote 3 · Modo Eleição (12, absorve 6, 10, 11)**
+- **Secretário = cargo de confiança, por delegação.** Qualquer pessoa, indicada por alguém de qualquer nível ("secretário de Fulano").
+  Representa e trabalha por quem o escolheu: **mesma capacidade de trabalho** de quem o indicou (vê e faz o mesmo), e **tudo que ele faz fica
+  registrado** ("feito por X, secretário de Y"). Quem indicou pode tirar a qualquer hora; se quem indicou sai do cargo, o secretário perde junto.
+  A confirmar ao fazer: excluir entra na "mesma capacidade"? (em 17/11 o Eduardo tinha dito "só envia, sem excluir").
+- **Ata:** secretário preenche no sistema → diretor regional (e regente) → **a diretoria nova só vale depois que o diretor regional aprova**
+  (enquanto isso, vale a antiga; correção volta ao secretário, como nos relatórios).
+- **Documentos oficiais** (modelo de ata, de relatório…): o Eduardo vai buscar; ficam na Biblioteca para baixar.
+- **Envio ao escritório nacional:** começa pelo **(A)** — ata aprovada vira PDF, a pessoa baixa e envia pelo e-mail dela.
+  **Meta: (B)** — o sistema envia sozinho (depende do e-mail próprio da ADHONEP / SMTP, item "E-mails do sistema").
+- Em aberto: o regente (quando for o representante de campo) precisa de login para confirmar a ata ou basta o nome na ata?
+
 ## Anotações do Eduardo (descobertas, ainda sem ação)
 - 06/11/2026 — **Código do site visível no F12.** Todo site mostra o próprio HTML/JS no navegador; isso é normal e não dá para esconder.
   A segurança precisa estar no servidor: regras de acesso do banco (RLS), chaves secretas só no Supabase e nada sensível no código.
