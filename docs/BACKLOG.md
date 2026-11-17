@@ -11,8 +11,8 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 - **Mudar cidade de região pelo painel (17/11/2026, branch `mover-cidade-regiao`)** — Regiões e municípios: o administrador busca a cidade e
   escolhe a região nova (capítulos vão junto, histórico guardado) e cria região com "+ Nova região". [banco] v3.20 **APLICADA em 17/11/2026**.
   Cores fixas no mapa para Brusque e Jaraguá do Sul; região nova sem cor fixa ganha cor estável pelo nome. Testes: `35-regioes.sql` e tela.
-- **Tirar o nome "Supabase" das telas (17/11/2026)** — mensagens, títulos e login do `/beta` e do app (fica só na Política de Privacidade). Falta levar ao oficial.
-- **Texto do login (17/11/2026)** — "Entre com sua conta já cadastrada ou solicite o cadastro." no `/beta` e no app; falta levar ao oficial.
+- **Tirar o nome "Supabase" das telas (17/11/2026)** — mensagens, títulos e login do `/beta` e do app (fica só na Política de Privacidade). Oficial só na troca completa do lançamento.
+- **Texto do login (17/11/2026)** — "Entre com sua conta já cadastrada ou solicite o cadastro." no `/beta` e no app; oficial só na troca completa do lançamento.
 - **GitHub Pages pelo Actions (17/11/2026)** — [feito] Eduardo trocou Source para "GitHub Actions" e criou `PAGES_PELO_ACTIONS = sim`;
   "Publicar site (GitHub Pages)" rodou com sucesso (só os arquivos do site; sem `docs/`, SQL, testes, zips).
   Falta conferir no navegador: site e `/beta/` abrindo, e `/docs/BACKLOG.md` dando 404.
@@ -53,7 +53,7 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 6. **Lixeira de 30 dias para usuários excluídos** (proposta: excluir → bloqueia e vai para a Lixeira; restaurar em 30 dias;
    depois apaga sozinho). Aguardando decisão.
 7. **Quem mais corrige cadastros**: hoje só o administrador (todos) e o presidente (sócios dele). Diretores também? Até onde?
-8. **Levar o visual do `/beta` para o site oficial** no lançamento.
+8. **Troca completa beta → oficial no lançamento** (decisão do Eduardo, 17/11/2026: oficial congelado até lá; diretores usam o `/beta`).
 9. **Notificações push de verdade**: iOS (chave APNs + publicar `send-push`) e Android (Firebase / `GOOGLE_SERVICES_JSON`).
 10. **Importar a lista de usuários** (~30 diretores + ~70 presidentes) antes de liberar o app.
 11. **Ficha da App Store** (textos, privacidade, prints reais do iPhone) e ficha da Google Play.

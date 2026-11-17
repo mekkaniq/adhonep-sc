@@ -54,7 +54,9 @@ Dono: Eduardo S. (GitHub `mekkaniq`). Fala em português, prefere tudo feito de 
    apagar dados (DELETE/TRUNCATE em dados reais), apagar estrutura (DROP de tabela/coluna/função em uso) ou tirar acesso
    de quem usa o sistema hoje (RLS/permissões mais restritas, mudar ou remover papel de usuário).
    O arquivo vai para `supabase/migracoes/` e, ao aplicar, fica "STATUS: APLICADA em dd/mm/aaaa" (pendente só enquanto espera o ok).
-5. **Oficial.** Levar a mudança para a raiz, merge, commit e push na `main` (o GitHub Pages publica o oficial).
+5. **Oficial.** ⚠️ **Decisão do Eduardo (17/11/2026): o site oficial (raiz) fica congelado até o lançamento.** Os diretores usam o
+   `/beta` por enquanto; no lançamento faz-se a troca completa beta → oficial de uma vez. Até lá, NÃO levar mudanças para a raiz.
+   Depois do lançamento, volta a valer: Levar a mudança para a raiz, merge, commit e push na `main` (o GitHub Pages publica o oficial).
    Conferir o site no ar e, se mexeu no app, gerar o build (iOS: workflow "App iOS → TestFlight" com o próximo número).
 6. **Fechar.** Mover o item para "Feito" com data e versão "claude v1.x" e mandar ao Eduardo **só o zip**
    (`adhonep-beta-claude-v1.x.zip`, conteúdo da pasta `beta/`).
