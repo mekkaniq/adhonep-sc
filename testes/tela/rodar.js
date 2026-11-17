@@ -94,6 +94,14 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await ctx.close();
     }
 
+    // ===== 1b) tela de login: texto para o usuário, sem citar o Supabase =====
+    {
+      const { ctx, page } = await abrir(browser, 'member', false);
+      const txt = await page.evaluate(() => { openRealLogin(); return document.getElementById('realLoginMessage').textContent; });
+      confere('Login: mensagem "Entre com sua conta já cadastrada ou solicite o cadastro."', txt === 'Entre com sua conta já cadastrada ou solicite o cadastro.', txt);
+      await ctx.close();
+    }
+
     // ===== 2) relatórios: presidente envia o andamento mensal do próprio capítulo =====
     {
       const { ctx, page, erros, log } = await abrir(browser, 'chapter_president', false);
