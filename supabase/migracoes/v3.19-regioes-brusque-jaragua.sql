@@ -1,5 +1,5 @@
 -- ADHONEP-SC · v3.19 — divide regiões: Brusque (sai de Blumenau) e Jaraguá do Sul (sai de Joinville) (claude v1.15)
--- STATUS: PENDENTE — aguardando o ok do Eduardo para aplicar na PRODUÇÃO.
+-- STATUS: APLICADA em 17/11/2026 (migração v3_19_regioes_brusque_jaragua; ok do Eduardo). Brusque = região 557, Jaraguá do Sul = 558.
 --
 -- O que faz:
 -- 1) Cria a função public.adh_mover_municipios(região, municípios[], diretor): cria a região se não existir,
