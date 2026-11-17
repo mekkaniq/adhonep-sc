@@ -635,7 +635,14 @@
         if (note) { note.innerHTML = L === 0 ? '' : '<div class="fnote"><span>Filtrando pelo mapa: <b>' + esc(root.adhMapFilter.region) + (root.adhMapFilter.city ? ' › ' + esc(root.adhMapFilter.city) : '') + '</b></span><button type="button" class="btn small" onclick="AdhMap.reset()">Limpar</button></div>'; }
         if (typeof renderPublic === 'function') renderPublic();
       } else {
-        var rs = $(ids.reset); if (rs) { rs.disabled = L === 0; rs.onclick = function () { go(0); }; }
+        var rs = $(ids.reset);
+        /* Central em visão de região (diretor regional ou região escolhida): no estado inteiro, o botão volta para a região */
+        var home = key === 'cmd' && typeof CMD !== 'undefined' && CMD.scope === 'region' && CMD.regionId && typeof cmdRegions === 'function'
+          ? (cmdRegions().find(function (x) { return String(x.id) === String(CMD.regionId); }) || null) : null;
+        if (rs) {
+          if (home && L === 0) { rs.disabled = false; rs.textContent = 'Voltar à região ' + home.name; rs.onclick = function () { api.goRegionName(home.name); }; }
+          else { rs.disabled = L === 0; rs.textContent = 'Ver todo o estado'; rs.onclick = function () { go(0); }; }
+        }
         var sel = $(ids.sel); if (sel) { sel.disabled = false; sel.value = L >= 1 && r ? r.name : ''; }
       }
     }

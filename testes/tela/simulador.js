@@ -50,7 +50,13 @@ async function simular(page, papel) {
     if (p.endsWith('/auth/v1/user')) return json(r, { id: 'u-teste', email: 'teste@teste.invalid' });
     if (p.endsWith('/user_roles')) return json(r, papel ? PERFIS[papel] : []);
     if (p.endsWith('/profiles')) return json(r, [{ id: 'u-teste', full_name: 'Pessoa de Teste', phone: '' }]);
-    if (p.endsWith('/municipalities')) return json(r, muni);
+    if (p.endsWith('/municipalities')) {
+      if (!/boundary_geojson/.test(u.search)) return json(r, muni);
+      // mapa: limites municipais a partir do SC.json local, paginado como no banco
+      const off = Number(u.searchParams.get('offset') || 0), lim = Number(u.searchParams.get('limit') || 1000);
+      return json(r, muni.slice(off, off + lim).map((m, i) => ({ ...m, boundary_geojson: { type: 'MultiPolygon',
+        coordinates: SC[off + i].p.map((ring) => [ring.map((pt) => [pt[0] / 1000, pt[1] / 1000])]) } })));
+    }
     if (p.endsWith('/regions')) return json(r, regioes);
     if (p.endsWith('/region_municipalities')) return json(r, regiaoMun);
     if (p.endsWith('/chapters')) return json(r, capitulos);

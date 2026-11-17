@@ -131,6 +131,26 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await ctx.close();
     }
 
+    // ===== 1d) Central, diretor regional: depois de ver o estado inteiro, o mapa volta para a região dele =====
+    {
+      const { ctx, page, erros } = await abrir(browser, 'regional_director', false);
+      await entrar(page);
+      await page.evaluate(() => { showPage('central', document.querySelector('.nav[data-page="central"]')); cmdOpen(); });
+      await page.waitForFunction(() => window.AdhMap && AdhMap.cmd && document.getElementById('cmdMapLabel').textContent.startsWith('Região:'), null, { timeout: 15000 }).catch(() => {});
+      const naRegiao = await page.evaluate(() => document.getElementById('cmdMapLabel').textContent + ' · carregado=' + !!(AdhMap.cmd && AdhMap.cmd.state().loaded) + ' · ' + (document.getElementById('cmdMapStatus') || {}).textContent);
+      confere('Central (diretor regional): mapa abre na região dele', naRegiao.startsWith('Região:'), naRegiao);
+      await page.evaluate(() => AdhMap.cmd.state().loaded && AdhMap.cmd.reset());
+      await page.waitForTimeout(500);
+      const btn = await page.evaluate(() => { const b = document.getElementById('cmdMapReset'); return { t: b.textContent, d: b.disabled }; });
+      confere('Central (diretor regional): no estado inteiro, botão "Voltar à região"', btn.t.startsWith('Voltar à região') && !btn.d, naRegiao + ' | ' + JSON.stringify(btn));
+      await page.evaluate(() => document.getElementById('cmdMapReset').click());
+      await page.waitForTimeout(800);
+      const volta = await page.evaluate(() => document.getElementById('cmdMapLabel').textContent);
+      confere('Central (diretor regional): o botão volta o mapa para a região', volta.startsWith('Região:'), volta);
+      confere('Central (diretor regional): sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+    }
+
     // ===== 2) relatórios: presidente envia o andamento mensal do próprio capítulo =====
     {
       const { ctx, page, erros, log } = await abrir(browser, 'chapter_president', false);
