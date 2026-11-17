@@ -4,9 +4,9 @@
 ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.md`.
 
 ## Fazendo agora
-- **GitHub Pages pelo Actions (17/11/2026)** — publicar só os arquivos do site (sem `docs/`, SQL, testes, zips).
-  Falta o Eduardo: Settings → Pages → Source "GitHub Actions" e a variável `PAGES_PELO_ACTIONS = sim`; depois rodar
-  "Publicar site (GitHub Pages)" e conferir que `www.adhonepemsc.com.br/docs/BACKLOG.md` dá 404.
+- **GitHub Pages pelo Actions (17/11/2026)** — [feito] Eduardo trocou Source para "GitHub Actions" e criou `PAGES_PELO_ACTIONS = sim`;
+  "Publicar site (GitHub Pages)" rodou com sucesso (só os arquivos do site; sem `docs/`, SQL, testes, zips).
+  Falta conferir no navegador: site e `/beta/` abrindo, e `/docs/BACKLOG.md` dando 404.
 - **Hardening (16/11/2026, branch `claude/eloquent-ramanujan-sjl4cy`)** — briefing de segurança:
   - [feito] varredura de chaves (gitleaks, histórico inteiro + zips): só a chave publicável; nada a rotacionar.
     Agora automática: job "Segredos" no workflow de testes, a cada push (`.gitleaks.toml`).
