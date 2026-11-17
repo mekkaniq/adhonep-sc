@@ -101,13 +101,13 @@ Marcação: **[tela]** só site/app · **[banco]** mexe em banco/RLS/permissões
 - **Secretário = cargo de confiança, por delegação.** Qualquer pessoa, indicada por alguém de qualquer nível ("secretário de Fulano").
   Representa e trabalha por quem o escolheu: **mesma capacidade de trabalho** de quem o indicou (vê e faz o mesmo), e **tudo que ele faz fica
   registrado** ("feito por X, secretário de Y"). Quem indicou pode tirar a qualquer hora; se quem indicou sai do cargo, o secretário perde junto.
-  A confirmar ao fazer: excluir entra na "mesma capacidade"? (em 17/11 o Eduardo tinha dito "só envia, sem excluir").
+  **Capacidades idênticas a quem o designou, inclusive excluir** (decidido 17/11): secretário do presidente = presidente; secretário de diretor = aquele diretor.
 - **Ata:** secretário preenche no sistema → diretor regional (e regente) → **a diretoria nova só vale depois que o diretor regional aprova**
   (enquanto isso, vale a antiga; correção volta ao secretário, como nos relatórios).
 - **Documentos oficiais** (modelo de ata, de relatório…): o Eduardo vai buscar; ficam na Biblioteca para baixar.
 - **Envio ao escritório nacional:** começa pelo **(A)** — ata aprovada vira PDF, a pessoa baixa e envia pelo e-mail dela.
   **Meta: (B)** — o sistema envia sozinho (depende do e-mail próprio da ADHONEP / SMTP, item "E-mails do sistema").
-- Em aberto: o regente (quando for o representante de campo) precisa de login para confirmar a ata ou basta o nome na ata?
+- **Regente:** não precisa de login, basta o nome dele na ata, desde que seja o oficiante da eleição (diretor regional ou representante de campo).
 
 ## Anotações do Eduardo (descobertas, ainda sem ação)
 - 06/11/2026 — **Código do site visível no F12.** Todo site mostra o próprio HTML/JS no navegador; isso é normal e não dá para esconder.
