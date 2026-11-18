@@ -55,6 +55,9 @@ create or replace function teste.uid(p text) returns uuid language sql immutable
     when 'presidente2'  then '00000000-0000-0000-0000-00000000000e'
     when 'socio'        then '00000000-0000-0000-0000-00000000000f'
     when 'coord_jovem'  then '00000000-0000-0000-0000-000000000010'
+    when 'secretario'   then '00000000-0000-0000-0000-000000000011'
+    when 'representante' then '00000000-0000-0000-0000-000000000012'
+    when 'secretario_adm' then '00000000-0000-0000-0000-000000000013'
   end)::uuid
 $$;
 

@@ -26,6 +26,8 @@ const comunicados = [
 
 /* Configurações do sistema simuladas (os testes podem mudar e devolver depois) */
 const CONFIG = { lancamento: null, alerta_mandato_dias: [60, 30] };
+/* Designações (secretário / representante de campo) simuladas */
+const DELEG = [];
 
 /* Perfis fictícios: papel → designações (o capítulo 4 "Brusque" fica na região 2 "Vale do Itajaí") */
 const PERFIS = {
@@ -62,6 +64,13 @@ async function simular(page, papel) {
     }
     if (p.endsWith('/adh_config')) return json(r, Object.keys(CONFIG).map((key) => ({ key, value: CONFIG[key] })));
     if (p.endsWith('/rpc/adh_config_set')) return json(r, corpo && corpo.p_value);
+    if (p.endsWith('/rpc/adh_delegation_list')) return json(r, DELEG);
+    if (p.endsWith('/rpc/adh_delegation_create')) {
+      if (!corpo || /ninguem/.test(corpo.p_email)) return json(r, { code: 'P0001', message: 'Não existe conta com esse e-mail. Peça para a pessoa se cadastrar primeiro.' }, 400);
+      DELEG.push({ id: DELEG.length + 100, kind: corpo.p_kind, delegator_id: 'u-teste', delegator_name: 'Pessoa de Teste', delegate_id: 'u-outro', delegate_name: 'TESTE Secretária', delegate_email: corpo.p_email, created_at: dia(0) });
+      return json(r, DELEG[DELEG.length - 1].id);
+    }
+    if (p.endsWith('/rpc/adh_delegation_end')) { const i = DELEG.findIndex((d) => d.id === (corpo && corpo.p_id)); if (i >= 0) DELEG.splice(i, 1); return json(r, null); }
     if (p.endsWith('/regions')) return json(r, regioes);
     if (p.endsWith('/region_municipalities')) return json(r, regiaoMun);
     if (p.endsWith('/chapters')) return json(r, capitulos);
@@ -89,4 +98,4 @@ async function simular(page, papel) {
   return log;
 }
 
-module.exports = { simular, PERFIS, regioes, capitulos, comunicados, eventos, CONFIG };
+module.exports = { simular, PERFIS, regioes, capitulos, comunicados, eventos, CONFIG, DELEG };

@@ -5,7 +5,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
-const { simular, eventos: SIM_EVENTOS, CONFIG: SIM_CFG } = require('./simulador');
+const { simular, eventos: SIM_EVENTOS, CONFIG: SIM_CFG, DELEG: SIM_DELEG } = require('./simulador');
 
 const REPO = path.resolve(__dirname, '../..');
 // ADH_SITE=pasta → testa a pasta montada por scripts/montar-site.py (o que de fato vai para o ar)
@@ -293,6 +293,49 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       const pb = await p2.page.evaluate(() => !document.getElementById('gxMandAlertBtn').hidden);
       confere('Mandatos: presidente não muda o aviso de mandato', !pb);
       await p2.ctx.close();
+    }
+
+    // ===== 1k) secretário e representante de campo: designar em "Minha conta" e faixa "atuando como" =====
+    {
+      const { ctx, page, erros, log } = await abrir(browser, 'chapter_president', false);
+      await entrar(page);
+      await page.evaluate(async () => { await openAccount(); });
+      await page.waitForSelector('#acctDelegForm', { timeout: 4000 }).catch(() => {});
+      const temForm = await page.evaluate(() => !!document.getElementById('acctDelegForm') && /mesmas permissões que você/.test(document.getElementById('acctDeleg').textContent));
+      confere('Secretário: presidente vê "Secretário e representante de campo" em Minha conta, com o aviso de mesmas permissões', temForm);
+      await page.evaluate(() => { const f = document.getElementById('acctDelegForm'); f.elements.email.value = 'secretaria@teste.invalid'; f.elements.kind.value = 'secretario'; f.requestSubmit(); });
+      await page.waitForTimeout(200);
+      await page.evaluate(() => { [...document.querySelectorAll('.modal.open button')].find((b) => /^Designar$/.test(b.textContent.trim()) && b.closest('.modalbox') && !b.closest('#accountModal')).click(); });
+      await page.waitForTimeout(600);
+      const cr = log.find((x) => x.p.endsWith('/rpc/adh_delegation_create'));
+      const lst = await page.evaluate(() => document.getElementById('acctDeleg').textContent);
+      confere('Secretário: designar envia e-mail e função ao banco', cr && cr.corpo.p_email === 'secretaria@teste.invalid' && cr.corpo.p_kind === 'secretario', JSON.stringify(cr && cr.corpo));
+      confere('Secretário: a pessoa designada aparece na lista com "Encerrar"', /TESTE Secretária/.test(lst) && /Encerrar/.test(lst), lst.slice(0, 200));
+      await page.evaluate(() => document.querySelector('#acctDeleg [data-deleg-fim]').click());
+      await page.waitForTimeout(200);
+      await page.evaluate(() => { [...document.querySelectorAll('.modal.open button')].find((b) => /^Encerrar$/.test(b.textContent.trim()) && !b.closest('#accountModal')).click(); });
+      await page.waitForTimeout(600);
+      confere('Secretário: encerrar chama o banco e some da lista', log.some((x) => x.p.endsWith('/rpc/adh_delegation_end')) && !/TESTE Secretária/.test(await page.evaluate(() => document.getElementById('acctDeleg').textContent)));
+      confere('Secretário (presidente): sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+      // quem foi designado vê a faixa "Você está atuando como Secretário de …"
+      SIM_DELEG.push({ id: 900, kind: 'secretario', delegator_id: 'u-chefe', delegator_name: 'TESTE Presidente Brusque', delegate_id: 'u-teste', delegate_name: 'Pessoa de Teste', created_at: new Date().toISOString() });
+      const p2 = await abrir(browser, 'chapter_president', false);
+      await entrar(p2.page);
+      await p2.page.waitForSelector('#adhDelegBar:not([hidden])', { timeout: 4000 }).catch(() => {});
+      const bar = await p2.page.evaluate(() => { const b = document.getElementById('adhDelegBar'); return b && !b.hidden ? b.textContent : ''; });
+      confere('Secretário: quem foi designado vê "Você está atuando como Secretário de …"', /atuando como Secretário de TESTE Presidente Brusque/.test(bar), bar);
+      const sm = await p2.page.evaluate(() => document.getElementById('roleLabel').textContent);
+      confere('Secretário: cargo exibido mostra "Secretário · Presidente de capítulo"', /^Secretário · /.test(sm), sm);
+      SIM_DELEG.length = 0;
+      await p2.ctx.close();
+      // sócio não tem a seção
+      const p3 = await abrir(browser, 'member', false);
+      await entrar(p3.page);
+      await p3.page.evaluate(async () => { await openAccount(); });
+      await p3.page.waitForTimeout(400);
+      confere('Secretário: sócio não vê a opção de designar', await p3.page.evaluate(() => !document.getElementById('acctDelegForm')));
+      await p3.ctx.close();
     }
 
     // ===== 1e) logoff por inatividade: aviso com contagem, "Continuar conectado" e saída automática =====
