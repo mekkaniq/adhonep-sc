@@ -10,6 +10,14 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   pasta privada `event-report-photos` (vê quem vê o relatório; envia/apaga administrador e presidente do capítulo). Fotos otimizadas para 1600 px. Testes `37-fotos-relatorio.sql` e tela.
   (2) "Quero ser sócio" → **"Desejo ser sócio"** (rodapé do site e app). (4) **Central: clicar em "Santa Catarina"** com uma região aberta volta a Central
   inteira ao estado (diretor regional continua na região dele). Testes de tela.
+- **Pedidos do diretor estadual, pacote 3 — Secretário e Representante de campo (18/11/2026)** — no `/beta` e no app:
+  Em "Minha conta", quem tem cargo (presidente, diretor, coordenador, administrador) designa uma pessoa (pelo e-mail da conta dela)
+  como **Secretário** ou **Representante de campo** (mesma coisa, outro nome). A pessoa passa a ter **as mesmas permissões** de quem
+  designou, inclusive excluir; vê a faixa "Você está atuando como Secretário de …". Tudo o que ela faz fica no registro com o nome dela
+  e "em nome de" quem designou. Secretário não designa secretário. Encerrar tira o acesso na hora; se o cargo de quem designou muda, acompanha.
+  O antigo perfil "Representante de campo" (só via, ninguém usava) saiu dos formulários.
+  [banco] v3.24 **APLICADA em 18/11/2026** com backup antes (`supabase/backups/2026-11-18-antes-v3.24-secretario.sql`). Testes `39-secretario.sql` e tela 1k.
+  **Falta do pacote 3:** ata preenchida no sistema → aprovação do diretor regional → nova diretoria; regente só pelo nome; PDF da ata; Modo Eleição.
 - **Pedidos do diretor estadual, pacote 2 (18/11/2026, branch `pacotes-2-3`)** — no `/beta` e no app:
   (7/8) **Relatório trimestral** (março, junho, setembro, dezembro; prazo dia 5 do mês seguinte; a Saúde soma os 3 meses).
   **Nada é cobrado antes do lançamento**: a data fica em `adh_config` → `lancamento` (vazia = ninguém fica pendente; só o administrador muda).

@@ -1,5 +1,5 @@
 -- ADHONEP-SC · v3.24 — Secretário e Representante de campo (delegação) (claude v1.17)
--- STATUS: PENDENTE
+-- STATUS: APLICADA em 18/11/2026 (backup antes: supabase/backups/2026-11-18-antes-v3.24-secretario.sql)
 --
 -- Decisão do Eduardo (17 e 18/11/2026): secretário é cargo de confiança. Qualquer pessoa com perfil (presidente,
 -- diretor regional, diretor estadual, administrador, coordenador de apoio) pode designar alguém como "secretário"
