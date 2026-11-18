@@ -64,6 +64,7 @@ async function simular(page, papel) {
     }
     if (p.endsWith('/adh_config')) return json(r, Object.keys(CONFIG).map((key) => ({ key, value: CONFIG[key] })));
     if (p.endsWith('/rpc/adh_config_set')) return json(r, corpo && corpo.p_value);
+    if (p.endsWith('/rpc/adh_capitulos_com_presidente')) return json(r, [1, 2, 3, 4]);   // 5 (Chapecó) e 6 (Itajaí) sem presidente com login
     if (p.endsWith('/rpc/adh_delegation_list')) return json(r, DELEG);
     if (p.endsWith('/rpc/adh_delegation_create')) {
       if (!corpo || /ninguem/.test(corpo.p_email)) return json(r, { code: 'P0001', message: 'Não existe conta com esse e-mail. Peça para a pessoa se cadastrar primeiro.' }, 400);

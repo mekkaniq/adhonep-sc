@@ -14,7 +14,7 @@ carrega supabase/esquema/00-base.sql
 for f in $(ls supabase/migracoes/*.sql 2>/dev/null | sort); do carrega "$f"; done
 carrega testes/banco/10-ferramentas-e-dados.sql
 echo "== Checagens"
-for f in testes/banco/2*.sql testes/banco/3*.sql; do
+for f in testes/banco/2*.sql testes/banco/3*.sql testes/banco/4*.sql; do
   $Q -d $DB -f "$f" 2>&1 | sed -n 's/^.*NOTICE:  //p'
 done
 TOTAL=$($Q -At -d $DB -c "select count(*) from teste.resultado")

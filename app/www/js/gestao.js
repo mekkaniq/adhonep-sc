@@ -989,3 +989,37 @@ let adhAvisosMonthlyTried = false;
     return h;
   };
 })();
+
+/* ==================================================================
+   BOAS-VINDAS · período de implantação (decisão do Eduardo, 18/11/2026)
+   Até dezembro de 2026: preencher as informações básicas, nada é cobrado.
+   A partir do lançamento (adh_config 'lancamento' = 01/01/2027) os prazos contam.
+   Só é cobrado capítulo que tem presidente com acesso à plataforma.
+   ================================================================== */
+function adhBoasVindas() {
+  const main = document.querySelector('#adminView .admin-main'); if (!main) return;
+  let box = gxEl('adhBoasVindas');
+  const L = typeof qLaunch === 'function' ? qLaunch() : null;
+  let fechou = false; try { fechou = localStorage.getItem('adh-boasvindas-' + (L ? L.getFullYear() : '')) === '1'; } catch (e) { /* ok */ }
+  const r = adhSession && adhProfile ? gxRole() : '';
+  if (!L || new Date() >= L || fechou || !r || r === 'member') { if (box) box.hidden = true; return; }
+  if (!box) { box = document.createElement('div'); box.id = 'adhBoasVindas'; box.className = 'panel'; box.style.cssText = 'margin:0 0 16px;border-left:4px solid var(--gold,#c9a227)'; main.insertBefore(box, main.firstChild); }
+  const fim = new Date(L.getTime() - 864e5), k1 = qKey(L), prazo1 = mrDeadline(k1);
+  const dt = (d) => d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }).replace(/^1 de /, '1º de ');
+  const pres = r === 'chapter_president';
+  box.hidden = false;
+  box.innerHTML = '<div class="eyebrow">Bem-vindo à plataforma ADHONEP-SC</div>'
+    + '<p style="margin:6px 0">Até <strong>' + dt(fim) + '</strong> é o período de implantação: '
+    + (pres ? 'preencha as informações básicas do seu capítulo — dados e endereço, diretoria e mandato, contato do presidente e reuniões.'
+            : 'os presidentes preenchem as informações básicas dos capítulos — dados e endereço, diretoria e mandato, contato e reuniões. Acompanhe e ajude quem precisar.')
+    + ' <strong>Nada é cobrado nesse período.</strong></p>'
+    + '<p style="margin:6px 0">A partir de <strong>' + dt(L) + '</strong> os prazos passam a contar. O primeiro relatório cobrado é o do <strong>' + escapeHtml(qLabel(k1)) + '</strong>, com envio até <strong>' + dt(prazo1) + '</strong>.</p>'
+    + '<p class="sub" style="margin:6px 0 10px">Só são cobrados os capítulos que têm presidente com acesso à plataforma.</p>'
+    + '<button type="button" class="btn small" id="adhBoasVindasOk">Entendi</button>';
+  gxEl('adhBoasVindasOk').onclick = () => { try { localStorage.setItem('adh-boasvindas-' + L.getFullYear(), '1'); } catch (e) { /* ok */ } box.hidden = true; };
+}
+(function () {
+  const ap = adhApplyProfile;
+  adhApplyProfile = function () { const r = ap.apply(this, arguments); try { adhLoadConfig().then(adhBoasVindas).catch(() => { }); } catch (e) { /* ok */ } return r; };
+  if (typeof signOutAdmin === 'function') { const so = signOutAdmin; signOutAdmin = function () { const b = gxEl('adhBoasVindas'); if (b) b.hidden = true; return so.apply(this, arguments); }; }
+})();

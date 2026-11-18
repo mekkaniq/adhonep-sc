@@ -1,0 +1,79 @@
+# ADHONEP-SC · Monitor de velocidade (pedido do Eduardo, 18/11/2026)
+# A cada ~5 min mede quanto o servidor (Supabase) leva para devolver as informações que o site e o app pedem.
+# Se alguma passar de 1 segundo, o workflow FALHA e o GitHub manda e-mail para o Eduardo
+# (o e-mail de notificações da conta do GitHub: Settings → Notifications → Actions → "Only notify for failed workflows").
+# Mede o tempo do servidor (do pedido enviado até a resposta começar), sem contar a abertura da conexão,
+# e usa a mediana de 3 tentativas para um soluço isolado da internet não virar alarme falso.
+# Só leitura. Usa a chave publicável (já pública no site) e, se existir, a conta de teste K6_EMAIL/K6_PASSWORD.
+name: Monitor de velocidade (alerta acima de 1 s)
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # o GitHub pode atrasar alguns minutos
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: monitor-velocidade
+  cancel-in-progress: false
+jobs:
+  medir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Medir respostas do servidor
+        env:
+          K6_EMAIL: ${{ secrets.K6_EMAIL }}
+          K6_PASSWORD: ${{ secrets.K6_PASSWORD }}
+        run: |
+          U=https://ayrdfetnscrfrlcssiua.supabase.co
+          K=sb_publishable_4q2FsB0DhzqgdR91JM0FDA_DMyuWNxs
+          LIMITE=1.0
+          TOKEN=$K
+          if [ -n "$K6_EMAIL" ] && [ -n "$K6_PASSWORD" ]; then
+            R=$(curl -sS -m 20 -X POST "$U/auth/v1/token?grant_type=password" -H "apikey: $K" -H 'Content-Type: application/json' \
+                -d "{\"email\":\"$K6_EMAIL\",\"password\":\"$K6_PASSWORD\"}" || true)
+            T=$(echo "$R" | python3 -c 'import sys,json;print(json.load(sys.stdin).get("access_token",""))' 2>/dev/null || true)
+            [ -n "$T" ] && TOKEN=$T
+          fi
+          medir() {  # nome  método  caminho  [corpo]
+            local vals=() code body="${4:-}"
+            [ -z "$body" ] && body='{}'
+            for i in 1 2 3; do
+              if [ "$2" = POST ]; then
+                out=$(curl -sS -o /dev/null -m 15 -X POST "$U$3" -H "apikey: $K" -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d "$body" \
+                  -w '%{http_code} %{time_appconnect} %{time_starttransfer}' || echo "000 0 15")
+              else
+                out=$(curl -sS -o /dev/null -m 15 "$U$3" -H "apikey: $K" -H "Authorization: Bearer $TOKEN" \
+                  -w '%{http_code} %{time_appconnect} %{time_starttransfer}' || echo "000 0 15")
+              fi
+              code=${out%% *}
+              vals+=("$(echo "$out" | awk '{printf "%.3f", $3-$2}')")
+            done
+            med=$(printf '%s\n' "${vals[@]}" | sort -n | sed -n 2p)
+            st="ok"
+            if [ "$code" != "200" ]; then st="ERRO HTTP $code"; FALHOU=1;
+            elif awk "BEGIN{exit !($med > $LIMITE)}"; then st="LENTO"; FALHOU=1; fi
+            echo "| $1 | ${med} s | $st |" >> resumo.md
+            echo "$1: ${med}s ($st)  [${vals[*]}]"
+          }
+          FALHOU=0
+          echo "| Informação | Tempo do servidor (mediana) | Situação |" > resumo.md
+          echo "|---|---|---|" >> resumo.md
+          medir "Capítulos (mapa)" GET "/rest/v1/chapters?select=id,name,chapter_number,municipality_id,region_id,status,is_public,president_name&order=name.asc&limit=2000&state_code=eq.SC"
+          medir "Eventos públicos" GET "/rest/v1/events?select=id,chapter_id,title,starts_at,status&is_published=eq.true&status=eq.scheduled&order=starts_at.asc&limit=1000"
+          medir "Regiões" GET "/rest/v1/regions?select=id,name&order=name.asc&limit=500&state_code=eq.SC"
+          medir "Municípios" GET "/rest/v1/municipalities?select=id,ibge_code,name&order=id.asc&limit=1000&state_code=eq.SC"
+          medir "Comunicados públicos" GET "/rest/v1/public_announcements?select=id,title&order=published_at.desc&limit=40&state_code=eq.SC"
+          medir "Contatos públicos" GET "/rest/v1/public_chapter_contacts?select=chapter_id,president_phone&limit=1000"
+          if [ "$TOKEN" != "$K" ]; then
+            medir "Login: avisos" POST "/rest/v1/rpc/adh_my_notifications" '{"p_limit":50}'
+            medir "Login: configuração" GET "/rest/v1/adh_config?select=key,value"
+            medir "Login: relatórios trimestrais" GET "/rest/v1/chapter_monthly_reports?select=id&limit=3000"
+            medir "Login: comunicados" GET "/rest/v1/statewide_announcements?select=id&order=created_at.desc&limit=1000&state_code=eq.SC"
+          else
+            echo "| (partes com login) | — | sem conta de teste (K6_EMAIL) |" >> resumo.md
+          fi
+          { echo "## Velocidade do servidor — limite ${LIMITE} s"; echo; cat resumo.md; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$FALHOU" = 1 ]; then
+            echo "::error::Alguma informação passou de ${LIMITE} s (ou deu erro). Veja a tabela no resumo deste workflow."
+            exit 1
+          fi

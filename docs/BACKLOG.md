@@ -10,6 +10,14 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   pasta privada `event-report-photos` (vê quem vê o relatório; envia/apaga administrador e presidente do capítulo). Fotos otimizadas para 1600 px. Testes `37-fotos-relatorio.sql` e tela.
   (2) "Quero ser sócio" → **"Desejo ser sócio"** (rodapé do site e app). (4) **Central: clicar em "Santa Catarina"** com uma região aberta volta a Central
   inteira ao estado (diretor regional continua na região dele). Testes de tela.
+- **Cobrança só a partir de 2027 e só de quem tem presidente com login + boas-vindas (18/11/2026)** — decisão do Eduardo:
+  "Não dá para cobrar um presidente que não existe / que não tem acesso ao login". Até 31/12/2026 é implantação (preencher as
+  informações básicas, nada é cobrado); a partir de 01/01/2027 os prazos contam (1º relatório: 1º trimestre de 2027, até 05/04/2027).
+  Painel "Bem-vindo à plataforma" para presidentes e diretores até o lançamento ("Entendi" esconde). Capítulo sem presidente com login
+  aparece como "não cobrado" e não perde ponto. [banco] v3.25 (backup `supabase/backups/2026-11-18-antes-v3.25-cobranca.sql`). Testes `40-cobranca.sql` e tela 1l.
+- **Monitor de velocidade (18/11/2026)** — workflow "Monitor de velocidade (alerta acima de 1 s)": a cada ~5 min mede as respostas
+  do servidor (públicas e com login); passou de 1 s ou deu erro → o workflow falha e o GitHub manda e-mail ao Eduardo.
+- **Teste de carga "mil"** (700 logados + 300 visitantes, uso real) — perfil novo no k6; rodar à noite, fora do horário de uso (plano Free).
 - **Pedidos do diretor estadual, pacote 3 — Secretário e Representante de campo (18/11/2026)** — no `/beta` e no app:
   Em "Minha conta", quem tem cargo (presidente, diretor, coordenador, administrador) designa uma pessoa (pelo e-mail da conta dela)
   como **Secretário** ou **Representante de campo** (mesma coisa, outro nome). A pessoa passa a ter **as mesmas permissões** de quem

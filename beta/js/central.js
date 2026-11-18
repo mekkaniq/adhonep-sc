@@ -240,7 +240,7 @@ function cmdRender() {
   gxMandGroups(gxMand.filter(m => m.chapter_id != null && ids.has(String(m.chapter_id)))).filter(x => x.i.key !== 'ok').sort((a, b) => a.i.left - b.i.left).slice(0, 4).forEach(x => {
     al.push({ k: x.i.key === 'expired' ? 'r' : 'y', t: (x.n > 1 ? 'Mandato da <b>diretoria</b> (' + x.n + ' cargos, ' + E(gxMandScopeName(x.m)) + ')' : 'Mandato de <b>' + E(x.m.person_name) + '</b> (' + E(gxMandScopeName(x.m)) + ')') + ' — ' + E(x.i.label.toLowerCase()) });
   });
-  const semRel = act.filter(c => !(adhMonthly || []).some(m => String(m.chapter_id) === String(c.id) && String(m.ref_month).slice(0, 10) === CMD.month));
+  const semRel = act.filter(c => (typeof qCobra !== 'function' || qCobra(c.id)) && !(adhMonthly || []).some(m => String(m.chapter_id) === String(c.id) && String(m.ref_month).slice(0, 10) === CMD.month));
   if (semRel.length && qDue(CMD.month) && new Date() > mrDeadline(CMD.month)) al.push({ k: 'y', t: '<b>' + semRel.length + '</b> capítulo(s) ativo(s) sem relatório do ' + E(qLabel(CMD.month)) + ': ' + E(semRel.slice(0, 4).map(c => c.name).join(', ')) + (semRel.length > 4 ? '…' : '') });
   const semReu = act.filter(c => gxMeetInfo(c).key === 'late').length;
   if (semReu) al.push({ k: 'o', t: '<b>' + semReu + '</b> capítulo(s) com reunião atrasada (acima do limite da frequência).' });

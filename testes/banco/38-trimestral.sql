@@ -6,7 +6,7 @@ do $$
 declare r jsonb; qfim date := (date_trunc('quarter', now()) - interval '1 month')::date; res text;
 begin
   -- configurações
-  perform teste.confere('config: lançamento começa vazio (nada é cobrado)', (select value is null or value = 'null'::jsonb from public.adh_config where key = 'lancamento'));
+  perform teste.confere('config: lançamento em 01/01/2027 (até dez/2026 ninguém é cobrado)', (select value #>> '{}' = '2027-01-01' from public.adh_config where key = 'lancamento'));
   perform teste.confere('config: alerta de mandato padrão 60 e 30 dias', (select value = '[60,30]'::jsonb from public.adh_config where key = 'alerta_mandato_dias'));
   perform teste.confere('config: visitante não lê', teste.tenta(null, 'select 1 from public.adh_config') like 'erro:%');
   perform teste.confere('config: sócio lê', teste.linhas(teste.tenta(teste.uid('socio'), 'select 1 from public.adh_config')) >= 2);

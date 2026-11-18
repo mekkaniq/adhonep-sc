@@ -339,6 +339,35 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await p3.ctx.close();
     }
 
+    // ===== 1l) boas-vindas: implantação até dez/2026, prazos a partir de 2027, só cobra capítulo com presidente =====
+    {
+      SIM_CFG.lancamento = '2027-01-01';
+      try {
+        const { ctx, page, erros } = await abrir(browser, 'chapter_president', false);
+        await entrar(page);
+        await page.waitForSelector('#adhBoasVindas:not([hidden])', { timeout: 4000 }).catch(() => {});
+        const bv = await page.evaluate(() => { const b = document.getElementById('adhBoasVindas'); return b && !b.hidden ? b.textContent : ''; });
+        confere('Boas-vindas: presidente vê o período de implantação até 31 de dezembro de 2026', /31 de dezembro de 2026/.test(bv) && /Nada é cobrado/.test(bv), bv.slice(0, 160));
+        confere('Boas-vindas: diz que os prazos contam a partir de 1º/01/2027 e o 1º relatório é do 1º trimestre de 2027 (até 5 de abril)', /1º de janeiro de 2027/.test(bv) && /1º trimestre de 2027/.test(bv) && /5 de abril de 2027/.test(bv), bv);
+        await page.evaluate(() => document.getElementById('adhBoasVindasOk').click());
+        confere('Boas-vindas: "Entendi" esconde o painel', await page.evaluate(() => document.getElementById('adhBoasVindas').hidden));
+        confere('Boas-vindas (presidente): sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+        await ctx.close();
+        // depois do lançamento, só cobra capítulo com presidente com login
+        SIM_CFG.lancamento = '2026-01-01';
+        const d = await abrir(browser, 'state_director', false);
+        await entrar(d.page);
+        await d.page.evaluate(async () => { await adhLoadConfig(true); showPage('monthly', document.querySelector('.nav[data-page="monthly"]')); await loadMonthly(); });
+        await d.page.waitForTimeout(600);
+        const miss = await d.page.evaluate(() => document.getElementById('monthlyMissing').textContent);
+        confere('Cobrança: capítulos sem presidente com login aparecem como "não cobrados"', /Não cobrados \(sem presidente com acesso à plataforma\):.*TESTE Chapecó/.test(miss) && /TESTE Itajaí/.test(miss), miss);
+        const att = await d.page.evaluate(() => adhAttentionItems().map((x) => x.c.name).join(', '));
+        confere('Cobrança: quadro "Atenção" não cobra capítulo sem presidente com login', !/Chapecó|Itajaí/.test(att), att);
+        confere('Boas-vindas: depois do lançamento o painel não aparece', await d.page.evaluate(() => { const b = document.getElementById('adhBoasVindas'); return !b || b.hidden; }));
+        await d.ctx.close();
+      } finally { SIM_CFG.lancamento = null; }
+    }
+
     // ===== 1e) logoff por inatividade: aviso com contagem, "Continuar conectado" e saída automática =====
     {
       const { ctx, page, erros, log } = await abrir(browser, 'state_admin', false);

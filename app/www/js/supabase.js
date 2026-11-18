@@ -300,7 +300,11 @@ function mrRegionName(id){const r=(adhDbRegions||[]).find(x=>String(x.id)===Stri
 /* ---- Trimestre (v3.23): relatórios de andamento de mar/jun/set/dez, prazo dia 5 do mês seguinte ----
    A chave do trimestre é o 1º dia do último mês (ex.: 2027-03-01 = 1º trimestre de 2027). */
 let adhCfg={lancamento:null,alerta_mandato_dias:[60,30]},adhCfgOk=false;
-async function adhLoadConfig(force){if(adhCfgOk&&!force)return adhCfg;try{const rows=await adhFetch('/rest/v1/adh_config?select=key,value');(Array.isArray(rows)?rows:[]).forEach(r=>{adhCfg[r.key]=r.value});adhCfgOk=true}catch(e){}return adhCfg}
+async function adhLoadConfig(force){if(typeof adhSession!=='undefined'&&adhSession&&(!adhChPres||force))await adhLoadChPres(force);if(adhCfgOk&&!force)return adhCfg;try{const rows=await adhFetch('/rest/v1/adh_config?select=key,value');(Array.isArray(rows)?rows:[]).forEach(r=>{adhCfg[r.key]=r.value});adhCfgOk=true}catch(e){}return adhCfg}
+/* capítulos com presidente com login: só esses são cobrados (decisão do Eduardo, 18/11/2026) */
+let adhChPres=null;
+async function adhLoadChPres(force){if(adhChPres&&!force)return adhChPres;try{const r=await adhFetch('/rest/v1/rpc/adh_capitulos_com_presidente',{method:'POST',body:'{}'});adhChPres=new Set((Array.isArray(r)?r:[]).map(x=>String(typeof x==='object'&&x?Object.values(x)[0]:x)))}catch(e){adhChPres=adhChPres||null}return adhChPres}
+function qCobra(cid){return !!adhChPres&&adhChPres.has(String(cid))}
 function qKey(d){const m=Math.floor(d.getMonth()/3)*3+3;return d.getFullYear()+'-'+String(m).padStart(2,'0')+'-01'}
 function qPrev(k){const [y,m]=String(k).slice(0,10).split('-');return qKey(new Date(+y,+m-4,1))}
 function qStart(k){const [y,m]=String(k).slice(0,10).split('-');return new Date(+y,+m-3,1)}
@@ -351,7 +355,7 @@ function renderMonthly(){
     note.textContent=(!open?`O envio do ${qLabel(month)} abre em ${qOpen(month).toLocaleDateString('pt-BR')}.`:missing.length?(due?(late?`O relatório do ${qLabel(month)} (${missing.map(c=>c.name).join(', ')}) está atrasado: o prazo era ${prazo}. Envie assim mesmo; ele só não conta como entregue no prazo.`:`Envie o relatório do ${qLabel(month)} (${missing.map(c=>c.name).join(', ')}). Prazo: ${prazo}${left<=15?' — faltam '+left+' dia(s).':'.'}`):`O envio do ${qLabel(month)} está aberto até ${prazo}. Antes do lançamento da plataforma ele não é cobrado.`):`Relatório do ${qLabel(month)} enviado. Obrigado!`)+(fix?` Há ${fix} relatório(s) com correções solicitadas.`:'')+proxTxt;box.hidden=true}
   else{const aw=adhMonthly.filter(r=>r.status==='Entregue'||r.status==='Reenviado').length;
     note.textContent=`${qLabel(month)}: ${inMonth.length} relatório(s) recebido(s)${chs.length?' de '+chs.length+' capítulo(s) ativo(s)':''}. Prazo: ${prazo}.`+(due?'':' Antes do lançamento da plataforma, ninguém é cobrado.')+(aw&&mrCanReview()?` ${aw} aguardando sua aprovação (todos os trimestres).`:'');
-    box.hidden=!missing.length||!open;list.innerHTML=missing.map(c=>escapeHtml(c.name)).join(' · ')+(late&&due?'':'<div class="meta" style="margin-top:6px">'+(due?'O prazo deste trimestre ainda não terminou ('+prazo+').':'Ainda não cobrado (antes do lançamento).')+'</div>')}
+    const semPres=missing.filter(c=>!qCobra(c.id)),cobr=missing.filter(c=>qCobra(c.id));box.hidden=!missing.length||!open;list.innerHTML=(cobr.length?cobr.map(c=>escapeHtml(c.name)).join(' · '):'<span class="meta">Nenhum capítulo com presidente cadastrado está pendente.</span>')+(late&&due?'':'<div class="meta" style="margin-top:6px">'+(due?'O prazo deste trimestre ainda não terminou ('+prazo+').':'Ainda não cobrado: os prazos contam a partir de '+(qLaunch()?qLaunch().toLocaleDateString('pt-BR'):'o lançamento')+'.')+'</div>')+(semPres.length?'<div class="meta" style="margin-top:6px">Não cobrados (sem presidente com acesso à plataforma): '+semPres.map(c=>escapeHtml(c.name)).join(' · ')+'</div>':'')}
 }
 
 function openMonthlyForm(id){
@@ -838,7 +842,7 @@ async function adhInviteCopy(){try{await navigator.clipboard.writeText(document.
 function adhAttentionItems(){
  const now=new Date(),out=[];
  const closed=[];{let k=qClosed();for(let i=0;i<2;i++){if(qDue(k))closed.push(k);k=qPrev(k)}}
- mrChapters().filter(c=>mrChStatus(c)==='active').forEach(c=>{
+ mrChapters().filter(c=>mrChStatus(c)==='active'&&qCobra(c.id)).forEach(c=>{
   const miss=closed.filter(k=>{
    if(c.created_at&&new Date(c.created_at)>qStart(k))return false;
    return !adhMonthly.some(r=>String(r.chapter_id)===String(c.id)&&String(r.ref_month).slice(0,10)===k)});
