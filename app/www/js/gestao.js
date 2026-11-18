@@ -923,7 +923,8 @@ function adhReportForEvent(id) {
 function adhAvisoLinha(ic, txt, btn) { return '<div class="detail" style="display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap"><span>' + ic + ' ' + txt + '</span>' + (btn || '') + '</div>'; }
 let adhAvisosMandTried = false;
 function adhRenderMeusAvisos() {
-  const page = gxEl('page-dashboard'); if (!page) return;
+  // o presidente não tem "Visão geral": os avisos ficam no topo de Capítulos, a página onde ele entra
+  const page = gxEl('page-chapters'); if (!page) return;
   let box = gxEl('adhMeusAvisos');
   if (!adhSession || gxRole() !== 'chapter_president') { if (box) box.hidden = true; return; }
   if (!box) { box = document.createElement('div'); box.id = 'adhMeusAvisos'; box.className = 'panel'; box.style.margin = '0 0 14px'; const head = page.querySelector('.adminhead'); page.insertBefore(box, head ? head.nextSibling : page.firstChild); }
@@ -960,7 +961,19 @@ function adhRenderEventosPendentesRel() {
   box.hidden = !pend.length;
   box.innerHTML = pend.length ? '<strong>' + pend.length + ' evento(s) já realizado(s) sem relatório:</strong> ' + pend.slice(0, 6).map(e => '<button class="btn small" style="margin:4px 4px 0 0" onclick="adhReportForEvent(' + JSON.stringify(String(e.id)).replace(/"/g, '&quot;') + ')">' + escapeHtml(e.name) + ' · ' + gxFmtDate(e.date) + '</button>').join('') + (pend.length > 6 ? ' …' : '') : '';
 }
+let adhAvisosMonthlyTried = false;
 (function () {
+  const _sp = showPage;
+  showPage = function (name) {
+    const r = _sp.apply(this, arguments);
+    try {
+      if (adhSession && gxRole() === 'chapter_president' && (document.querySelector('.apage.on') || {}).id === 'page-chapters') {
+        adhRenderMeusAvisos();
+        if (!window.adhMonthlyOk && !adhAvisosMonthlyTried && typeof loadMonthly === 'function') { adhAvisosMonthlyTried = true; loadMonthly(true).catch(() => { }); }
+      }
+    } catch (e) { /* ok */ }
+    return r;
+  };
   const _ra = adhRenderAttention;
   adhRenderAttention = function () { _ra.apply(this, arguments); try { adhRenderMeusAvisos(); } catch (e) { console.warn('avisos', e); } };
   const _rr = renderReports;

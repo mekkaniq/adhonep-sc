@@ -242,8 +242,9 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       try {
         const { ctx, page, erros } = await abrir(browser, 'chapter_president', false);
         await entrar(page);
-        await page.evaluate(async () => { await loadMonthly(true); showPage('dashboard', document.querySelector('.nav[data-page="dashboard"]')); renderDashboard(); });
-        await page.waitForTimeout(800);
+        // sem forçar nada: o presidente entra em Capítulos e os avisos aparecem lá
+        await page.waitForTimeout(1200);
+        confere('Seus avisos: aparecem na página em que o presidente entra (Capítulos)', await page.evaluate(() => { const b = document.getElementById('adhMeusAvisos'); return !!b && !b.hidden && !!b.closest('#page-chapters') && document.getElementById('page-chapters').classList.contains('on'); }));
         const av = await page.evaluate(() => { const b = document.getElementById('adhMeusAvisos'); return b && !b.hidden ? b.textContent : ''; });
         confere('Depois do lançamento: "Seus avisos" mostra o relatório do trimestre', /Relatório do|relatório do/.test(av) && /trimestre/.test(av), av);
         confere('Depois do lançamento: evento que já passou vira "Relatório pendente"', /Relatório pendente: TESTE Evento que já passou/.test(av), av);
