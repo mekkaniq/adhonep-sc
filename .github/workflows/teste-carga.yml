@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       perfil:
-        description: 'fumaca (1 min, conferir) · lancamento (uso real: ~100 logados + 60 visitantes navegando a cada 2–4 min, 9 min) · pico (até 300 + 150, 9 min)'
+        description: 'fumaca (1 min, conferir) · lancamento (uso real: ~100 logados + 60 visitantes navegando a cada 2–4 min, 9 min) · mil (1000 pessoas: 700 logados + 300 visitantes, uso real, 10 min) · pico (até 300 + 150, 9 min)'
         type: choice
-        options: [fumaca, lancamento, pico]
+        options: [fumaca, lancamento, mil, pico]
         default: fumaca
       cache:
         description: 'Imitar o cache do site/app (versão nova)'

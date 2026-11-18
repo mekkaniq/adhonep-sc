@@ -10,6 +10,7 @@ Mede quanto tempo o **Supabase** (banco, login e funções) leva para responder 
 2. *Actions → Teste de carga (k6) → Run workflow* e escolha o perfil:
    - **fumaca** (1 min): confere se tudo responde. Rode primeiro.
    - **lancamento** (9 min): uso real do lançamento — ~100 logados + 60 visitantes, cada um abrindo e navegando a cada 2–4 min.
+   - **mil** (10 min): 1000 pessoas ao mesmo tempo — 700 logados + 300 visitantes, no ritmo do uso real.
    - **pico** (9 min): estresse — até 300 logados + 150 visitantes recarregando a cada ~20–30 s. Rode fora do horário de uso e espere ~1 h entre um teste pesado e outro (o plano gratuito tem "créditos" de CPU que se esgotam).
 3. Ao terminar, o resumo aparece na própria página do workflow (tempos, falhas e se passou nas metas).
 

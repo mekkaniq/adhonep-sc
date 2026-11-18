@@ -9,6 +9,7 @@
  *   lancamento → o dia do lançamento: ~100 usuários logados abrindo o app quase juntos
  *                + 60 visitantes no site público. Esperado: passar com folga.
  *   pico       → sobe até 300 logados + 150 visitantes para achar o limite. Rode fora do horário de uso.
+ *   mil        → 1000 pessoas ao mesmo tempo (700 logados + 300 visitantes) no ritmo de uso real (navega a cada 2–4 min).
  *
  * Variáveis: K6_EMAIL / K6_PASSWORD = conta de TESTE (perfil sócio ou presidente). Sem elas, roda só a parte pública.
  */
@@ -25,7 +26,7 @@ const TEM_LOGIN = !!(__ENV.K6_EMAIL && __ENV.K6_PASSWORD);
 const CACHE = __ENV.CACHE !== '0';
 // Ritmo de uso: no 'lancamento' cada pessoa abre o app e navega a cada ~2–4 min (uso real de quem acabou de instalar);
 // 'fumaca' e 'pico' mantêm o ritmo acelerado (pessoa recarregando a cada ~20–30 s), que é teste de estresse.
-const RITMO = PERFIL === 'lancamento' ? 6 : 1;
+const RITMO = (PERFIL === 'lancamento' || PERFIL === 'mil') ? 6 : 1;
 const CACHEAVEIS = { regioes: 1, municipios: 1, regiao_municipio: 1, capitulos: 1, comunicados_pub: 1, contatos: 1 };
 const ultimo = {}; // por usuário virtual (cada VU tem a sua cópia)
 
@@ -46,13 +47,18 @@ const PERFIS = {
     logado: { executor: 'ramping-vus', stages: [{ duration: '1m', target: 100 }, { duration: '7m', target: 100 }, { duration: '1m', target: 0 }] },
     login: { executor: 'constant-arrival-rate', rate: 4, timeUnit: '1m', duration: '8m', preAllocatedVUs: 2 },
   },
+  mil: {
+    publico: { executor: 'ramping-vus', stages: [{ duration: '3m', target: 300 }, { duration: '6m', target: 300 }, { duration: '1m', target: 0 }] },
+    logado: { executor: 'ramping-vus', stages: [{ duration: '3m', target: 700 }, { duration: '6m', target: 700 }, { duration: '1m', target: 0 }] },
+    login: { executor: 'constant-arrival-rate', rate: 4, timeUnit: '1m', duration: '9m', preAllocatedVUs: 2 },
+  },
   pico: {
     publico: { executor: 'ramping-vus', stages: [{ duration: '2m', target: 50 }, { duration: '3m', target: 150 }, { duration: '3m', target: 150 }, { duration: '1m', target: 0 }] },
     logado: { executor: 'ramping-vus', stages: [{ duration: '2m', target: 100 }, { duration: '3m', target: 300 }, { duration: '3m', target: 300 }, { duration: '1m', target: 0 }] },
     login: { executor: 'constant-arrival-rate', rate: 4, timeUnit: '1m', duration: '8m', preAllocatedVUs: 2 },
   },
 };
-if (!PERFIS[PERFIL]) throw new Error('PERFIL inválido: ' + PERFIL + ' (use fumaca, lancamento ou pico)');
+if (!PERFIS[PERFIL]) throw new Error('PERFIL inválido: ' + PERFIL + ' (use fumaca, lancamento, mil ou pico)');
 
 const cen = {};
 Object.entries(PERFIS[PERFIL]).forEach(([nome, c]) => {
@@ -141,6 +147,8 @@ export function logado(d) {
       ['capitulos', '/rest/v1/chapters?select=id,name,chapter_number,municipality_id,region_id,status,is_public,president_name&order=name.asc&limit=2000&state_code=eq.SC'],
       ['avisos', '/rest/v1/rpc/adh_my_notifications', { p_limit: 50 }],
       ['acesso_saude', '/rest/v1/rpc/adh_my_ranking_access', {}],
+      ['config', '/rest/v1/adh_config?select=key,value'],
+      ['secretario', '/rest/v1/rpc/adh_delegation_list', {}],
     ]);
     tLogado.add(ms);
   });
