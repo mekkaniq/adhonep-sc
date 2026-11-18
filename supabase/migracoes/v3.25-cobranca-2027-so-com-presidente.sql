@@ -1,5 +1,5 @@
 -- ADHONEP-SC · v3.25 — cobrança de relatório só a partir de 2027 e só de capítulo com presidente com acesso (claude v1.17)
--- STATUS: PENDENTE
+-- STATUS: APLICADA em 18/11/2026 (backup antes: supabase/backups/2026-11-18-antes-v3.25-cobranca.sql)
 --
 -- Decisão do Eduardo (18/11/2026): "Não dá para cobrar um presidente que não existe. Não dá para cobrar um presidente
 -- que não tem acesso ao login." Até dezembro de 2026 é o período de preencher as informações básicas; a partir de 2027
