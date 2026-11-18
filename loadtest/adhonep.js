@@ -35,6 +35,10 @@ const tLogado = new Trend('tempo_abrir_app_logado', true);
 const tLogin = new Trend('tempo_login', true);
 const erros = new Rate('erros');
 const limitado = new Counter('respostas_429_limite');
+// tempo de cada consulta separada (para saber qual segura a tela)
+const NOMES = ['regioes', 'municipios', 'regiao_municipio', 'capitulos', 'eventos', 'comunicados_pub', 'contatos', 'usuario', 'papeis',
+  'avisos', 'acesso_saude', 'config', 'secretario', 'andamento_mensal', 'apoios', 'comunicados'];
+const tNome = {}; NOMES.forEach((n) => { tNome[n] = new Trend('consulta_' + n, true); });
 
 const PERFIS = {
   fumaca: {
@@ -75,7 +79,7 @@ export const options = {
     tempo_abrir_app_logado: ['p(95)<3000'],                 // app logado carregado em menos de 3 s
     tempo_login: ['p(95)<2000'],
   },
-  summaryTrendStats: ['avg', 'med', 'p(90)', 'p(95)', 'p(99)', 'max'],
+  summaryTrendStats: ['avg', 'med', 'p(90)', 'p(95)', 'p(99)', 'max', 'count'],
 };
 
 const base = { apikey: KEY, 'Content-Type': 'application/json' };
@@ -105,7 +109,7 @@ function lote(token, lista) {
     const p = hdr(token); p.tags = Object.assign({ nome }, p.tags);
     return body ? ['POST', URL + path, JSON.stringify(body), p] : ['GET', URL + path, null, p];
   }));
-  res.forEach((r, i) => ok(r, lista[i][0]));
+  res.forEach((r, i) => { ok(r, lista[i][0]); if (tNome[lista[i][0]]) tNome[lista[i][0]].add(r.timings.duration); });
   return Date.now() - t0;
 }
 
@@ -182,6 +186,9 @@ export function handleSummary(data) {
     + '\n\n- Pedidos feitos: **' + (v('http_reqs', 'count') || 0) + '** (' + (v('http_reqs', 'rate') || 0).toFixed(1) + '/s)'
     + '\n- Falhas: **' + ((v('erros', 'rate') || 0) * 100).toFixed(2) + '%**'
     + '\n- Respostas "limite atingido" (429): **' + (v('respostas_429_limite', 'count') || 0) + '**'
+    + '\n\n## Cada consulta (da mais lenta para a mais rápida)\n| Consulta | Mediana | p95 | Pior | Vezes |\n|---|---|---|---|---|\n'
+    + NOMES.map((n) => [n, v('consulta_' + n, 'p(95)')]).filter(([, x]) => x != null).sort((a, b) => b[1] - a[1])
+      .map(([n]) => '| ' + n + ' | ' + f(v('consulta_' + n, 'med')) + ' | ' + f(v('consulta_' + n, 'p(95)')) + ' | ' + f(v('consulta_' + n, 'max')) + ' | ' + (m['consulta_' + n] && m['consulta_' + n].values.count || '—') + ' |').join('\n')
     + '\n\n## Metas\n| Métrica | Resultado |\n|---|---|\n' + th + '\n';
   return { stdout: md, 'resultado.md': md, 'resultado.json': JSON.stringify(data, null, 1) };
 }
