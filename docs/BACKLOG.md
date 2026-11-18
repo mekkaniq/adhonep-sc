@@ -10,6 +10,13 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   pasta privada `event-report-photos` (vê quem vê o relatório; envia/apaga administrador e presidente do capítulo). Fotos otimizadas para 1600 px. Testes `37-fotos-relatorio.sql` e tela.
   (2) "Quero ser sócio" → **"Desejo ser sócio"** (rodapé do site e app). (4) **Central: clicar em "Santa Catarina"** com uma região aberta volta a Central
   inteira ao estado (diretor regional continua na região dele). Testes de tela.
+- **Pedidos do diretor estadual, pacote 2 (18/11/2026, branch `pacotes-2-3`)** — no `/beta` e no app:
+  (7/8) **Relatório trimestral** (março, junho, setembro, dezembro; prazo dia 5 do mês seguinte; a Saúde soma os 3 meses).
+  **Nada é cobrado antes do lançamento**: a data fica em `adh_config` → `lancamento` (vazia = ninguém fica pendente; só o administrador muda).
+  Eventos que já passaram sem relatório aparecem em "Seus avisos" do presidente e na página de relatórios (só depois do lançamento).
+  (9) **Aviso de fim de mandato** com os dias que o diretor escolher (padrão 60 e 30; botão na Gestão; administrador ou diretor estadual).
+  [banco] v3.23 **APLICADA em 18/11/2026** com backup antes (`supabase/backups/2026-11-18-antes-v3.23-trimestral.sql`, testado: volta tudo).
+  Testes `38-trimestral.sql` e tela 1i/1j.
 - **Logoff por inatividade (17/11/2026)** — no navegador: 30 min sem mexer → sai (também no servidor); 2 min antes, aviso com contagem e
   "Continuar conectado"; depois, "Sua sessão foi encerrada por inatividade. Faça o login novamente." No app a sessão continua. No `/beta`; testes de tela.
 - **Dividir regiões (17/11/2026, branch `regioes-brusque-jaragua`)** — [banco] `supabase/migracoes/v3.19-regioes-brusque-jaragua.sql` **APLICADA em 17/11/2026** (ok do Eduardo). Itajaí fica como está (Barra Velha e São João do Itaperiú não mudam).

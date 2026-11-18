@@ -1,5 +1,5 @@
 -- ADHONEP-SC · v3.23 — relatório de andamento TRIMESTRAL + configurações (lançamento, alerta de mandato) (claude v1.16)
--- STATUS: PENDENTE
+-- STATUS: APLICADA em 18/11/2026 (backup antes: supabase/backups/2026-11-18-antes-v3.23-trimestral.sql)
 --
 -- Decisões do Eduardo (17/11/2026): trimestre de calendário; relatórios de março, junho, setembro e dezembro;
 -- prazo dia 5 do mês seguinte; a Saúde soma os 3 meses; nada fica pendente antes do lançamento; o diretor define

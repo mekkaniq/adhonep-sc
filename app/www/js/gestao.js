@@ -84,6 +84,7 @@ async function gxLoadMeetings(quiet) {
 async function gxLoadMandates(quiet) {
   if (!adhSession) return;
   try {
+    try { await adhLoadConfig(); } catch (e) { /* ok */ }
     const rows = await adhFetch('/rest/v1/leader_mandates?select=*&order=end_date.asc&limit=3000');
     gxMand = Array.isArray(rows) ? rows : []; gxLoaded.mand = true;
   } catch (e) {
@@ -95,8 +96,8 @@ async function gxLoadMandates(quiet) {
 async function gxLoadRankAtt() {
   if (!adhSession || !gxIsManager()) return;
   try {
-    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
-    gxRankAtt = await adhFetch('/rest/v1/rpc/adh_ranking', { method: 'POST', body: JSON.stringify({ p_month: mrKey(d) }) });
+    try { await adhLoadConfig(); } catch (e) { /* ok */ }
+    gxRankAtt = await adhFetch('/rest/v1/rpc/adh_ranking', { method: 'POST', body: JSON.stringify({ p_month: qClosed() }) });
   } catch (e) { gxRankAtt = null; }
   try { adhRenderAttention(); } catch (e) { /* ok */ }
 }
@@ -279,10 +280,23 @@ async function gxMeetDelete(id, cid) {
    MANDATOS
    ================================================================== */
 const GX_ROLES = ['Presidente do capítulo', 'Vice-presidente do capítulo', 'Diretor regional', 'Diretor estadual'];
+/* prazos de aviso do fim de mandato: definidos pelo diretor (adh_config 'alerta_mandato_dias', padrão 60 e 30) */
+function gxMandDias() { const v = (typeof adhCfg !== 'undefined' && adhCfg && Array.isArray(adhCfg.alerta_mandato_dias)) ? adhCfg.alerta_mandato_dias.map(Number).filter(n => n > 0) : []; return (v.length ? v : [60, 30]).sort((a, b) => b - a); }
+function gxMandDiasTxt() { const d = gxMandDias(); return d.length > 1 ? d.slice(0, -1).join(', ') + ' e ' + d[d.length - 1] : String(d[0]); }
+async function gxMandAlertEdit() {
+  const pr = adhDialog({ title: 'Aviso de fim de mandato', message: 'Quantos dias antes do fim do mandato o sistema deve avisar? Separe por vírgula (ex.: 60, 30). Até 4 avisos.', input: true, confirmLabel: 'Salvar' });
+  const inp = document.getElementById('adhDlgInput'); if (inp) inp.value = gxMandDias().join(', ');
+  const v = await pr;
+  if (v == null) return;
+  const dias = String(v).split(/[,;\s]+/).map(x => parseInt(x, 10)).filter(n => Number.isFinite(n));
+  if (!dias.length || dias.length > 4 || dias.some(n => n < 1 || n > 365)) { toast('Informe de 1 a 4 números entre 1 e 365.'); return; }
+  try { const r = await adhFetch('/rest/v1/rpc/adh_config_set', { method: 'POST', body: JSON.stringify({ p_key: 'alerta_mandato_dias', p_value: dias }) }); adhCfg.alerta_mandato_dias = Array.isArray(r) ? r : dias; toast('Aviso de mandato: ' + gxMandDiasTxt() + ' dias antes.'); gxRenderMandates(); try { adhRenderAttention(); } catch (e) { /* ok */ } }
+  catch (e) { toast('Não foi possível salvar: ' + e.message); }
+}
 function gxMandInfo(m) {
-  const left = gxDays(gxToday(), m.end_date);
+  const left = gxDays(gxToday(), m.end_date), dias = gxMandDias();
   if (left < 0) return { key: 'expired', left, label: 'Vencido há ' + (-left) + ' dia(s)', cls: 'inactive' };
-  if (left <= 60) return { key: 'soon', left, label: 'Vence em ' + left + ' dia(s)', cls: 'activation' };
+  if (left <= dias[0]) return { key: 'soon', left, label: 'Vence em ' + left + ' dia(s)', cls: 'activation', etapa: dias.filter(d => left <= d).pop() };
   return { key: 'ok', left, label: 'Vigente', cls: 'active' };
 }
 function gxMandGroups(list) {
@@ -309,9 +323,11 @@ function gxRenderMandates() {
   if (!gxLoaded.mand) { body.innerHTML = '<tr><td colspan="6" class="empty">Carregando…</td></tr>'; return; }
   const q = slug((gxEl('gxMandSearch') || {}).value || ''), st = (gxEl('gxMandStatus') || {}).value || '';
   const canW = gxCan('mandate');
+  const dz = gxEl('gxMandDias'); if (dz) dz.textContent = gxMandDiasTxt();
+  const ab = gxEl('gxMandAlertBtn'); if (ab) ab.hidden = !['state_admin', 'state_director'].includes(gxRole());
   const infos = gxMand.map(m => ({ m, i: gxMandInfo(m) })), grp = gxMandGroups();
   const none = gxChaptersWithoutMandate();
-  gxEl('gxMandMetrics').innerHTML = [['Vencidos', grp.filter(x => x.i.key === 'expired').length, 'mandatos/diretorias a renovar'], ['Vencem em 60 dias', grp.filter(x => x.i.key === 'soon').length, 'planejar a eleição'], ['Vigentes', grp.filter(x => x.i.key === 'ok').length, 'em dia'], ['Sem mandato cadastrado', none.length, 'ativos sem mandato vigente']].map(m => '<div class="metric"><label>' + m[0] + '</label><strong>' + m[1] + '</strong><small>' + m[2] + '</small></div>').join('');
+  gxEl('gxMandMetrics').innerHTML = [['Vencidos', grp.filter(x => x.i.key === 'expired').length, 'mandatos/diretorias a renovar'], ['Vencem em ' + gxMandDias()[0] + ' dias', grp.filter(x => x.i.key === 'soon').length, 'planejar a eleição'], ['Vigentes', grp.filter(x => x.i.key === 'ok').length, 'em dia'], ['Sem mandato cadastrado', none.length, 'ativos sem mandato vigente']].map(m => '<div class="metric"><label>' + m[0] + '</label><strong>' + m[1] + '</strong><small>' + m[2] + '</small></div>').join('');
   let rows = '';
   if (st === 'none') {
     rows = none.filter(c => !q || slug(c.name + ' ' + c.president).includes(q)).map(c => '<tr><td><strong>' + esc(gxChapLabel(c)) + '</strong></td><td>Presidente do capítulo</td><td>' + esc(c.president || '—') + '</td><td>—</td><td><span class="tag reactivation">Sem mandato</span></td><td>' + (canW ? '<button class="btn small primary" onclick="gxMandForm(null,' + Number(c.id) + ')">Cadastrar</button>' : '') + '</td></tr>').join('');
@@ -445,7 +461,7 @@ function gxAttentionExtra() {
       h += '<div class="detail gx-att"><span>' + (x.h.score < 40 ? '🔴' : '🟠') + ' <strong>' + E(x.c.name) + '</strong> — nota de saúde ' + x.h.score + '/100 (' + x.h.band.label.toLowerCase() + ')' + (fracos.length ? ', fraco em ' + E(fracos.join(', ')) : '') + (x.h.incomplete.length ? ' · dados incompletos' : '') + '</span>' + (wa ? '<a class="btn small" target="_blank" rel="noopener" href="' + wa + '">WhatsApp</a>' : '') + '</div>';
     });
     if (low.length > 6) h += '<p class="sub">+ ' + (low.length - 6) + ' capítulo(s) com nota de saúde abaixo de 60. Veja todos na página Saúde dos capítulos.</p>';
-    if (low.length) h += '<p class="sub">Nota com base em ' + E(mrLabel(gxRankAtt.month || '')) + ' (mês fechado) e nas reuniões e mandatos de hoje.</p>';
+    if (low.length) h += '<p class="sub">Nota com base no ' + E(qLabel(gxRankAtt.month || qClosed())) + ' (trimestre fechado) e nas reuniões e mandatos de hoje.</p>';
   }
   return n || h ? '<div class="gx-att-box" style="margin-top:10px"><div class="eyebrow">Liderança e reuniões</div>' + h + '</div>' : '';
 }
@@ -466,7 +482,7 @@ function gxAttentionExtra() {
 
 /* ==================================================================
    SAÚDE DO CAPÍTULO (0 a 100) — claude v1.6
-   Relatório do mês 30 + Reuniões 30 + Mandato 20 + Atividade do mês 20.
+   Relatório do trimestre 30 + Reuniões 30 + Mandato 20 + Atividade do trimestre 20.
    Calculado na tela com dados que o sistema já tem; não grava nada.
    ================================================================== */
 const GX_BANDS = [
@@ -478,10 +494,10 @@ const GX_BANDS = [
 function gxBand(n) { return GX_BANDS.find(b => n >= b.min) || GX_BANDS[GX_BANDS.length - 1]; }
 function gxHealth(c, rk) {
   const parts = []; let incomplete = [];
-  // 1) relatório mensal (30)
-  const st = rk && rk.report_status;
-  const rep = !st ? 0 : (st === 'Aprovado' ? 30 : 15);
-  parts.push(['Relatório', rep, 30, !st ? 'não enviado' : (st === 'Aprovado' ? 'aprovado' : 'ainda não aprovado')]);
+  // 1) relatório do trimestre (30) — antes do lançamento não é cobrado
+  const st = rk && rk.report_status, naoCobra = !st && rk && rk.report_due === false;
+  const rep = naoCobra ? 30 : (!st ? 0 : (st === 'Aprovado' ? 30 : 15));
+  parts.push(['Relatório', rep, 30, naoCobra ? 'ainda não cobrado' : (!st ? 'não enviado' : (st === 'Aprovado' ? 'aprovado' : 'ainda não aprovado'))]);
   // 2) reuniões (30)
   let meet = 0, mtxt = 'sem registro';
   if (gxLoaded.meet) {
@@ -500,7 +516,7 @@ function gxHealth(c, rk) {
     else incomplete.push('mandato');
   } else incomplete.push('mandato');
   parts.push(['Mandato', man, 20, ntxt]);
-  // 4) atividade do mês (20)
+  // 4) atividade do trimestre (20)
   const ev = Number(rk && rk.p_events) > 0, rm = Number(rk && rk.p_meetings) > 0, mb = Number(rk && rk.p_members) > 0;
   const act = (ev ? 10 : 0) + (rm ? 5 : 0) + (mb ? 5 : 0);
   parts.push(['Atividade', act, 20, (ev ? 'evento' : 'sem evento') + (mb ? ', sócio novo' : '')]);
@@ -536,7 +552,7 @@ function gxRenderHealth() {
   const weak = list.filter(x => x.h.score < 60).length;
   const sc = (t, v, sub) => '<div style="flex:1;min-width:150px;padding:12px 14px;border:1px solid var(--line,#e2e8f0);border-radius:12px"><div class="meta">' + t + '</div><div style="font-size:26px;font-weight:800;line-height:1.2">' + v + '</div><div class="meta">' + sub + '</div></div>';
   box.innerHTML = '<h3>Saúde dos capítulos</h3>'
-    + '<p class="sub">Nota de 0 a 100: relatório do mês (30), reuniões (30), mandato do presidente (20) e atividade do mês (20). Calculada na tela, não é gravada. Capítulo com “dados incompletos” pode estar sem registrar, não necessariamente sem trabalhar.</p>'
+    + '<p class="sub">Nota de 0 a 100: relatório do trimestre (30), reuniões (30), mandato do presidente (20) e atividade do trimestre (20). Calculada na tela, não é gravada. Capítulo com “dados incompletos” pode estar sem registrar, não necessariamente sem trabalhar.</p>'
     /* 1) estado */
     + '<div class="eyebrow" style="margin-top:6px">Estado</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 6px">'
@@ -881,3 +897,82 @@ async function gxRdSave(ev, id) {
     msg.textContent = 'Não foi possível salvar: ' + (/permission|42501|row-level|column/i.test(e.message) ? 'sua conta não tem permissão para isso.' : e.message);
   }
 }
+
+/* ==================================================================
+   v3.23 · AVISOS DE PRAZO (claude v1.16)
+   - evento que já aconteceu e não tem relatório → "relatório pendente" (só eventos depois do lançamento)
+   - presidente: caixa "Seus avisos" no painel (relatório do trimestre, eventos sem relatório, fim de mandato)
+   - diretores: eventos sem relatório entram no quadro "Atenção"
+   ================================================================== */
+function adhEventosPendentes() {
+  if (!adhSession || !adhProfile || typeof qLaunch !== 'function') return [];
+  const L = qLaunch(); if (!L) return [];
+  const now = new Date(), mine = new Set(adhMyChapters().map(c => String(c.id)));
+  return (events || []).filter(e => e.date && mine.has(String(e.chapter_id)) && e.status !== 'Cancelado'
+    && new Date(e.date + 'T23:59:59') < now && new Date(e.date + 'T12:00:00') >= L
+    && !(reports || []).some(r => String(r.eventId) === String(e.id)))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+function adhReportForEvent(id) {
+  const e = (events || []).find(x => String(x.id) === String(id)); openReport(); if (!e) return;
+  const f = document.querySelector('#reportModal form'), sel = gxEl('reportEvent');
+  if (f.elements.chapterId && [...f.elements.chapterId.options].some(o => o.value === String(e.chapter_id))) f.elements.chapterId.value = String(e.chapter_id);
+  if (sel && [...sel.options].some(o => o.value === String(e.id))) sel.value = String(e.id);
+  f.elements.eventName.value = e.name || ''; f.elements.eventDate.value = e.date || '';
+}
+function adhAvisoLinha(ic, txt, btn) { return '<div class="detail" style="display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap"><span>' + ic + ' ' + txt + '</span>' + (btn || '') + '</div>'; }
+let adhAvisosMandTried = false;
+function adhRenderMeusAvisos() {
+  const page = gxEl('page-dashboard'); if (!page) return;
+  let box = gxEl('adhMeusAvisos');
+  if (!adhSession || gxRole() !== 'chapter_president') { if (box) box.hidden = true; return; }
+  if (!box) { box = document.createElement('div'); box.id = 'adhMeusAvisos'; box.className = 'panel'; box.style.margin = '0 0 14px'; const head = page.querySelector('.adminhead'); page.insertBefore(box, head ? head.nextSibling : page.firstChild); }
+  if (!gxLoaded.mand && !adhAvisosMandTried) { adhAvisosMandTried = true; gxLoadMandates(true).then(adhRenderMeusAvisos).catch(() => { }); }
+  const E = escapeHtml, out = [], mine = adhMyChapters();
+  // 1) relatório do trimestre
+  if (typeof qDefault === 'function' && window.adhMonthlyOk) {
+    const k = qDefault(), falta = mine.filter(c => !(adhMonthly || []).some(r => String(r.chapter_id) === String(c.id) && String(r.ref_month).slice(0, 10) === k));
+    if (qDue(k) && new Date() >= qOpen(k) && falta.length) {
+      const left = qDaysLeft(k), prazo = mrDeadline(k).toLocaleDateString('pt-BR');
+      out.push(adhAvisoLinha(left < 0 ? '🔴' : '🗓️', left < 0 ? 'O relatório do <strong>' + E(qLabel(k)) + '</strong> está atrasado (prazo era ' + prazo + ').' : 'Relatório do <strong>' + E(qLabel(k)) + '</strong>: ' + (left <= 1 ? 'o prazo é hoje ou amanhã' : 'faltam ' + left + ' dias') + ' (prazo ' + prazo + ').',
+        '<button class="btn small primary" onclick="showPage(\'monthly\',document.querySelector(\'.nav[data-page=monthly]\'));loadMonthly();setTimeout(openMonthlyForm,400)">Enviar relatório</button>'));
+    }
+  }
+  // 2) eventos sem relatório
+  const pend = adhEventosPendentes();
+  pend.slice(0, 3).forEach(e => out.push(adhAvisoLinha('📝', 'Relatório pendente: <strong>' + E(e.name) + '</strong> (' + gxFmtDate(e.date) + ')', '<button class="btn small" onclick="adhReportForEvent(' + JSON.stringify(String(e.id)).replace(/"/g, '&quot;') + ')">Fazer relatório</button>')));
+  if (pend.length > 3) out.push('<p class="sub">+ ' + (pend.length - 3) + ' evento(s) sem relatório. Veja em Relatórios de eventos.</p>');
+  // 3) fim de mandato do capítulo
+  if (gxLoaded.mand) {
+    const ids = new Set(mine.map(c => String(c.id)));
+    gxMandGroups(gxMand.filter(m => m.chapter_id != null && ids.has(String(m.chapter_id)))).filter(x => x.i.key !== 'ok').forEach(x => {
+      out.push(adhAvisoLinha(x.i.key === 'expired' ? '🔴' : '⏳', (x.n > 1 ? 'Mandato da <strong>diretoria</strong>' : 'Mandato de <strong>' + E(x.m.person_name) + '</strong>') + ' — ' + E(x.i.label.toLowerCase()) + '. Hora de planejar a eleição.'));
+    });
+  }
+  box.hidden = !out.length;
+  box.innerHTML = out.length ? '<div class="eyebrow">Seus avisos</div>' + out.join('') : '';
+}
+function adhRenderEventosPendentesRel() {
+  const page = gxEl('page-reports'); if (!page) return;
+  let box = gxEl('adhRelPendentes');
+  const pend = adhEventosPendentes();
+  if (!box) { box = document.createElement('div'); box.id = 'adhRelPendentes'; box.className = 'notice'; box.style.margin = '0 0 14px'; const m = gxEl('reportMetrics'); page.insertBefore(box, m || page.firstChild); }
+  box.hidden = !pend.length;
+  box.innerHTML = pend.length ? '<strong>' + pend.length + ' evento(s) já realizado(s) sem relatório:</strong> ' + pend.slice(0, 6).map(e => '<button class="btn small" style="margin:4px 4px 0 0" onclick="adhReportForEvent(' + JSON.stringify(String(e.id)).replace(/"/g, '&quot;') + ')">' + escapeHtml(e.name) + ' · ' + gxFmtDate(e.date) + '</button>').join('') + (pend.length > 6 ? ' …' : '') : '';
+}
+(function () {
+  const _ra = adhRenderAttention;
+  adhRenderAttention = function () { _ra.apply(this, arguments); try { adhRenderMeusAvisos(); } catch (e) { console.warn('avisos', e); } };
+  const _rr = renderReports;
+  renderReports = function () { const r = _rr.apply(this, arguments); try { adhRenderEventosPendentesRel(); } catch (e) { /* ok */ } return r; };
+  const _gx = gxAttentionExtra;
+  gxAttentionExtra = function () {
+    let h = _gx.apply(this, arguments);
+    try {
+      const pend = adhEventosPendentes(); if (!pend.length) return h;
+      const linha = '<div class="detail gx-att"><span>📝 <strong>' + pend.length + '</strong> evento(s) já realizado(s) sem relatório: ' + escapeHtml(pend.slice(0, 4).map(e => e.name + ' (' + e.chapter + ')').join(', ')) + (pend.length > 4 ? '…' : '') + '</span><button class="btn small" onclick="showPage(\'reports\',document.querySelector(\'.nav[data-page=reports]\'))">Ver</button></div>';
+      h = h ? h.replace(/<\/div>$/, linha + '</div>') : '<div class="gx-att-box" style="margin-top:10px"><div class="eyebrow">Liderança e reuniões</div>' + linha + '</div>';
+    } catch (e) { /* ok */ }
+    return h;
+  };
+})();
