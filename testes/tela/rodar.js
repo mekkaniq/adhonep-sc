@@ -339,6 +339,36 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await p3.ctx.close();
     }
 
+    // ===== 1m) cache no aparelho: quem volta não baixa de novo arquivos, imagens e vídeo; sem internet a página abre =====
+    {
+      const ctx = await browser.newContext({ viewport: { width: 1366, height: 900 } });
+      await ctx.addInitScript(() => { try { localStorage.setItem('adh-seen', '1'); } catch (e) {} });
+      const page = await ctx.newPage(); const erros = []; page.on('pageerror', (e) => erros.push(e.message));
+      await simular(page, null);
+      await page.goto(BASE); await page.waitForTimeout(1500);
+      await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+      await page.reload(); await page.waitForTimeout(1500);   // agora o service worker controla a página
+      const doSW = [];
+      page.on('response', (r) => { if (/\/beta\/(js\/app\.js|styles\.css|assets\/fundo-hero\.jpg)/.test(r.url())) doSW.push(r.fromServiceWorker()); });
+      await page.reload(); await page.waitForTimeout(1500);
+      confere('Cache: na volta, arquivos e imagens vêm do aparelho (service worker)', doSW.length >= 2 && doSW.every(Boolean), JSON.stringify(doSW));
+      const vid = await page.evaluate(async () => {
+        const u = 'assets/video/apresentacao-h.mp4';
+        await fetch(u, { headers: { Range: 'bytes=0-' } }).then((r) => r.arrayBuffer());   // 1ª vez: rede (e guarda por trás)
+        for (let i = 0; i < 40; i++) { const c = await caches.open('adh-media-v1-beta'); if (await c.match(location.origin + '/beta/' + u)) break; await new Promise((ok) => setTimeout(ok, 250)); }
+        const r = await fetch(u, { headers: { Range: 'bytes=100-1099' } });
+        return { st: r.status, len: (await r.arrayBuffer()).byteLength, cr: r.headers.get('content-range') };
+      });
+      confere('Cache: vídeo fica guardado e toca do aparelho, com avanço/retrocesso (pedido parcial 206)', vid.st === 206 && vid.len === 1000 && /^bytes 100-1099\/\d+$/.test(vid.cr || ''), JSON.stringify(vid));
+      await ctx.setOffline(true);
+      await page.reload().catch(() => {}); await page.waitForTimeout(1500);
+      const off = await page.evaluate(() => !!document.querySelector('header.top') && typeof showPage === 'function');
+      confere('Cache: sem internet, a página abre com o que está guardado', off);
+      await ctx.setOffline(false);
+      confere('Cache: sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+    }
+
     // ===== 1l) boas-vindas: implantação até dez/2026, prazos a partir de 2027, só cobra capítulo com presidente =====
     {
       SIM_CFG.lancamento = '2027-01-01';

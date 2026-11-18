@@ -47,6 +47,8 @@ async function adhFetch(path, options={}, retried=false){
 (function(){
  const RX=/^\/rest\/v1\/(regions|municipalities|region_municipalities|chapters|public_chapter_contacts|public_announcements|chapter_public_info)\?/;
  const FRESH=5*60e3,STALE=24*3600e3,PFX='adhq1:',mem=new Map(),fly=new Map();
+ /* quanto tempo usar direto sem ir ao servidor: municípios quase nunca mudam (7 dias); regiões e cidades de cada região, 1 h; o resto, 5 min */
+ const frescor=p=>/^\/rest\/v1\/municipalities\?(?!.*boundary)/.test(p)?7*864e5:/^\/rest\/v1\/(regions|region_municipalities)\?/.test(p)?3600e3:FRESH;
  const who=()=>{try{return adhSession&&adhSession.user&&adhSession.user.id?'u'+String(adhSession.user.id).slice(0,12):'a'}catch(e){return 'a'}};
  const rd=k=>{if(mem.has(k))return mem.get(k);try{const v=localStorage.getItem(k);if(v){const o=JSON.parse(v);mem.set(k,o);return o}}catch(e){}return null};
  const wr=(k,d)=>{const o={t:Date.now(),d};mem.set(k,o);try{localStorage.setItem(k,JSON.stringify(o))}catch(e){try{for(let i=localStorage.length-1;i>=0;i--){const x=localStorage.key(i);if(x&&x.indexOf(PFX)===0)localStorage.removeItem(x)}}catch(_){}}};
@@ -59,7 +61,7 @@ async function adhFetch(path, options={}, retried=false){
   if(retried||options.noCache||!RX.test(path))return _f(path,options,retried);
   const k=PFX+who()+':'+path,e=rd(k),age=e?Date.now()-e.t:1e15;
   const net=()=>{if(fly.has(k))return fly.get(k);const pr=_f(path,options,retried).then(d=>{wr(k,d);return d}).finally(()=>fly.delete(k));fly.set(k,pr);return pr};
-  if(e&&age<FRESH)return cp(e.d);
+  if(e&&age<frescor(path))return cp(e.d);
   if(e&&age<STALE){net().catch(()=>{});return cp(e.d)}
   return cp(await net());
  };

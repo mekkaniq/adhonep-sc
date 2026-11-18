@@ -100,7 +100,8 @@ function lote(token, lista) {
     lista = lista.filter(([nome]) => {
       const k = (token ? 'L:' : 'P:') + nome;
       if (!CACHEAVEIS[nome]) return true;
-      if (ultimo[k] && agora - ultimo[k] < 5 * 60e3) return false;
+      const ttl = nome === 'municipios' ? 7 * 864e5 : (nome === 'regioes' || nome === 'regiao_municipio') ? 3600e3 : 5 * 60e3;   // igual ao site (claude v1.17.2)
+      if (ultimo[k] && agora - ultimo[k] < ttl) return false;
       ultimo[k] = agora; return true;
     });
     if (!lista.length) return Date.now() - t0;
