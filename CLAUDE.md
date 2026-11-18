@@ -53,6 +53,9 @@ Dono: Eduardo S. (GitHub `mekkaniq`). Fala em português, prefere tudo feito de 
    teste do banco passe (antes/depois) e o resultado seja mostrado depois. **Pedir o ok antes só quando for destrutivo:**
    apagar dados (DELETE/TRUNCATE em dados reais), apagar estrutura (DROP de tabela/coluna/função em uso) ou tirar acesso
    de quem usa o sistema hoje (RLS/permissões mais restritas, mudar ou remover papel de usuário).
+   **Backup antes (Eduardo, 18/11/2026):** mudança séria ou crítica no banco (alterar função/tabela em uso, mexer em
+   dados reais, trocar regra de acesso) só depois de um backup do que vai mudar — dados e definições — guardado em
+   `supabase/backups/AAAA-MM-DD-assunto.sql`, com o caminho de volta escrito no topo do arquivo.
    O arquivo vai para `supabase/migracoes/` e, ao aplicar, fica "STATUS: APLICADA em dd/mm/aaaa" (pendente só enquanto espera o ok).
 5. **Oficial.** ⚠️ **Decisão do Eduardo (17/11/2026): o site oficial (raiz) fica congelado até o lançamento.** Os diretores usam o
    `/beta` por enquanto; no lançamento faz-se a troca completa beta → oficial de uma vez. Até lá, NÃO levar mudanças para a raiz.
