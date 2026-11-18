@@ -86,6 +86,8 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
         return 'não guardou (carregou: ' + ok + ')';
       });
       confere('Cache: foto de convite aparece e fica guardada no aparelho', foto === true, String(foto));
+      const faixa = await page.evaluate(() => (document.getElementById('gxBetaRibbon') || {}).textContent || '');
+      confere('Faixa do /beta diz "FASE DE IMPLANTAÇÃO" (não mais "versão de teste")', /^FASE DE IMPLANTAÇÃO/.test(faixa) && !/TESTE/.test(faixa), faixa);
       await ctx.close();
     }
 

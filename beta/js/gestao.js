@@ -8,10 +8,10 @@ window.ADH_BETA = /\/beta(\/|$)/i.test(location.pathname);
   if (!window.ADH_BETA) return;
   try {
     const m = document.createElement('meta'); m.name = 'robots'; m.content = 'noindex,nofollow'; document.head.appendChild(m);
-    document.title = '[TESTE] ' + document.title;
+    document.title = '[Implantação] ' + document.title;
     document.documentElement.classList.add('gx-is-beta');
     const r = document.createElement('div'); r.id = 'gxBetaRibbon'; r.setAttribute('role', 'status');
-    r.textContent = 'VERSÃO DE TESTE (beta) — os dados são os mesmos do site oficial. Use nomes com "TESTE —" e apague depois.';
+    r.textContent = 'FASE DE IMPLANTAÇÃO — até 31/12/2026 os capítulos preenchem as informações básicas. Os dados aqui são reais.';
     document.addEventListener('DOMContentLoaded', () => document.body.insertBefore(r, document.body.firstChild));
   } catch (e) { /* sem problema */ }
 })();
