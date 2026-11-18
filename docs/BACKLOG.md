@@ -76,6 +76,13 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 - **Semana 4 (30/11–06/12):** **lançar na Google Play** (produção) e anunciar para os capítulos.
 
 ## Próximas (em ordem de prioridade)
+- **Domínio adhonepsc.com.br + buscadores (combinado em 18/11/2026) — esperando o Ramon transferir o domínio.**
+  Mensagem pedindo domínio (para o CPF do Eduardo), DNS/e-mails, projeto do Lovable, dados, Search Console e imagens: enviada pelo Eduardo.
+  O site antigo é um projeto Lovable (React/Vite, `project_id lovp_4afwzpbrvr8jq8acs5y1s4rvv7`), com verificação do Google Search Console.
+  Quando o domínio chegar, fazer de uma vez: (1) conferir DNS/e-mails antes de mexer; (2) apontar adhonepsc.com.br para a plataforma
+  nova (redirecionar 301 para adhonepemsc.com.br, para manter a posição nas buscas); (3) Google Search Console (propriedade "Domínio",
+  TXT no Registro.br) + enviar sitemap; (4) Bing Webmaster Tools importando do Google (Brave acha sozinho); (5) dados do site antigo:
+  comparar com os nossos e importar o que faltar.
 1. ~~Aplicar a v3.17 na produção~~ **APLICADA em 12/11/2026** (migração `v3_17_sem_truncate_para_api`). Conferido na produção em 17/11;
    arquivo marcado como APLICADA.
 2. **Confirmar as exceções de exclusão** que o teste do banco encontrou (hoje permitidas): presidente/diretores excluem
@@ -176,6 +183,7 @@ Marcação: **[tela]** só site/app · **[banco]** mexe em banco/RLS/permissões
 - Excluir no painel do Supabase as funções temporárias já desligadas (`importar-convites`, `exportar-esquema`).
 
 ## Comigo (fora do código) — Eduardo
+- Domínios no CPF do Eduardo (adhonepemsc.com.br e, quando vier, adhonepsc.com.br): renovação automática, 2 etapas no Registro.br, 2ª pessoa como contato; um dia transferir para CNPJ se a ADHONEP-SC tiver.
 - Supabase **fica no Free por enquanto** (16/11). Configurar o backup: 3 segredos no GitHub (`docs/BACKUP.md`).
 - Ativar o Pages pelo Actions (Settings → Pages → Source: GitHub Actions + variável `PAGES_PELO_ACTIONS = sim`).
 - **Google Play**: aguardar a verificação de identidade; fazer o login no app Play Console num **Android de verdade** (emprestado serve);
