@@ -2,10 +2,12 @@
    não baixar tudo de novo. Dados do Supabase NUNCA passam por aqui (outro domínio; o cache de dados fica em supabase.js).
    - Página (HTML): busca a nova primeiro (para receber atualizações); sem internet ou demorando mais de 4 s, usa a guardada.
    - Arquivos com versão (?v=…), imagens, dados fixos (mapa, municípios), ícones e fontes: usa o guardado na hora e atualiza por trás.
+   - Fotos dos convites e dos capítulos (pasta pública do Supabase): guardadas na 1ª vez e usadas do aparelho depois
+     (cada foto enviada tem endereço próprio, então não fica velha). Até 200 fotos; as mais antigas saem.
    - Vídeos: na 1ª vez tocam direto da internet e são guardados inteiros por trás; depois tocam do aparelho (com avanço/retrocesso). */
 const BETA = /\/beta\/$/.test(self.registration.scope);   // site rodando na pasta /beta tem cache separado
 const SUF = BETA ? '-beta' : '';
-const V = 'adh-shell-v1.17.2' + SUF;          // página e arquivos com versão
+const V = 'adh-shell-v1.17.3' + SUF;          // página e arquivos com versão
 const MEDIA = 'adh-media-v1' + SUF;           // imagens, dados fixos e vídeos (sobrevive às atualizações do site)
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'assets/adhonep.ico', 'assets/logo-branca.png', 'assets/icon-192.png', 'assets/fundo-hero.jpg'];
 
@@ -74,9 +76,24 @@ function video(e, req, u) {
   })).catch(() => fetch(req));
 }
 
+/* fotos públicas (convites e capítulos): guardadas no aparelho; pedidas com CORS para a resposta poder ser guardada */
+const FOTOS = /^https:\/\/ayrdfetnscrfrlcssiua\.supabase\.co\/storage\/v1\/object\/public\/(adhonep-event-invitations|chapter-photos)\//;
+function foto(req) {
+  return caches.open(MEDIA).then((c) => c.match(req.url).then((m) => m || fetch(req.url, { mode: 'cors', credentials: 'omit' }).then((res) => {
+    if (res.ok && res.status === 200) {
+      c.put(req.url, res.clone()).then(() => c.keys()).then((ks) => {
+        const f = ks.filter((k) => FOTOS.test(k.url));
+        if (f.length > 200) f.slice(0, f.length - 200).forEach((k) => c.delete(k));
+      }).catch(() => {});
+    }
+    return res;
+  }).catch(() => fetch(req))));
+}
+
 self.addEventListener('fetch', (e) => {
   const req = e.request, u = new URL(req.url);
-  if (req.method !== 'GET' || u.origin !== location.origin) return;   // Supabase e outros domínios: direto na rede
+  if (req.method === 'GET' && FOTOS.test(req.url)) { e.respondWith(foto(req)); return; }
+  if (req.method !== 'GET' || u.origin !== location.origin) return;   // dados do Supabase e outros domínios: direto na rede
   if (/\.(mp4|webm|m4a)$/i.test(u.pathname)) { e.respondWith(video(e, req, u)); return; }
   if (req.mode === 'navigate' || /\/(index\.html)?$/.test(u.pathname)) { e.respondWith(pagina(req)); return; }
   if (u.searchParams.has('v')) { e.respondWith(versionado(req, u)); return; }

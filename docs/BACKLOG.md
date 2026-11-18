@@ -18,7 +18,8 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 - **Mais coisas guardadas no aparelho (18/11/2026)** — quem volta todo dia não baixa tudo de novo: arquivos do site, imagens,
   ícones e dados fixos vêm do aparelho e se atualizam por trás; o **vídeo** é guardado inteiro na 1ª vez e depois toca do aparelho
   (com avanço/retrocesso); a página abre mesmo sem internet. Dados: municípios ficam 7 dias no aparelho, regiões e cidades de cada
-  região 1 h, o resto 5 min (desenho do mapa já ficava 30 dias). Teste de tela 1m.
+  região 1 h, o resto 5 min (desenho do mapa já ficava 30 dias). **Fotos dos convites e dos capítulos** também ficam guardadas
+  (até 200; cada foto tem endereço próprio, então não fica velha). Testes de tela 1m e 1n.
 - **Monitor de velocidade (18/11/2026)** — workflow "Monitor de velocidade (alerta acima de 1 s)": a cada ~5 min mede as respostas
   do servidor (públicas e com login); passou de 1 s ou deu erro → o workflow falha e o GitHub manda e-mail ao Eduardo.
 - **Teste de carga "mil"** (700 logados + 300 visitantes, uso real) — perfil novo no k6; rodar à noite, fora do horário de uso (plano Free).

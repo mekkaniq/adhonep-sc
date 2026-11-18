@@ -4,6 +4,8 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+// deixa o teste interceptar também os pedidos feitos pelo service worker (fotos guardadas no aparelho)
+process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS = process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS || '1';
 const { chromium } = require('playwright');
 const { simular, eventos: SIM_EVENTOS, CONFIG: SIM_CFG, DELEG: SIM_DELEG } = require('./simulador');
 
@@ -69,6 +71,24 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
   const srv = servidor();
   const browser = await chromium.launch();
   try {
+    // ===== 1n) fotos dos convites (pasta pública do Supabase) ficam guardadas no aparelho =====
+    {
+      const ctx = await browser.newContext();
+      await ctx.route(/storage\/v1\/object\/public\/adhonep-event-invitations\//, (r) => r.fulfill({ status: 200, contentType: 'image/png',
+        headers: { 'access-control-allow-origin': '*' }, body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64') }));
+      const page = await ctx.newPage();
+      await simular(page, null);
+      await page.goto(BASE); await page.evaluate(async () => { await navigator.serviceWorker.ready; }); await page.reload(); await page.waitForTimeout(1000);
+      const foto = await page.evaluate(async () => {
+        const u = 'https://ayrdfetnscrfrlcssiua.supabase.co/storage/v1/object/public/adhonep-event-invitations/teste/convite-1.png';
+        const ok = await new Promise((r) => { const i = new Image(); i.onload = () => r(true); i.onerror = () => r(false); i.src = u; });
+        for (let k = 0; k < 20; k++) { const c = await caches.open('adh-media-v1-beta'); if (await c.match(u)) return ok; await new Promise((r) => setTimeout(r, 200)); }
+        return 'não guardou (carregou: ' + ok + ')';
+      });
+      confere('Cache: foto de convite aparece e fica guardada no aparelho', foto === true, String(foto));
+      await ctx.close();
+    }
+
     // ===== 1) login por perfil: cada um vê só o que pode =====
     const esperado = {
       state_admin:       { tem: ['dashboard', 'users', 'audit', 'monthly', 'ranking', 'support'], naoTem: [] },
