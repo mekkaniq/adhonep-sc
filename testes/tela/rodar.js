@@ -391,6 +391,45 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await ctx.close();
     }
 
+    // ===== 1o) menu em grupos: abre/fecha, recolhe em ícones, gaveta no celular, sem símbolos antigos =====
+    {
+      const { ctx, page, erros } = await abrir(browser, 'state_admin', false);
+      await entrar(page);
+      const g = await page.evaluate(() => [...document.querySelectorAll('aside.side .ngroup')].filter((x) => !x.hidden).map((x) => x.dataset.grp));
+      confere('Menu: administrador vê os 6 grupos (Capítulos, Eventos, Acompanhamento, Comunicação, Estrutura, Administração)',
+        JSON.stringify(g) === JSON.stringify(['capitulos', 'eventos', 'acompanhamento', 'comunicacao', 'estrutura', 'administracao']), JSON.stringify(g));
+      const sim = await page.evaluate(() => [...document.querySelectorAll('aside.side .nav .nav-txt, aside.side .ngh .nav-txt')].map((s) => s.textContent).filter((x) => /^[^\p{L}]/u.test(x)));
+      confere('Menu: sem os símbolos antigos (◉ ▦ ⌂ …) no começo dos nomes', sim.length === 0, sim.join(' | '));
+      await page.evaluate(() => showPage('mandates', document.querySelector('.nav[data-page="mandates"]')));
+      confere('Menu: o grupo da página atual abre sozinho (Mandatos → Capítulos)', await page.evaluate(() => document.querySelector('.ngroup[data-grp="capitulos"]').classList.contains('open')));
+      await page.click('.ngroup[data-grp="eventos"] .ngh');
+      confere('Menu: clicar no grupo abre os itens dele', await page.evaluate(() => document.querySelector('.ngroup[data-grp="eventos"]').classList.contains('open')));
+      await page.click('#menuRecolher'); await page.waitForTimeout(300);
+      const larg = await page.evaluate(() => document.querySelector('aside.side').getBoundingClientRect().width);
+      confere('Menu: "Recolher menu" deixa só os ícones (item 15 do diretor)', larg < 90, larg + 'px');
+      await page.click('#menuRecolher');
+      confere('Menu (administrador): sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+      const p2 = await abrir(browser, 'chapter_president', false);
+      await entrar(p2.page);
+      const gp = await p2.page.evaluate(() => [...document.querySelectorAll('aside.side .ngroup')].filter((x) => !x.hidden).map((x) => x.dataset.grp));
+      confere('Menu: presidente não vê Estrutura nem Administração', !gp.includes('estrutura') && !gp.includes('administracao') && gp.includes('capitulos'), JSON.stringify(gp));
+      await p2.ctx.close();
+      const p3 = await abrir(browser, 'regional_director', true);
+      await entrar(p3.page);
+      const fechado = await p3.page.evaluate(() => getComputedStyle(document.querySelector('aside.side')).visibility);
+      await p3.page.click('#menuGaveta'); await p3.page.waitForTimeout(600);
+      const aberto = await p3.page.evaluate(() => getComputedStyle(document.querySelector('aside.side')).visibility);
+      confere('Celular: o botão "Menu" abre a gaveta (fechada antes, aberta depois)', fechado === 'hidden' && aberto === 'visible', fechado + ' → ' + aberto);
+      await p3.page.click('.ngroup[data-grp="eventos"] .ngh'); await p3.page.waitForTimeout(300);
+      await p3.page.click('.nav[data-page="calendar"]'); await p3.page.waitForTimeout(600);
+      const depois = await p3.page.evaluate(() => ({ vis: getComputedStyle(document.querySelector('aside.side')).visibility, pg: (document.querySelector('.apage.on') || {}).id }));
+      confere('Celular: escolher uma página fecha a gaveta e abre a página', depois.vis === 'hidden' && depois.pg === 'page-calendar', JSON.stringify(depois));
+      confere('Celular: menu sem rolagem lateral', await semRolagemLateral(p3.page));
+      confere('Menu (celular): sem erro de JavaScript', p3.erros.length === 0, p3.erros.join(' | '));
+      await p3.ctx.close();
+    }
+
     // ===== 1l) boas-vindas: implantação até dez/2026, prazos a partir de 2027, só cobra capítulo com presidente =====
     {
       SIM_CFG.lancamento = '2027-01-01';

@@ -15,6 +15,13 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   informações básicas, nada é cobrado); a partir de 01/01/2027 os prazos contam (1º relatório: 1º trimestre de 2027, até 05/04/2027).
   Painel "Bem-vindo à plataforma" para presidentes e diretores até o lançamento ("Entendi" esconde). Capítulo sem presidente com login
   aparece como "não cobrado" e não perde ponto. [banco] v3.25 **APLICADA em 18/11/2026** (backup `supabase/backups/2026-11-18-antes-v3.25-cobranca.sql`). Testes `40-cobranca.sql` e tela 1l.
+- **Menu novo da gestão, em grupos (18/11/2026, claude v1.18) — item 15 do diretor (menu recolhível)** — backup antes na branch
+  `backup-antes-menu-2026-11-18`. 20 itens soltos viraram: Central de comando, Visão geral e os grupos Capítulos (Capítulos, Mandatos,
+  Reuniões, Sócios), Eventos (Eventos, Agenda, Relatórios de eventos), Acompanhamento (Andamento trimestral, Apoios, Saúde dos capítulos),
+  Comunicação (Comunicados, Biblioteca, Preletores), Estrutura (Regiões e municípios) e Administração (Solicitações, Usuários, Histórico, LGPD).
+  Ícones de traço no lugar dos símbolos; grupo da página atual abre sozinho e o sistema lembra os abertos; grupo sem item para o perfil some;
+  número de pendências no grupo; botão "Recolher menu" (só ícones, grupo abre ao lado); no celular o botão "Menu" se transforma na gaveta.
+  Mesmos endereços de página. `beta/js/menu.js` + `beta/menu.css`. Teste de tela 1o. Próximo: tirar emojis dos avisos (🔴 📝 ⏳ 📥) e referências do details.so.
 - **Mais coisas guardadas no aparelho (18/11/2026)** — quem volta todo dia não baixa tudo de novo: arquivos do site, imagens,
   ícones e dados fixos vêm do aparelho e se atualizam por trás; o **vídeo** é guardado inteiro na 1ª vez e depois toca do aparelho
   (com avanço/retrocesso); a página abre mesmo sem internet. Dados: municípios ficam 7 dias no aparelho, regiões e cidades de cada
