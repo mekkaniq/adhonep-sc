@@ -583,6 +583,8 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await page.waitForTimeout(1500);
       const txt = await page.evaluate(() => document.getElementById('delReqBox')?.innerText || '');
       confere('Administração: vê os pedidos de exclusão pendentes', txt.includes('TESTE Pessoa que pediu exclusão'), txt.slice(0, 120));
+      const contato = await page.evaluate(() => { adhRealUsers = [{ id: 'u-x', userId: 'u-x', name: 'TESTE Contato', role: 'Sócio', scope: 'Capítulo', status: 'Ativo', phone: '47900000000' }]; renderRealUsers(); return ({ th: [...document.querySelectorAll('#userRows')].map((t) => t.closest('table').querySelector('thead').innerText)[0] || '', wa: (document.querySelector('#userRows a[href^="https://wa.me/"]') || {}).href || '' }); });
+      confere('Usuários: coluna "Contato" (não "E-mail") com link direto para o WhatsApp', /Contato/i.test(contato.th) && !/E-mail/i.test(contato.th) && contato.wa === 'https://wa.me/5547900000000', JSON.stringify(contato));
       confere('Administração: tem botão para concluir a exclusão', await page.evaluate(() => !!document.querySelector('#delReqBox [data-delreq]')));
       confere('Administração: sem erro de JavaScript', erros.length === 0, erros.join(' | '));
       await ctx.close();
