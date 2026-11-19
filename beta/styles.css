@@ -460,7 +460,7 @@ button[hidden],.actions>[hidden],a[hidden]{display:none!important}
 .cmd-seg button{background:transparent;color:var(--c-text);border:0;padding:8px 16px;font:600 13px system-ui;cursor:pointer}
 .cmd-seg button[aria-pressed=true]{background:linear-gradient(135deg,#e6cf9c,#c9a45c);color:#10203a}
 .cmd-sel,.cmd-btn{background:rgba(255,255,255,.06);color:var(--c-text);border:1px solid var(--c-line);border-radius:10px;padding:8px 12px;font:600 13px system-ui;cursor:pointer}
-.cmd-sel option{color:#10203a}
+.cmd-sel{color-scheme:dark}.cmd-sel option{color:#fff;background:#16263e}
 .cmd-btn:hover{border-color:var(--c-gold)}.cmd-btn.small{padding:5px 10px;font-size:12px}.cmd-btn:disabled{opacity:.4;cursor:default}
 .cmd-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px}
 .cmd-kpi{position:relative;background:var(--c-card);border:1px solid var(--c-line);border-radius:14px;padding:12px 14px;min-height:92px;overflow:hidden}
