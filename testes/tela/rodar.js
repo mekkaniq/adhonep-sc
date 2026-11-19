@@ -234,6 +234,13 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       if (papel === 'state_admin') confere('Central (administrador): clicar em "Santa Catarina" volta a Central inteira ao estado', r.scope === 'state' && r.titulo === 'Santa Catarina' && r.mapa.startsWith('Visão geral'), JSON.stringify(r));
       else confere('Central (diretor regional): clicar em "Santa Catarina" mostra o mapa do estado mas a Central fica na região dele', r.scope === 'region' && r.mapa.startsWith('Visão geral'), JSON.stringify(r));
       confere(`Central (${papel}): sem erro de JavaScript ao voltar ao estado`, erros.length === 0, erros.join(' | '));
+      if (papel === 'state_admin') {
+        // abrir Regiões depois da Central: capítulos pintados com a cor do próprio mapa (antes ficavam escuros)
+        await page.evaluate(async () => { showPage('regions', document.querySelector('.nav[data-page="regions"]')); await loadTerritoryFromSupabase(); });
+        await page.waitForTimeout(2500);
+        const cor = await page.evaluate(() => { const p = document.querySelector('#page-regions .muni.st-active'); return p ? getComputedStyle(p).fill : 'sem capítulo no mapa'; });
+        confere('Mapa de Regiões aberto depois da Central: capítulos com a cor do próprio mapa (não ficam escuros)', /sg-(?!cmd)[a-z]+-active/.test(cor), cor);
+      }
       await ctx.close();
     }
 

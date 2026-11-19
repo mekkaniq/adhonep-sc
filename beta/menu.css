@@ -91,3 +91,8 @@ html[data-theme="dark"] body,html[data-theme="dark"] .admin-main{background-colo
 .cmd-slides{min-height:180px}
 .cmd-slide-date{top:10px;left:10px;width:48px;padding:3px 0}
 .cmd-slide-date b{font-size:20px}
+
+/* nomes longos quebram em 2 linhas em vez de cortar com "…"; contador vazio não aparece (19/11/2026) */
+.nginner .nav .nav-txt{white-space:normal;line-height:1.25}
+.side .pillnum:empty{display:none}
+.side .pillnum{background:var(--gold);color:var(--navy);font-weight:800;padding:1px 7px;flex:0 0 auto}

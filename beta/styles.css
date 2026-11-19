@@ -225,10 +225,10 @@ button,.btn,.nav,.switch{touch-action:manipulation;-webkit-tap-highlight-color:t
 .muni:hover{filter:brightness(1.15) drop-shadow(0 0 5px rgba(255,255,255,.55))}
 .amap-public .muni.has-ch{fill:url(#g-gold-public);stroke:#fff3c4;stroke-width:.9;filter:drop-shadow(0 0 4px rgba(255,200,80,.85))}
 .amap-public .muni.has-ch:hover{filter:brightness(1.1) drop-shadow(0 0 7px rgba(255,214,110,1))}
-.muni.st-active{fill:url(#sg-active);stroke:rgba(255,255,255,.55)}
-.muni.st-activation{fill:url(#sg-activation);stroke:rgba(255,255,255,.55)}
-.muni.st-reactivation{fill:url(#sg-reactivation);stroke:rgba(255,255,255,.55)}
-.muni.st-inactive{fill:url(#sg-inactive);stroke:rgba(255,255,255,.55)}
+.muni.st-active{fill:var(--sf,url(#sg-active));stroke:rgba(255,255,255,.55)}
+.muni.st-activation{fill:var(--sf,url(#sg-activation));stroke:rgba(255,255,255,.55)}
+.muni.st-reactivation{fill:var(--sf,url(#sg-reactivation));stroke:rgba(255,255,255,.55)}
+.muni.st-inactive{fill:var(--sf,url(#sg-inactive));stroke:rgba(255,255,255,.55)}
 .amap-admin .muni[class*="st-"]{filter:drop-shadow(0 0 3px rgba(0,0,0,.45))}
 .amap-admin .muni:not([class*="st-"]){fill-opacity:.42}
 .muni.is-lo{opacity:.35}
@@ -307,7 +307,7 @@ button,.btn,.nav,.switch{touch-action:manipulation;-webkit-tap-highlight-color:t
 .amap-public .muni.has-ch{stroke:#fff3c4;stroke-width:.55}
 
 /* v2.4 ativos em dourado ouro */
-.amap-admin .muni.st-active{fill:url(#sg-active);stroke:#fff3c4;stroke-width:.7;filter:drop-shadow(0 0 4px rgba(255,200,80,.85))}
+.amap-admin .muni.st-active{fill:var(--sf,url(#sg-active));stroke:#fff3c4;stroke-width:.7;filter:drop-shadow(0 0 4px rgba(255,200,80,.85))}
 .amap-admin .muni.st-active:hover{filter:brightness(1.1) drop-shadow(0 0 7px rgba(255,214,110,1))}
 
 /* v2.7 · card da rede visível no celular + desfoque atrás para leitura */

@@ -385,7 +385,7 @@
         [['0', mix(r.color, .12)], ['.6', r.color], ['1', shade(r.color, .1)]].forEach(function (s) { el('stop', { offset: s[0], 'stop-color': s[1] }, g); });
       });
       if (!pub) ST_ORDER.forEach(function (k) {
-        var g = el('linearGradient', { id: 'sg-' + k, x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
+        var g = el('linearGradient', { id: 'sg-' + tag + '-' + k, x1: 0, y1: 0, x2: 1, y2: 1 }, defs);
         (k === 'active' ? [['0', '#fff0b8'], ['.5', '#f0c54f'], ['1', '#c9942a']] : [['0', mix(ST[k].color, .2)], ['1', shade(ST[k].color, .12)]]).forEach(function (s) { el('stop', { offset: s[0], 'stop-color': s[1] }, g); });
       });
       var rings = [];
@@ -446,6 +446,7 @@
         var p = S.paths.get(m.id); if (!p) return;
         var r = S.regions.get(m.regionId), st = muniStatus(m.id);
         p.style.setProperty('--tint', r ? 'url(#rg-' + tag + '-' + r.id + ')' : '#3a4a60');
+        if (!pub && st !== 'none') p.style.setProperty('--sf', 'url(#sg-' + tag + '-' + st + ')');   // cor do próprio mapa (a Central também tem um mapa, escondido)
         var cls = 'muni';
         if (pub) { if (st !== 'none') cls += ' has-ch'; }
         else cls += ' st-' + st;
