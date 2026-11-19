@@ -105,7 +105,10 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
    - [na main] evento público mostra a cidade em destaque e não o nome do capítulo;
    - (os próximos pedidos do Eduardo entram aqui).
 4. **Conta de demonstração para os revisores** da Apple e da Google (perfil sócio, só leitura). Pode ser a mesma do teste de carga.
-5. **Teste de carga k6 de novo**, com o ritmo real (`lancamento`), depois do plano Pro ou com 1 h sem outros testes.
+5. **Teste de carga: resultado 18-19/11/2026** — `lancamento` (160 pessoas): <1% de falhas, consulta p95 0,57 s, mas abrir a tela p95 4,8 s.
+   `mil` (700 logados + 300 visitantes): **o plano Free travou** — 69% de falhas, quase tudo em 60 s (só regiões/municípios, que ficam
+   no aparelho, ainda responderam no começo); banco se recuperou sozinho logo depois. Limite fica entre 160 e 1000 pessoas ao mesmo tempo.
+   **Decisão pendente do Eduardo: plano Pro do Supabase (US$ 25/mês) antes de liberar o app para os sócios**; depois rodar `pico` e `mil` de novo.
 6. **Lixeira de 30 dias para usuários excluídos** (proposta: excluir → bloqueia e vai para a Lixeira; restaurar em 30 dias;
    depois apaga sozinho). Aguardando decisão.
 7. **Quem mais corrige cadastros**: hoje só o administrador (todos) e o presidente (sócios dele). Diretores também? Até onde?
