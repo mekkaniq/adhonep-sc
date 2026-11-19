@@ -430,6 +430,28 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       await p3.ctx.close();
     }
 
+    // ===== 1p) trocar a senha em "Minha conta": confere a senha atual e grava a nova =====
+    {
+      const { ctx, page, erros, log } = await abrir(browser, 'regional_director', false);
+      await entrar(page);
+      await page.evaluate(async () => { await openAccount(); });
+      const tenta = async (cur, p1, p2) => {
+        await page.evaluate(([c, a, b]) => { const f = document.getElementById('accountPwForm'); f.elements.cur.value = c; f.elements.pw1.value = a; f.elements.pw2.value = b; f.requestSubmit(); }, [cur, p1, p2]);
+        await page.waitForTimeout(500);
+        return page.evaluate(() => document.getElementById('acctPwMsg').textContent);
+      };
+      confere('Senha: nova senha curta é recusada', /pelo menos 10/.test(await tenta('senha-de-teste', 'curta', 'curta')));
+      confere('Senha: confirmação diferente é recusada', /não confere/.test(await tenta('senha-de-teste', 'NovaSenha2026!', 'OutraSenha2026!')));
+      const antes = log.filter((x) => x.p.endsWith('/auth/v1/user') && x.m === 'PUT').length;
+      confere('Senha: senha atual errada é recusada e não grava nada', /atual está incorreta/.test(await tenta('senha-errada', 'NovaSenha2026!', 'NovaSenha2026!'))
+        && log.filter((x) => x.p.endsWith('/auth/v1/user') && x.m === 'PUT').length === antes);
+      const msg = await tenta('senha-de-teste', 'NovaSenha2026!', 'NovaSenha2026!');
+      const put = log.find((x) => x.p.endsWith('/auth/v1/user') && x.m === 'PUT');
+      confere('Senha: com a senha atual certa, grava a nova e avisa "Senha alterada com sucesso"', /alterada com sucesso/.test(msg) && put && put.corpo && put.corpo.password === 'NovaSenha2026!', msg);
+      confere('Senha (diretor regional): sem erro de JavaScript', erros.length === 0, erros.join(' | '));
+      await ctx.close();
+    }
+
     // ===== 1l) boas-vindas: implantação até dez/2026, prazos a partir de 2027, só cobra capítulo com presidente =====
     {
       SIM_CFG.lancamento = '2027-01-01';

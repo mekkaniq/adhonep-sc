@@ -51,6 +51,7 @@ async function simular(page, papel) {
     if (m === 'OPTIONS') return r.fulfill({ status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': '*' } });
     let corpo = null; try { corpo = req.postData() ? JSON.parse(req.postData()) : null; } catch (e) { corpo = req.postData(); }
     log.push({ m, p, q: u.search, corpo });
+    if (p.endsWith('/auth/v1/token') && corpo && corpo.password === 'senha-errada') return json(r, { error: 'invalid_grant', error_description: 'Invalid login credentials' }, 400);
     if (p.endsWith('/auth/v1/token')) return json(r, { access_token: 'token-de-teste', refresh_token: 'rt', expires_in: 3600, user: { id: 'u-teste', email: 'teste@teste.invalid' } });
     if (p.endsWith('/auth/v1/user')) return json(r, { id: 'u-teste', email: 'teste@teste.invalid' });
     if (p.endsWith('/user_roles')) return json(r, papel ? PERFIS[papel] : []);
