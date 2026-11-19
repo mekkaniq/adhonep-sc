@@ -4,3 +4,8 @@
 -- CAMINHO DE VOLTA (tira só a 2ª região, o papel de Florianópolis continua):
 -- delete from user_roles where user_id='dc62617c-3785-4f44-b2c5-866d864a9e80' and role='regional_director' and region_id=5;
 -- APLICADO em 19/11/2026: user_roles id 15 (regional_director, região 5) criado. Conferido: Renato vê os 8 capítulos da região 18.
+
+-- 2ª parte (pedido do Eduardo, 19/11/2026): capítulo Tijucas (id 61) estava na região 18 (Florianópolis); a cidade é da região 5 (Tijucas).
+-- Histórico: o Eduardo trocou a região do capítulo às 15h30 e 15h52 (teste e devolução); ficou em 18.
+-- CAMINHO DE VOLTA: update chapters set region_id=18 where id=61;
+-- APLICADO em 19/11/2026: capítulo 61 na região 5. Conferido como Renato: Florianópolis 7 e Tijucas 1, acesso a todos; nenhum capítulo de SC fora da região da sua cidade.
