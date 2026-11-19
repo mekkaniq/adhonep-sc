@@ -83,6 +83,12 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 - **Semana 4 (30/11–06/12):** **lançar na Google Play** (produção) e anunciar para os capítulos.
 
 ## Próximas (em ordem de prioridade)
+- **Testes de segurança e de não vazamento de dados (combinado em 19/11/2026, fazer depois do menu/visual)** — sem tocar dados reais:
+  (1) cada perfil tentando ler/alterar/apagar o que não é dele direto na API (RLS), inclusive secretário e representante;
+  (2) visitante sem login: nada privado na API pública (telefones, e-mails, relatórios, fotos privadas);
+  (3) varredura de segredos no código e no app (gitleaks) e cabeçalhos de segurança do site;
+  (4) Supabase Security Advisor; (5) tentativas comuns: injeção em busca/formulários, upload de arquivo indevido, sessão expirada;
+  (6) relatório com o que passou, o que corrigimos e o que fica de risco aceito.
 - **Domínio adhonepsc.com.br + buscadores (combinado em 18/11/2026) — esperando o Ramon transferir o domínio.**
   Mensagem pedindo domínio (para o CPF do Eduardo), DNS/e-mails, projeto do Lovable, dados, Search Console e imagens: enviada pelo Eduardo.
   O site antigo é um projeto Lovable (React/Vite, `project_id lovp_4afwzpbrvr8jq8acs5y1s4rvv7`), com verificação do Google Search Console.
