@@ -1,0 +1,6 @@
+-- 19/11/2026 (pedido do Eduardo): Lúcio Afonso Thomas (sócio do capítulo Brusque) designado Representante de campo
+-- de Norberto Bruns (diretor regional, região Brusque id 557), via adh_delegation_create em nome do administrador.
+-- Nada foi alterado ou apagado; só criada a designação (e o papel copiado, com delegated_from).
+-- CAMINHO DE VOLTA: encerrar a designação em Minha conta do Norberto, ou:
+-- select adh_delegation_end((select id from adh_delegations where delegate_id='f512e813-7014-4812-8897-9c3dbe07832a' and is_active));
+-- Conferido: Lúcio pode nos capítulos Brusque e Gaspar.
