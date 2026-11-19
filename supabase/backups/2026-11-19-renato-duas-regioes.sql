@@ -1,0 +1,6 @@
+-- Backup antes de dar ao Renato Moreira a 2ª região (Tijucas, id 5). 19/11/2026.
+-- Antes: 1 papel em user_roles — id 14, regional_director, região 18 (Florianópolis), user dc62617c-3785-4f44-b2c5-866d864a9e80.
+-- regions.director_name já era "Renato Moreira" em Florianópolis (18) e Tijucas (5): não mudou.
+-- CAMINHO DE VOLTA (tira só a 2ª região, o papel de Florianópolis continua):
+-- delete from user_roles where user_id='dc62617c-3785-4f44-b2c5-866d864a9e80' and role='regional_director' and region_id=5;
+-- APLICADO em 19/11/2026: user_roles id 15 (regional_director, região 5) criado. Conferido: Renato vê os 8 capítulos da região 18.
