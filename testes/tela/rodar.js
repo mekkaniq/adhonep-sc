@@ -413,7 +413,7 @@ const semRolagemLateral = (page) => page.evaluate(() => document.documentElement
       const p2 = await abrir(browser, 'chapter_president', false);
       await entrar(p2.page);
       const gp = await p2.page.evaluate(() => [...document.querySelectorAll('aside.side .ngroup')].filter((x) => !x.hidden).map((x) => x.dataset.grp));
-      confere('Menu: presidente não vê Estrutura nem Administração', !gp.includes('estrutura') && !gp.includes('administracao') && gp.includes('capitulos'), JSON.stringify(gp));
+      confere('Menu: presidente não vê Administração; em Estrutura só Preletores', !gp.includes('administracao') && gp.includes('capitulos') && await p2.page.evaluate(() => [...document.querySelectorAll('.ngroup[data-grp="estrutura"] .nav')].filter((b) => !b.hidden).map((b) => b.dataset.page).join() === 'speakers'), JSON.stringify(gp));
       await p2.ctx.close();
       const p3 = await abrir(browser, 'regional_director', true);
       await entrar(p3.page);

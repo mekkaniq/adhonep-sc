@@ -26,8 +26,8 @@
     { id: 'capitulos', nome: 'Capítulos', paginas: ['chapters', 'mandates', 'meetings', 'members'] },
     { id: 'eventos', nome: 'Eventos', paginas: ['events', 'calendar', 'reports'] },
     { id: 'acompanhamento', nome: 'Acompanhamento', paginas: ['monthly', 'support', 'ranking'] },
-    { id: 'comunicacao', nome: 'Comunicação', paginas: ['announcements', 'library', 'speakers'] },
-    { id: 'estrutura', nome: 'Estrutura', paginas: ['regions'] },
+    { id: 'comunicacao', nome: 'Comunicação', paginas: ['announcements', 'library'] },
+    { id: 'estrutura', nome: 'Estrutura', paginas: ['regions', 'speakers'] },   // Preletores em Estrutura (decisão do Eduardo, 19/11/2026)
     { id: 'administracao', nome: 'Administração', paginas: ['access-requests', 'users', 'audit', 'lgpd'] }
   ];
   const DONO = {}; GRUPOS.forEach((g) => g.paginas.forEach((p) => { DONO[p] = g.id; }));
