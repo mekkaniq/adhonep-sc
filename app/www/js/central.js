@@ -176,7 +176,7 @@ function cmdRender() {
   cmdEl('cmdScopeTitle').textContent = scopeName;
   cmdEl('cmdNote').textContent = (CMD.at ? 'Atualizado às ' + CMD.at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) + ' · ' : '') + 'mês de referência: ' + qLabel(CMD.month) + ' (relatório e atividade); reuniões e mandatos de hoje.';
 
-  const tile = (lab, big, sub, color, spark) => '<div class="cmd-kpi"><label>' + lab + '</label><strong style="color:' + (color || '#fff') + '">' + big + '</strong><small>' + sub + '</small>' + (spark || '') + '</div>';
+  const tile = (lab, big, sub, color, spark) => '<div class="cmd-kpi"><label title="' + String(lab).replace(/<[^>]*>/g, '').replace(/"/g, '&quot;') + '">' + lab + '</label><strong style="color:' + (color || '#fff') + '">' + big + '</strong><small>' + sub + '</small>' + (spark || '') + '</div>';
   const dW = prev1 && prev0 ? prev1.n - prev0.n : 0;
   cmdEl('cmdKpis').innerHTML =
     tile('Capítulos ativos', cmdN(sts.a), 'de ' + cmdN(all.length) + ' cadastrados', CMD_C.gold2)
@@ -202,7 +202,7 @@ function cmdRender() {
   const rk = ((CMD.rank && CMD.rank.chapters) || []).filter(x => ids.has(String(x.chapter_id != null ? x.chapter_id : x.id))).slice().sort((a, b) => b.points - a.points).slice(0, 8);
   const mxp = Math.max(1, ...rk.map(x => x.points));
   cmdEl('cmdRank').innerHTML = rk.length ? rk.map((x, i) => '<div class="cmd-rk"><span class="cmd-pos' + (i < 3 ? ' top' : '') + '">' + (i + 1) + 'º</span><div class="cmd-rkm"><div class="cmd-rkt"><b>' + E(x.name) + '</b><em>' + E(x.region_name || '') + '</em></div>' + cmdBar(x.points / mxp * 100, i < 3 ? CMD_C.gold : '#7f95b5') + '</div><strong>' + x.points + '</strong></div>').join('')
-    : '<p class="cmd-empty">Sem pontuação neste mês (nenhum relatório aprovado ainda).</p>';
+    : '<p class="cmd-empty">Sem pontuação neste trimestre (nenhum relatório aprovado ainda).</p>';
 
   // comparativo: regiões (estado) ou capítulos (região)
   if (CMD.scope === 'state' && !cmdIsRegional()) {

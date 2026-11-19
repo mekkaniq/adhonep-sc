@@ -7,7 +7,7 @@
    - Vídeos: na 1ª vez tocam direto da internet e são guardados inteiros por trás; depois tocam do aparelho (com avanço/retrocesso). */
 const BETA = /\/beta\/$/.test(self.registration.scope);   // site rodando na pasta /beta tem cache separado
 const SUF = BETA ? '-beta' : '';
-const V = 'adh-shell-v1.18.1' + SUF;          // página e arquivos com versão
+const V = 'adh-shell-v1.18.2' + SUF;          // página e arquivos com versão
 const MEDIA = 'adh-media-v1' + SUF;           // imagens, dados fixos e vídeos (sobrevive às atualizações do site)
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'assets/adhonep.ico', 'assets/logo-branca.png', 'assets/icon-192.png', 'assets/fundo-hero.jpg'];
 
