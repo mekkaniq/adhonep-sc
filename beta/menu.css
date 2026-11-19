@@ -78,3 +78,8 @@ html[data-theme="dark"] .ngh:hover{background:#1d3150;color:#fff}
 html[data-theme="dark"] .nav.on{background:#1d3150;color:#fff}
 html[data-theme="dark"] .nginner{border-left-color:#2a3d58}
 html[data-theme="dark"].menu-mini .nginner{background:#16263e;border-color:#2a3d58}
+
+/* fundo com textura leve (pedido do Eduardo, 18/11/2026): tira o "brancão" sem pesar */
+:root{--adh-textura:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .06 0 0 0 0 .17 0 0 0 0 .31 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E")}
+body,.admin-main{background-color:#eef2f7;background-image:var(--adh-textura),radial-gradient(rgba(16,43,78,.05) 1px,transparent 1.3px);background-size:160px 160px,22px 22px}
+html[data-theme="dark"] body,html[data-theme="dark"] .admin-main{background-color:#0d1a2e;background-image:var(--adh-textura),radial-gradient(rgba(255,255,255,.04) 1px,transparent 1.3px)}
