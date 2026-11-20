@@ -9,3 +9,8 @@
 -- Histórico: o Eduardo trocou a região do capítulo às 15h30 e 15h52 (teste e devolução); ficou em 18.
 -- CAMINHO DE VOLTA: update chapters set region_id=18 where id=61;
 -- APLICADO em 19/11/2026: capítulo 61 na região 5. Conferido como Renato: Florianópolis 7 e Tijucas 1, acesso a todos; nenhum capítulo de SC fora da região da sua cidade.
+
+-- 20/11/2026 (pedido do Eduardo): Luciano Marengo (f4b4c084-5678-4a5f-9e6c-73077d187cda) também diretor de Canoinhas (região 20);
+-- regions.director_name de Canoinhas era "Diretor Não Informado" → "Luciano Marengo".
+-- CAMINHO DE VOLTA: delete from user_roles where user_id='f4b4c084-5678-4a5f-9e6c-73077d187cda' and role='regional_director' and region_id=20;
+--                   update regions set director_name='Diretor Não Informado' where id=20;

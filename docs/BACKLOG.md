@@ -3,6 +3,24 @@
 Única lista de pendências e prioridades do projeto. Arquivos antigos (`STATUS-claude-*.md`, guias, `app/PROXIMO-PACOTE.md`)
 ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.md`.
 
+## Começar na segunda 23/11/2026 (Eduardo, 20/11) — primeiro de tudo
+1. **Unificar diretor regional:** o nome do diretor na aba Regiões passa a vir do login de diretor regional
+   (texto à mão só para quem ainda não tem login). Hoje são dois cadastros separados. ~0,2 dia.
+2. **Diretor regional cria os cargos abaixo dele** (presidente, coordenadores, sócios) só na(s) região(ões) dele;
+   nunca diretor, administrador ou outra região. Mexe na função `admin-create-user` (publicada como `rapid-responder`)
+   e na tela Usuários. Teste de perfil novo. ~0,3 dia.
+3. **Próximos passos dos representantes de campo:** o Eduardo traz a lista na segunda.
+4. Junto: botão "Adicionar região" e "Designar secretário/representante" em Usuários (hoje o Claude faz pelo banco).
+
+**Situação dos diretores regionais em 20/11/2026** (login × aba Regiões: nenhum na região errada):
+- Com login e certo: Airton Gutz, Norberto Bruns (+ Lúcio Thomas, representante de campo), Luciano Marengo
+  (Campos de Lages + Canoinhas, 20/11), Marcelo Pereira, Renato Moreira (Florianópolis + Tijucas), Walter Porto,
+  Jean Dias, Francisco Enoque Vasconcelos, William Piva, Renato Tadeu.
+- **A conferir:** a aba Regiões também põe Luciano Marengo em **Curitibanos** (sem login lá). Confirmar com o Eduardo.
+- Sem login: Lauri de Conto (Chapecó + São Miguel do Oeste; conferido 20/11: ainda sem conta), Julio Cesar Tonelli
+  (Araranguá + Criciúma). Sem e-mail ainda: Manoel Armênio (Xanxerê), Jairo Tramontini Gomes (Tubarão), Adenildo Fagundes (Rio do Sul).
+- Sem diretor: Ituporanga, Tabuleiro.
+
 ## Fazendo agora
 - **Pedidos do diretor estadual, pacote 1 (17/11/2026, branch `pacote-diretor-estadual`)** — no `/beta` e no app:
   (13) **Saúde dos capítulos só de SC** — [banco] v3.21 **APLICADA em 17/11/2026** (antes vinham ~350 capítulos do Brasil; agora 36 ativos e 22 regiões de SC). Teste `36-saude-so-sc.sql`.
