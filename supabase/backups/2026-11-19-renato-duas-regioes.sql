@@ -14,3 +14,5 @@
 -- regions.director_name de Canoinhas era "Diretor Não Informado" → "Luciano Marengo".
 -- CAMINHO DE VOLTA: delete from user_roles where user_id='f4b4c084-5678-4a5f-9e6c-73077d187cda' and role='regional_director' and region_id=20;
 --                   update regions set director_name='Diretor Não Informado' where id=20;
+-- CORRIGIDO 20/11/2026 (Eduardo): era Curitibanos, não Canoinhas. O papel passou da região 20 para a 2 (Curitibanos);
+-- Canoinhas voltou a "Diretor Não Informado". Luciano agora: Campos de Lages (6) + Curitibanos (2).

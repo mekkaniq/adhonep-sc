@@ -14,12 +14,11 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 
 **Situação dos diretores regionais em 20/11/2026** (login × aba Regiões: nenhum na região errada):
 - Com login e certo: Airton Gutz, Norberto Bruns (+ Lúcio Thomas, representante de campo), Luciano Marengo
-  (Campos de Lages + Canoinhas, 20/11), Marcelo Pereira, Renato Moreira (Florianópolis + Tijucas), Walter Porto,
+  (Campos de Lages + Curitibanos, 20/11), Marcelo Pereira, Renato Moreira (Florianópolis + Tijucas), Walter Porto,
   Jean Dias, Francisco Enoque Vasconcelos, William Piva, Renato Tadeu.
-- **A conferir:** a aba Regiões também põe Luciano Marengo em **Curitibanos** (sem login lá). Confirmar com o Eduardo.
 - Sem login: Lauri de Conto (Chapecó + São Miguel do Oeste; conferido 20/11: ainda sem conta), Julio Cesar Tonelli
   (Araranguá + Criciúma). Sem e-mail ainda: Manoel Armênio (Xanxerê), Jairo Tramontini Gomes (Tubarão), Adenildo Fagundes (Rio do Sul).
-- Sem diretor: Ituporanga, Tabuleiro.
+- Sem diretor: Canoinhas, Ituporanga, Tabuleiro.
 
 ## Fazendo agora
 - **Pedidos do diretor estadual, pacote 1 (17/11/2026, branch `pacote-diretor-estadual`)** — no `/beta` e no app:
