@@ -9,8 +9,14 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 2. **Diretor regional cria os cargos abaixo dele** (presidente, coordenadores, sócios) só na(s) região(ões) dele;
    nunca diretor, administrador ou outra região. Mexe na função `admin-create-user` (publicada como `rapid-responder`)
    e na tela Usuários. Teste de perfil novo. ~0,3 dia.
-3. **Próximos passos dos representantes de campo:** o Eduardo traz a lista na segunda.
-4. Junto: botão "Adicionar região" e "Designar secretário/representante" em Usuários (hoje o Claude faz pelo banco).
+   **Junto com o 2 — logins por hierarquia (privacidade):** o diretor regional vê em Usuários só o próprio login e os de
+   presidentes/coordenadores/sócios da(s) região(ões) dele; o presidente vê o dele e os de coordenadores/sócios do capítulo.
+   Hoje (conferido 20/11): diretor regional NÃO vê a aba Usuários; presidente já só lê sócios do próprio capítulo (RLS
+   `profiles_president_sees_members`). Fazer: RLS de `profiles`/`user_roles` por região + abrir a aba para o regional + testes de perfil.
+3. **Júlio César Tonelli:** login como **Diretor estadual** (Eduardo cria quando tiver o e-mail) + o Claude acrescenta
+   diretor regional de Araranguá e Criciúma. Alternativa só se o Eduardo pedir: perfil "Diretor estadual (consulta)".
+4. **Próximos passos dos representantes de campo:** o Eduardo traz a lista na segunda.
+5. Junto: botão "Adicionar região" e "Designar secretário/representante" em Usuários (hoje o Claude faz pelo banco).
 
 **Situação dos diretores regionais em 20/11/2026** (login × aba Regiões: nenhum na região errada):
 - Com login e certo: Airton Gutz, Norberto Bruns (+ Lúcio Thomas, representante de campo), Luciano Marengo
