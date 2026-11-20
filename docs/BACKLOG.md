@@ -13,8 +13,9 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
    presidentes/coordenadores/sócios da(s) região(ões) dele; o presidente vê o dele e os de coordenadores/sócios do capítulo.
    Hoje (conferido 20/11): diretor regional NÃO vê a aba Usuários; presidente já só lê sócios do próprio capítulo (RLS
    `profiles_president_sees_members`). Fazer: RLS de `profiles`/`user_roles` por região + abrir a aba para o regional + testes de perfil.
-3. **Júlio César Tonelli:** login como **Diretor estadual** (Eduardo cria quando tiver o e-mail) + o Claude acrescenta
-   diretor regional de Araranguá e Criciúma. Alternativa só se o Eduardo pedir: perfil "Diretor estadual (consulta)".
+3. **Júlio César Tonelli:** login criado 20/11 só como **Diretor estadual** (decisão do Eduardo: por enquanto sem diretor
+   regional; houve troca de diretoria regional). **Atualizar a aba Regiões**: Araranguá e Criciúma ainda mostram "Julio Cesar
+   Tonelli" como diretor — o Eduardo passa os novos nomes.
 4. **Próximos passos dos representantes de campo:** o Eduardo traz a lista na segunda.
 5. Junto: botão "Adicionar região" e "Designar secretário/representante" em Usuários (hoje o Claude faz pelo banco).
 
