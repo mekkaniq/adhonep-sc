@@ -113,6 +113,9 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   (3) varredura de segredos no código e no app (gitleaks) e cabeçalhos de segurança do site;
   (4) Supabase Security Advisor; (5) tentativas comuns: injeção em busca/formulários, upload de arquivo indevido, sessão expirada;
   (6) relatório com o que passou, o que corrigimos e o que fica de risco aceito.
+  **(7) Eduardo, 22/11/2026: Claude age como um atacante de verdade** — tenta invadir a própria plataforma (do lado de fora,
+  sem a chave service_role nem acesso de administrador) e emite relatório de vulnerabilidades com gravidade e como corrigir.
+  Só no nosso sistema, sem tocar dados reais; backup antes se for preciso. Entra junto com os itens (1)-(6).
 - **Domínio adhonepsc.com.br + buscadores (combinado em 18/11/2026) — esperando o Ramon transferir o domínio.**
   Mensagem pedindo domínio (para o CPF do Eduardo), DNS/e-mails, projeto do Lovable, dados, Search Console e imagens: enviada pelo Eduardo.
   O site antigo é um projeto Lovable (React/Vite, `project_id lovp_4afwzpbrvr8jq8acs5y1s4rvv7`), com verificação do Google Search Console.
