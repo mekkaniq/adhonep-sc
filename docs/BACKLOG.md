@@ -3,6 +3,13 @@
 Única lista de pendências e prioridades do projeto. Arquivos antigos (`STATUS-claude-*.md`, guias, `app/PROXIMO-PACOTE.md`)
 ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.md`.
 
+## Comunicação com diretores (e-mail) — 23/11/2026
+- Modelo de e-mail HTML pronto em `docs/modelos-email/diretores-boas-vindas.html` (logo, cores, assinatura; carrega de
+  www.adhonepemsc.com.br/beta/assets). Versão atual = boas-vindas / 1º e-mail oficial (sem senha). Enviar por Brevo (grátis,
+  mostra quem abriu/clicou) ou mala direta do Gmail. O Eduardo criou a conta **adhonepsc@gmail.com**; Instagram oficial em análise.
+- **Depois (quando o domínio adhonepsc.com.br chegar): disparo de e-mail pela plataforma** — botão "Avisar diretores" que manda
+  esse modelo já com o nome/dados certos, do e-mail oficial verificado (senão cai no spam). Edge function + serviço de envio.
+
 ## Começar na segunda 23/11/2026 (Eduardo, 20/11) — primeiro de tudo
 1. **Unificar diretor regional:** o nome do diretor na aba Regiões passa a vir do login de diretor regional
    (texto à mão só para quem ainda não tem login). Hoje são dois cadastros separados. ~0,2 dia.
