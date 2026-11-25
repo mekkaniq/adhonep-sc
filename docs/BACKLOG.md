@@ -34,6 +34,14 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
   (Araranguá + Criciúma). Sem e-mail ainda: Manoel Armênio (Xanxerê), Jairo Tramontini Gomes (Tubarão), Adenildo Fagundes (Rio do Sul).
 - Sem diretor: Canoinhas, Ituporanga, Tabuleiro.
 
+## Resultado do teste de seguranca (25/11/2026)
+Claude simulou um ataque externo (sem chave secreta, sem admin). **Nenhuma falha critica/alta.** Relatorio:
+`docs/RELATORIO-SEGURANCA-2026-11-25.md`. Pendencias geradas (baixo/medio):
+- [MEDIO, facil] Ligar "Leaked password protection" no Supabase (antes de convidar diretores).
+- [BAIXO] Anonimo le `chapters`/`events` crus alem das vitrines (expor so colunas das vitrines; `events.chapter_id` liga evento ao capitulo, contra a regra "cidade, nao capitulo").
+- [BAIXO] 3 vitrines publicas sao SECURITY DEFINER (nao vazam; converter p/ security_invoker). Confirmar decisao: telefone de presidente pode ficar publico se o capitulo marcar show_public.
+- [BAIXO] Cadastro publico e register_device abertos ao anonimo -> limite de taxa/captcha (entra no hardening com dominio/Vercel).
+
 ## Fazendo agora
 - **Pedidos do diretor estadual, pacote 1 (17/11/2026, branch `pacote-diretor-estadual`)** — no `/beta` e no app:
   (13) **Saúde dos capítulos só de SC** — [banco] v3.21 **APLICADA em 17/11/2026** (antes vinham ~350 capítulos do Brasil; agora 36 ativos e 22 regiões de SC). Teste `36-saude-so-sc.sql`.
