@@ -132,6 +132,10 @@ Claude simulou um ataque externo (sem chave secreta, sem admin). **Nenhuma falha
   **(7) Eduardo, 22/11/2026: Claude age como um atacante de verdade** — tenta invadir a própria plataforma (do lado de fora,
   sem a chave service_role nem acesso de administrador) e emite relatório de vulnerabilidades com gravidade e como corrigir.
   Só no nosso sistema, sem tocar dados reais; backup antes se for preciso. Entra junto com os itens (1)-(6).
+- **Hospedagem: trocar para Cloudflare Pages junto com o domínio (Eduardo, 25/11/2026 — favorável).** Grátis e permite uso por
+  organização; dá o que o GitHub Pages não dá: cabeçalhos de segurança (CSP, HSTS etc., via arquivo `_headers`, a partir do
+  `vercel.json` já testado), firewall/limite de taxa (spam no cadastro público) e repositório privado. Fazer no mesmo passo do DNS
+  do adhonepsc.com.br. Manter o GitHub Pages no ar até a Cloudflare estar validada. Vercel Pro (US$ 20/mês) fica como alternativa.
 - **Domínio adhonepsc.com.br + buscadores (combinado em 18/11/2026) — esperando o Ramon transferir o domínio.**
   Mensagem pedindo domínio (para o CPF do Eduardo), DNS/e-mails, projeto do Lovable, dados, Search Console e imagens: enviada pelo Eduardo.
   O site antigo é um projeto Lovable (React/Vite, `project_id lovp_4afwzpbrvr8jq8acs5y1s4rvv7`), com verificação do Google Search Console.
