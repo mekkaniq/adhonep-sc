@@ -69,3 +69,33 @@ O presidente **não edita o próprio capítulo** direto na tabela `chapters` (a 
 4. No hardening com domínio próprio: limite de taxa/captcha no cadastro público (achado 4).
 
 _Teste conduzido por Claude (Opus) a pedido do Eduardo, na madrugada de 25/11/2026. Reexecutar após mudanças de banco e antes do lançamento aos sócios._
+
+---
+
+# Operação Red Team 13 — matriz consolidada (complemento de 25/11/2026)
+
+| # | Cenário | Resultado | Evidência |
+|---|---|---|---|
+| 01 | E-mail qualquer no login | ✅ Resiste | Login real com e-mail de diretor + senha errada → 400 `invalid_credentials`; e-mail inexistente → mesma resposta (não revela se existe). Login anônimo desligado (422). |
+| 02 | `/api/usuarios`, IDOR/BOLA | ✅ Resiste | Anônimo: `profiles`/`user_roles`/`audit` → 401. Sócio vê só 1 perfil (o próprio). |
+| 03 | Reusar teste grátis | ➖ Não se aplica | A plataforma não tem trial. |
+| 04 | Reembolso/Premium | ➖ Não se aplica | Não há pagamento. |
+| 05 | Senha vazada | ⚠️ Parcial | Sem segredo no código nem em 136 commits; senhas com hash do Supabase (bcrypt). **Falta:** ligar proteção contra senha vazada; MFA não configurado. |
+| 06 | Logado depois da troca | ✅ Resiste | Usuário fictício logado em 2 "aparelhos"; troca de senha no A → refresh do B negado (`refresh_token_not_found`). Usuário de teste apagado depois (com aprovação do Eduardo). |
+| 07 | Perguntar pra tua IA | ➖ Não se aplica | Não há IA no produto. |
+| 08 | Mensagens/dados apagados | ✅ Resiste | Exclusão é física (nenhuma coluna de "apagado"); histórico de ações e backups só para o administrador / fora da API. |
+| 09 | APK com Premium | ➖ Não se aplica | Sem recurso pago; permissões são checadas no banco (RLS), não no app. |
+| 10 | E-mail fingindo ser você | ⏳ Pendente | Recuperação de senha não revela se o e-mail existe (200 `{}`). SPF/DKIM/DMARC só quando o domínio adhonepsc.com.br chegar. |
+| 11 | Copiar teu código | ✅ Resiste (com ressalva) | Repositório público por desenho (site estático), mas sem segredo; só chave publicável no navegador. |
+| 12 | Ver a senha do banco | ✅ Resiste | Nenhuma chave secreta/`service_role` no cliente nem no histórico. |
+| 13 | Fotos dos usuários | ✅ Resiste (política) | Buckets privados (biblioteca, fotos de relatório) com política por capítulo; anônimo, sócio e presidente de outro capítulo veem 0. **Limitação:** buckets privados estão vazios hoje — reteste com arquivo real quando houver. |
+
+**Placar:** 8 resistem · 1 parcial (05) · 1 pendente do domínio (10) · 4 não se aplicam (03, 04, 07, 09). Nenhuma falha crítica ou alta.
+
+**Cadeias de exploração:** nenhuma viável — o ponto de entrada mais provável (chave pública + API) termina sempre no RLS, que bloqueou todos os perfis.
+
+**Plano de hardening (4 níveis)**
+1. Contenção imediata: nada urgente. Ligar "Leaked password protection" (clique do Eduardo).
+2. Correção estrutural: na virada beta→oficial, restringir o anônimo às vitrines e converter as vitrines para `security_invoker`.
+3. Defesa preventiva: MFA para administrador; limite de taxa/captcha no cadastro público; desligar "Allow new users to sign up" se não for usado.
+4. Resiliência: repetir este teste antes do lançamento aos sócios; reteste do ATK13 com arquivos reais; DMARC quando o domínio chegar.
