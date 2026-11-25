@@ -38,8 +38,9 @@ ficam como histórico; o que vale é esta página. Roteiro de entrega: `CLAUDE.m
 Claude simulou um ataque externo (sem chave secreta, sem admin). **Nenhuma falha critica/alta.** Relatorio:
 `docs/RELATORIO-SEGURANCA-2026-11-25.md`. Pendencias geradas (baixo/medio):
 - [MEDIO, facil] Ligar "Leaked password protection" no Supabase (antes de convidar diretores).
-- [BAIXO] Anonimo le `chapters`/`events` crus alem das vitrines (expor so colunas das vitrines; `events.chapter_id` liga evento ao capitulo, contra a regra "cidade, nao capitulo").
-- [BAIXO] 3 vitrines publicas sao SECURITY DEFINER (nao vazam; converter p/ security_invoker). Confirmar decisao: telefone de presidente pode ficar publico se o capitulo marcar show_public.
+- [MEDIO, Eduardo clica] Ligar "Leaked password protection" no Supabase: Authentication > Policies > Password. So o Eduardo faz (Claude nao tem ferramenta p/ Auth). Fazer antes de convidar diretores.
+- [NA VIRADA beta->oficial] Achados 2 e 3 NAO podem ser aplicados antes do lancamento: o site oficial (raiz, congelado) le `chapters`/`events` como anonimo p/ o mapa. Restringir agora quebraria o mapa publico. No lancamento: migrar o mapa publico (raiz e beta) para `adh_public_chapters_br()` + vitrines, e SO entao: revoke SELECT de anon em chapters/events; converter as 3 vitrines p/ security_invoker (com grants/RLS nas tabelas-base). Rodar testes de tela do publico. Backup antes.
+- [DECIDIDO 25/11] Telefone do presidente: MANTER a opcao opt-in (capitulo escolhe via show_public; desligado por padrao). Nada a mudar.
 - [BAIXO] Cadastro publico e register_device abertos ao anonimo -> limite de taxa/captcha (entra no hardening com dominio/Vercel).
 
 ## Fazendo agora
