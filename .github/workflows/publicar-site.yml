@@ -9,6 +9,22 @@ name: Publicar site (GitHub Pages)
 on:
   push:
     branches: [main]
+    # Só publica quando muda algo do site. Documentação, SQL, testes, app e workflows não vão para o ar
+    # (mesma lista do .vercelignore), então mudar só eles não dispara publicação nem e-mail de falha.
+    # Mudou este arquivo ou scripts/montar-site.py? Rodar à mão: Actions → "Publicar site" → Run workflow.
+    paths-ignore:
+      - '**.md'
+      - '**.sql'
+      - '**.zip'
+      - '**.py'
+      - '**.ts'
+      - 'supabase/**'
+      - 'testes/**'
+      - 'loadtest/**'
+      - 'docs/**'
+      - 'scripts/**'
+      - 'app/**'
+      - '.github/**'
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,7 +40,7 @@ jobs:
     timeout-minutes: 10
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy3.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: Montar o site (sem arquivos internos)
@@ -33,5 +49,19 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
-      - id: deploy
+      # O GitHub às vezes falha ao achar o pacote recém-enviado ("Fetching artifact metadata failed").
+      # É passageiro: espera e tenta de novo antes de dar erro (e mandar e-mail).
+      - id: deploy1
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - if: steps.deploy1.outcome == 'failure'
+        run: sleep 45
+      - id: deploy2
+        if: steps.deploy1.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 120
+      - id: deploy3
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
         uses: actions/deploy-pages@v4

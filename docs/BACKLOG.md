@@ -260,6 +260,7 @@ Marcação: **[tela]** só site/app · **[banco]** mexe em banco/RLS/permissões
 - Apresentação ao diretor estadual: não rodar teste de carga na véspera; abrir site e app 2 h antes (o plano gratuito pausa).
 
 ## Feito
+- 27/11/2026 — Publicar site: não roda quando só muda documentação/SQL/testes/workflows, e tenta de novo (até 3x) quando o GitHub falha ao achar o pacote; menos e-mails de falha à toa.
 - 27/11/2026 — Backup diário (`backup-diario.yml`) passa a FALHAR quando falta segredo; antes saía verde sem copiar nada desde que foi criado.
 - 07/11/2026 · claude v1.14 — Política de Privacidade conforme a Google Play (app ADHONEP SC, desenvolvedor, dados do app,
   exclusão de conta) no oficial e no `/beta`; página pública `excluir-conta.html` (link do Play Console); "Excluir minha conta"
