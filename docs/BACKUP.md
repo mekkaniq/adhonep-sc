@@ -2,13 +2,13 @@
 
 O Supabase **Free não faz backup**. Todo dia (de madrugada) o GitHub copia o banco inteiro
 (capítulos, eventos, relatórios, cadastros e logins), **criptografa** e guarda no **Google Drive**, na pasta
-`ADHONEP-SC/backups-banco`. Ficam os últimos 30 dias. Cada arquivo tem ~1 MB hoje (banco: 1,7 MB de dados em 16/11/2026), ~30 MB no total.
+`Backups automáticos/ADHONEP-SC`. Ficam os últimos 30 dias. Cada arquivo tem ~1 MB hoje (banco: 1,7 MB de dados em 16/11/2026), ~30 MB no total.
 Workflow: `.github/workflows/backup-diario.yml`.
 
 Não entram: arquivos do Storage (fotos de eventos, documentos da Biblioteca). Se quiser, dá para acrescentar depois.
 
 **Cópia no PC Avell (opcional, sem trabalho extra):** instale o "Google Drive para computador" no Avell e deixe a
-pasta `ADHONEP-SC` disponível offline. Assim cada backup fica no Drive **e** no Avell.
+pasta `Backups automáticos` disponível offline. Assim cada backup fica no Drive **e** no Avell.
 
 ## Configurar (uma vez, ~15 minutos) — não precisa de VS Code
 
