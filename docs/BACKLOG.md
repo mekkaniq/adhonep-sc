@@ -248,7 +248,7 @@ Marcação: **[tela]** só site/app · **[banco]** mexe em banco/RLS/permissões
 ## Comigo (fora do código) — Eduardo
 - **Backup diário nunca rodou** (descoberto em 27/11/2026): cadastrar os segredos `SUPABASE_DB_URL`, `RCLONE_CONF` e `BACKUP_SENHA` (Settings → Secrets and variables → Actions; passo a passo em `docs/BACKUP.md`). Até lá o workflow fica vermelho todo dia, de propósito.
 - Domínios no CPF do Eduardo (adhonepemsc.com.br e, quando vier, adhonepsc.com.br): renovação automática, 2 etapas no Registro.br, 2ª pessoa como contato; um dia transferir para CNPJ se a ADHONEP-SC tiver.
-- Supabase **fica no Free por enquanto** (16/11). Configurar o backup: 3 segredos no GitHub (`docs/BACKUP.md`).
+- Supabase **fica no Free por enquanto** (16/11).
 - Ativar o Pages pelo Actions (Settings → Pages → Source: GitHub Actions + variável `PAGES_PELO_ACTIONS = sim`).
 - **Google Play**: aguardar a verificação de identidade; fazer o login no app Play Console num **Android de verdade** (emprestado serve);
   juntar **12 a 16 testadores** com Gmail e Android (coordenadores do Apoio Jovem) para o teste fechado de 14 dias.
