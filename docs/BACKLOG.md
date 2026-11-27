@@ -246,6 +246,7 @@ Marcação: **[tela]** só site/app · **[banco]** mexe em banco/RLS/permissões
 - Excluir no painel do Supabase as funções temporárias já desligadas (`importar-convites`, `exportar-esquema`).
 
 ## Comigo (fora do código) — Eduardo
+- **Backup diário nunca rodou** (descoberto em 27/11/2026): cadastrar os segredos `SUPABASE_DB_URL`, `RCLONE_CONF` e `BACKUP_SENHA` (Settings → Secrets and variables → Actions; passo a passo em `docs/BACKUP.md`). Até lá o workflow fica vermelho todo dia, de propósito.
 - Domínios no CPF do Eduardo (adhonepemsc.com.br e, quando vier, adhonepsc.com.br): renovação automática, 2 etapas no Registro.br, 2ª pessoa como contato; um dia transferir para CNPJ se a ADHONEP-SC tiver.
 - Supabase **fica no Free por enquanto** (16/11). Configurar o backup: 3 segredos no GitHub (`docs/BACKUP.md`).
 - Ativar o Pages pelo Actions (Settings → Pages → Source: GitHub Actions + variável `PAGES_PELO_ACTIONS = sim`).
@@ -259,6 +260,7 @@ Marcação: **[tela]** só site/app · **[banco]** mexe em banco/RLS/permissões
 - Apresentação ao diretor estadual: não rodar teste de carga na véspera; abrir site e app 2 h antes (o plano gratuito pausa).
 
 ## Feito
+- 27/11/2026 — Backup diário (`backup-diario.yml`) passa a FALHAR quando falta segredo; antes saía verde sem copiar nada desde que foi criado.
 - 07/11/2026 · claude v1.14 — Política de Privacidade conforme a Google Play (app ADHONEP SC, desenvolvedor, dados do app,
   exclusão de conta) no oficial e no `/beta`; página pública `excluir-conta.html` (link do Play Console); "Excluir minha conta"
   no app (Configurações) e em Minha conta; lista de pedidos de exclusão para o administrador concluir; função

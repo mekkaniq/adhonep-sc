@@ -8,7 +8,7 @@
 #                    (a conexão direta é só IPv6 e o GitHub não tem IPv6)
 #   RCLONE_CONF      conteúdo do arquivo de configuração do rclone com um remoto chamado "drive" (passo a passo em docs/BACKUP.md)
 #   BACKUP_SENHA     senha longa para criptografar o arquivo (guardar no gerenciador de senhas: sem ela o backup não abre)
-# Sem os segredos o workflow avisa e sai sem erro.
+# Sem os segredos o workflow FALHA (vermelho + e-mail do GitHub): sem backup não pode parecer que está tudo certo.
 name: Backup diário do banco (Google Drive)
 on:
   schedule:
@@ -27,15 +27,20 @@ jobs:
       PASTA_DRIVE: drive:ADHONEP-SC/backups-banco
     steps:
       - name: Conferir segredos
-        id: seg
         run: |
-          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$RCLONE_CONF" ] || [ -z "$BACKUP_SENHA" ]; then
-            echo "::warning::Backup não configurado: faltam segredos (SUPABASE_DB_URL, RCLONE_CONF, BACKUP_SENHA). Ver docs/BACKUP.md."
-            echo "ok=0" >> "$GITHUB_OUTPUT"
-          else echo "ok=1" >> "$GITHUB_OUTPUT"; fi
+          # Sem segredo o backup NÃO acontece: falha de propósito (vermelho + e-mail do GitHub),
+          # para não parecer que está tudo certo. Antes saía verde e ninguém percebia (corrigido em 27/11/2026).
+          falta=""
+          [ -n "$SUPABASE_DB_URL" ] || falta="$falta SUPABASE_DB_URL"
+          [ -n "$RCLONE_CONF" ]     || falta="$falta RCLONE_CONF"
+          [ -n "$BACKUP_SENHA" ]    || falta="$falta BACKUP_SENHA"
+          if [ -n "$falta" ]; then
+            echo "::error::Backup NÃO feito: faltam os segredos:$falta (Settings → Secrets and variables → Actions). Ver docs/BACKUP.md."
+            exit 1
+          fi
+          echo "Segredos presentes."
 
       - name: Instalar pg_dump 17 e rclone
-        if: steps.seg.outputs.ok == '1'
         run: |
           sudo install -d /usr/share/postgresql-common/pgdg
           sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
@@ -44,7 +49,6 @@ jobs:
           /usr/lib/postgresql/17/bin/pg_dump --version
 
       - name: Copiar, criptografar e enviar
-        if: steps.seg.outputs.ok == '1'
         run: |
           set -euo pipefail
           umask 077
